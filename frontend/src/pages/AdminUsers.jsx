@@ -150,7 +150,7 @@ function AdminUsers({ user }) {
                     </div>
                   </td>
                   <td>
-                    {(it.role === 'admin') ? <span className="badge badge-accent">Admin</span> : <span className="badge">User</span>}
+                    {(it.role === 'admin') ? <span className="badge badge-accent">Admin</span> : <span className="badge badge-accent">Operario</span>}
                   </td>
                   <td>
                     {it.is_active ? (
