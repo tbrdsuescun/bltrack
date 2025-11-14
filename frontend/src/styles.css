@@ -85,21 +85,30 @@ body {
 
 .label {
     font-size: 14px;
-    color: var(--text)
+    color: var(--text);
+    display: flex;
+    flex-direction: column;
+    gap: 8px
 }
 
 .input {
     width: 100%;
-    padding: 10px;
+    padding: 12px 14px;
     border: 1px solid #e5e7eb;
     border-radius: 8px;
     background: #fff
+}
+.grid-1 {
+    display: grid;
+    gap: 4%;
+    margin-bottom: 4%;
 }
 
 .grid-2 {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
-    gap: 12px
+    gap: 4%;
+    margin-bottom: 4%;
 }
 
 .grid-3 {
@@ -135,7 +144,6 @@ body {
 .btn-outline {
     background: #fff;
     color: var(--brand);
-    border: 1px solid var(--brand)
 }
 
 .btn-accent {
@@ -326,7 +334,7 @@ card .user {
 .table { width:100%; border-collapse: collapse; background:#fff; border:1px solid #e5e7eb; border-radius:12px; overflow:hidden; }
 .table thead th { text-align:left; font-size:13px; color:#6b7280; background:#f3f4f6; padding:10px; border-bottom:1px solid #e5e7eb; }
 .table tbody td { padding:10px; border-bottom:1px solid #eef2f7; font-size:14px; }
-.table-actions { text-align:right; }
+.table-actions { text-align:center !important; }
 
 /* --- Badges --- */
 .badge { display:inline-flex; align-items:center; gap:6px; border-radius:18px; padding:4px 10px; font-size:12px; }
@@ -348,9 +356,9 @@ card .user {
 
 /* --- Modal --- */
 .modal-backdrop { position:fixed; inset:0; background:rgba(10,14,23,0.45); display:flex; align-items:center; justify-content:center; z-index:50; }
-.modal { width:520px; max-width:90vw; background:#fff; border-radius:12px; box-shadow:0 20px 40px rgba(0,0,0,0.15); overflow:hidden; }
+.modal { width:50%; max-width:90vw; background:#fff; border-radius:12px; box-shadow:0 20px 40px rgba(0,0,0,0.15); overflow:hidden; }
 .modal-header { padding:14px; border-bottom:1px solid #eef2f7; font-weight:600; }
-.modal-body { padding:16px; }
+.modal-body { padding:20px; }
 .modal-footer { padding:12px 16px; border-top:1px solid #eef2f7; display:flex; justify-content:flex-end; gap:8px; }
 
 /* --- Dropzone --- */

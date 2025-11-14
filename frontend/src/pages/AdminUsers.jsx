@@ -12,6 +12,7 @@ function AdminUsers({ user }) {
   const [msg, setMsg] = useState(null)
   const [query, setQuery] = useState('')
   const [showModal, setShowModal] = useState(false)
+  const [showPass, setShowPass] = useState(false)
 
   // Usar API compartida sin interceptores locales
 
@@ -104,7 +105,7 @@ function AdminUsers({ user }) {
     }
   }
 
-  const filtered = items.filter(it => !query || (it.nombre||'').toLowerCase().includes(query.toLowerCase()) || (it.email||'').toLowerCase().includes(query.toLowerCase()))
+  const filtered = items.filter(it => !query || (it.nombre || '').toLowerCase().includes(query.toLowerCase()) || (it.email || '').toLowerCase().includes(query.toLowerCase()))
   const [page, setPage] = useState(1)
   const pageSize = 5
 
@@ -133,19 +134,18 @@ function AdminUsers({ user }) {
                 <th>Nombre completo</th>
                 <th>Rol</th>
                 <th>Estado</th>
-                <th>Fecha de registro</th>
                 <th className="table-actions">Acciones</th>
               </tr>
             </thead>
             <tbody>
-              {filtered.slice((page-1)*pageSize, (page-1)*pageSize + pageSize).map(it => (
+              {filtered.slice((page - 1) * pageSize, (page - 1) * pageSize + pageSize).map(it => (
                 <tr key={it.id}>
                   <td>
-                    <div style={{ display:'flex', alignItems:'center', gap:'8px' }}>
-                      <div style={{ width:'28px', height:'28px', borderRadius:'50%', background:'#e5e7eb', display:'flex', alignItems:'center', justifyContent:'center' }}>{(it.nombre||'?').slice(0,1).toUpperCase()}</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: '#e5e7eb', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{(it.nombre || '?').slice(0, 1).toUpperCase()}</div>
                       <div>
                         <div>{it.nombre || '(sin nombre)'}</div>
-                        <div className="muted" style={{ fontSize:'12px' }}>{it.email}</div>
+                        <div className="muted" style={{ fontSize: '12px' }}>{it.email}</div>
                       </div>
                     </div>
                   </td>
@@ -159,11 +159,10 @@ function AdminUsers({ user }) {
                       <span className="badge badge-red"><span className="badge-dot red" /> Inactivo</span>
                     )}
                   </td>
-                  <td>{it.created_at ? new Date(it.created_at).toLocaleDateString() : '-'}</td>
                   <td className="table-actions">
                     <button className="btn btn-outline btn-small" onClick={() => startEdit(it)} disabled={loading}>Actualizar</button>
                     {' '}
-                    <button className="btn btn-danger btn-small" onClick={() => onDelete(it.id)} disabled={loading}>Eliminar</button>
+                    <button className="btn btn-danger btn-small" onClick={() => onDelete(it.nombre)} disabled={loading}>Eliminar</button>
                   </td>
                 </tr>
               ))}
@@ -172,14 +171,66 @@ function AdminUsers({ user }) {
         </div>
 
         <div className="pagination">
-          <span className="muted">Mostrando {filtered.length ? ((page-1)*pageSize + 1) : 0}-{Math.min(page*pageSize, filtered.length)} de {filtered.length} resultados</span>
-          <button className="page-btn" disabled={page===1} onClick={() => setPage(p => Math.max(1, p-1))}>{'<'}</button>
+          <span className="muted">Mostrando {filtered.length ? ((page - 1) * pageSize + 1) : 0}-{Math.min(page * pageSize, filtered.length)} de {filtered.length} resultados</span>
+          <button className="page-btn" disabled={page === 1} onClick={() => setPage(p => Math.max(1, p - 1))}>{'<'}</button>
           {Array.from({ length: Math.max(1, Math.ceil(filtered.length / pageSize)) }, (_, i) => (
-            <button key={i} className={'page-btn' + (page===i+1 ? ' active' : '')} onClick={() => setPage(i+1)}>{i+1}</button>
+            <button key={i} className={'page-btn' + (page === i + 1 ? ' active' : '')} onClick={() => setPage(i + 1)}>{i + 1}</button>
           ))}
-          <button className="page-btn" disabled={page>=Math.max(1, Math.ceil(filtered.length / pageSize))} onClick={() => setPage(p => Math.min(Math.max(1, Math.ceil(filtered.length / pageSize)), p+1))}>{'>'}</button>
+          <button className="page-btn" disabled={page >= Math.max(1, Math.ceil(filtered.length / pageSize))} onClick={() => setPage(p => Math.min(Math.max(1, Math.ceil(filtered.length / pageSize)), p + 1))}>{'>'}</button>
         </div>
       </div>
+
+      {showModal && (
+        <div className="modal-backdrop" onClick={() => { setShowModal(false); setEditing(null) }}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span>Gestionar Usuario</span>
+              <button type="button" className="btn btn-outline btn-small" style={{ fontSize: '1.5rem' }} onClick={() => { setShowModal(false); setEditing(null) }}>×</button>
+            </div>
+            <form onSubmit={editing ? onUpdate : onCreate}>
+              <div className="modal-body">
+                <div className="grid-2">
+                  <label className="label">
+                    Nombre
+                    <input className="input" type="text" placeholder="Ingrese el nombre" value={form.nombre} onChange={(e) => onChangeField('nombre', e.target.value)} />
+                  </label>
+                  <label className="label">
+                    Email
+                    <input className="input" type="email" placeholder="usuario@ejemplo.com" value={form.email} onChange={(e) => onChangeField('email', e.target.value)} />
+                  </label>
+                </div>
+                <div className="grid-1">
+                  <label className="label" style={{ position: 'relative' }}>
+                    Contraseña
+                    <input className="input" type={showPass ? 'text' : 'password'} placeholder="Dejar en blanco para no cambiar" value={form.password} onChange={(e) => onChangeField('password', e.target.value)} />
+                    <button type="button" className="btn btn-outline btn-small" style={{ position: 'absolute', right: 8, top: 34 }} onClick={() => setShowPass(s => !s)}>{showPass ? 'Ocultar' : 'Ver'}</button>
+                  </label>
+                </div>
+                <div className="grid-2">
+                  <label className="label">
+                    Rol
+                    <select className="input" value={form.role} onChange={(e) => onChangeField('role', e.target.value)}>
+                      <option value="operario">Operario</option>
+                      <option value="admin">Admin</option>
+                    </select>
+                  </label>
+                  <div className="label">
+                    Estado
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '8px' }}>
+                      <span className={form.is_active ? 'muted' : 'badge badge-red'} style={{ cursor: 'pointer' }} onClick={() => onChangeField('is_active', false)}>Inactivo</span>
+                      <span className={form.is_active ? 'badge badge-accent' : 'muted'} style={{ cursor: 'pointer' }} onClick={() => onChangeField('is_active', true)}>Activo</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn" onClick={() => { setShowModal(false); setEditing(null) }}>Cancelar</button>
+                <button type="submit" className="btn btn-primary" disabled={loading}>Guardar Cambios</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </>
   )
 }
