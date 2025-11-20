@@ -92,41 +92,47 @@ function BLList({ user }) {
           </div>
         )}
 
-        <div className="table-responsive" style={{ marginTop: '12px' }}>
-          <table className="table">
-            <thead>
-              <tr>
-                <th>OL</th>
-                <th>BL</th>
-                <th>Fotografías</th>
-                <th>Estado</th>
-                <th className="table-actions">Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {visible.map(item => (
-                <tr key={item.bl_id}>
-                  <td>{item.ol_id || item.bl_id}</td>
-                  <td>{item.bl_id}</td>
-                  <td>{(item.photos_count||0)} fotos</td>
-                  <td>{statusBadge(item.send_status || 'pending')}</td>
-                  <td className="table-actions">
-                    <button className="btn btn-outline btn-small" onClick={() => navigate('/bl/' + item.bl_id)}>Ver detalle</button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        {filtered.length === 0 ? (
+          <p className="muted" style={{ marginTop: '12px' }}>No hay registros para mostrar.</p>
+        ) : (
+          <>
+            <div className="table-responsive" style={{ marginTop: '12px' }}>
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>OL</th>
+                    <th>BL</th>
+                    <th>Fotografías</th>
+                    <th>Estado</th>
+                    <th className="table-actions">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {visible.map(item => (
+                    <tr key={item.bl_id}>
+                      <td>{item.ol_id || item.bl_id}</td>
+                      <td>{item.bl_id}</td>
+                      <td>{(item.photos_count||0)} fotos</td>
+                      <td>{statusBadge(item.send_status || 'pending')}</td>
+                      <td className="table-actions">
+                        <button className="btn btn-outline btn-small" onClick={() => navigate('/bl/' + item.bl_id)}>Ver detalle</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
 
-        <div className="pagination">
-          <span className="muted">Mostrando {filtered.length ? (start+1) : 0}-{Math.min(end, filtered.length)} de {filtered.length} resultados</span>
-          <button className="page-btn" disabled={page===1} onClick={() => setPage(p => Math.max(1, p-1))}>{'<'}</button>
-          {Array.from({ length: pageCount }, (_, i) => (
-            <button key={i} className={'page-btn' + (page===i+1 ? ' active' : '')} onClick={() => setPage(i+1)}>{i+1}</button>
-          ))}
-          <button className="page-btn" disabled={page===pageCount} onClick={() => setPage(p => Math.min(pageCount, p+1))}>{'>'}</button>
-        </div>
+            <div className="pagination">
+              <span className="muted">Mostrando {filtered.length ? (start+1) : 0}-{Math.min(end, filtered.length)} de {filtered.length} resultados</span>
+              <button className="page-btn" disabled={page===1} onClick={() => setPage(p => Math.max(1, p-1))}>{'<'}</button>
+              {Array.from({ length: pageCount }, (_, i) => (
+                <button key={i} className={'page-btn' + (page===i+1 ? ' active' : '')} onClick={() => setPage(i+1)}>{i+1}</button>
+              ))}
+              <button className="page-btn" disabled={page===pageCount} onClick={() => setPage(p => Math.min(pageCount, p+1))}>{'>'}</button>
+            </div>
+          </>
+        )}
       </div>
     </>
   )

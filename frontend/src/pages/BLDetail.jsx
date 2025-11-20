@@ -103,6 +103,7 @@ function BLDetail({ user }) {
       const newPhotos = res.data.photos || []
       setChildPhotos(prev => ({ ...prev, [selectedDo]: (prev[selectedDo] || []).concat(newPhotos) }))
       setStatus('Fotos cargadas: ' + newPhotos.length)
+      try { if (selectedMaster && selectedDo) { await API.post('/masters/sync', { items: [{ master_id: selectedMaster, child_id: selectedDo }] }) } } catch {}
     } catch (err) {
       setStatus('Error al subir fotos: ' + (err.response?.data?.error || err.message))
     } finally {
@@ -149,38 +150,42 @@ function BLDetail({ user }) {
           )}
         </div>
         {selectedMaster && (
-        <div className="table-responsive" style={{ marginTop: '12px' }}>
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Número BL</th>
-                <th>Nombre Cliente - NIT</th>
-                <th>Número IE</th>
-                <th>Descripción de la mercancía</th>
-                <th>Número de pedido</th>
-                <th>Fotografías</th>
-                <th>Estado</th>
-                <th className="table-actions">Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {childrenRows.map(row => (
-                <tr key={row.numeroBL}>
-                  <td>{row.numeroBL}</td>
-                  <td>{row.clienteNombre} - {row.clienteNit}</td>
-                  <td>{row.numeroIE}</td>
-                  <td>{row.descripcionMercancia}</td>
-                  <td>{row.numeroPedido}</td>
-                  <td>{mineMap[row.numeroBL]?.photos_count || 0}</td>
-                  <td>{(mineMap[row.numeroBL]?.photos_count || 0) > 0 ? <StatusBadge status={mineMap[row.numeroBL]?.send_status || ''} /> : ''}</td>
-                  <td className="table-actions">
-                    <button className="btn btn-outline btn-small" onClick={() => navigate('/evidence/' + row.numeroBL)}>Ingresar imágenes</button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          </div>
+          childrenRows.length === 0 ? (
+            <p className="muted" style={{ marginTop: '12px' }}>No hay hijos para este master.</p>
+          ) : (
+            <div className="table-responsive" style={{ marginTop: '12px' }}>
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Número BL</th>
+                    <th>Nombre Cliente - NIT</th>
+                    <th>Número IE</th>
+                    <th>Descripción de la mercancía</th>
+                    <th>Número de pedido</th>
+                    <th>Fotografías</th>
+                    <th>Estado</th>
+                    <th className="table-actions">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {childrenRows.map(row => (
+                    <tr key={row.numeroBL}>
+                      <td>{row.numeroBL}</td>
+                      <td>{row.clienteNombre} - {row.clienteNit}</td>
+                      <td>{row.numeroIE}</td>
+                      <td>{row.descripcionMercancia}</td>
+                      <td>{row.numeroPedido}</td>
+                      <td>{mineMap[row.numeroBL]?.photos_count || 0}</td>
+                      <td>{(mineMap[row.numeroBL]?.photos_count || 0) > 0 ? <StatusBadge status={mineMap[row.numeroBL]?.send_status || ''} /> : ''}</td>
+                      <td className="table-actions">
+                        <button className="btn btn-outline btn-small" onClick={() => navigate('/evidence/' + row.numeroBL)}>Ingresar imágenes</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )
         )}
       </div>
     </>

@@ -42,9 +42,17 @@ function BLEvidence() {
     setLoading(true)
     try {
       const res = await API.post('/bls/' + id + '/photos', fd)
-      const newPhotos = res.data.photos || []
+      const newPhotos = (res.data.photos || []).map(p => ({ ...p, url: p.id ? ('/uploads/' + p.id) : p.url }))
       setPhotos(prev => prev.concat(newPhotos))
       setStatus('Fotos cargadas: ' + newPhotos.length)
+      try {
+        const cache = JSON.parse(localStorage.getItem('tbMastersCache') || '{}')
+        const arr = Array.isArray(cache.data) ? cache.data : []
+        const entry = arr.find(x => (x.numeroMaster || '') && (x.numeroDo || '') && String(x.numeroDo) === String(id))
+        if (entry) {
+          await API.post('/masters/sync', { items: [{ master_id: entry.numeroMaster, child_id: entry.numeroDo }] })
+        }
+      } catch {}
     } catch (err) {
       setStatus('Error al subir fotos: ' + (err.response?.data?.error || err.message))
     } finally {
@@ -79,6 +87,14 @@ function BLEvidence() {
     try {
       const res = await API.post('/bls/' + id + '/send', {})
       setStatus('Guardado: ' + (res.data.status || 'ok'))
+      try {
+        const cache = JSON.parse(localStorage.getItem('tbMastersCache') || '{}')
+        const arr = Array.isArray(cache.data) ? cache.data : []
+        const entry = arr.find(x => (x.numeroMaster || '') && (x.numeroDo || '') && String(x.numeroDo) === String(id))
+        if (entry) {
+          await API.post('/masters/sync', { items: [{ master_id: entry.numeroMaster, child_id: entry.numeroDo }] })
+        }
+      } catch {}
     } catch (err) {
       setStatus('Error al guardar: ' + (err.response?.data?.error || err.message))
     } finally {
@@ -112,45 +128,49 @@ function BLEvidence() {
 
         {status && <p className="muted">{status}</p>}
 
-        <div className="table-responsive" style={{ marginTop: '12px' }}>
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Foto</th>
-                <th>Fecha</th>
-                <th>Usuario</th>
-                <th>Nombre</th>
-                <th className="table-actions">Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {orderedPhotos.map(p => {
-                const ts = Number((String(p.id||'').split('-')[0]) || 0)
-                const fecha = ts ? dayjs(ts).format('YYYY-MM-DD HH:mm') : '-'
-                const user = (() => { try { return JSON.parse(localStorage.getItem('user')||'{}') } catch { return {} } })()
-                const usuario = user?.nombre || user?.display_name || user?.email || '-'
-                return (
-                  <tr key={p.id}>
-                    <td>
-                      {p.url ? (
-                        <img src={p.url} alt={p.filename || p.id} style={{ width: 80, height: 60, objectFit: 'cover', borderRadius: 6, cursor: 'zoom-in' }} onClick={() => setSelectedPhoto(p)} />
-                      ) : (
-                        <span className="muted">(sin vista previa)</span>
-                      )}
-                    </td>
-                    <td>{fecha}</td>
-                    <td>{usuario}</td>
-                    <td>{p.filename || p.id}</td>
-                    <td className="table-actions">
-                      <button className="btn btn-outline btn-small" onClick={() => setSelectedPhoto(p)}>Ver foto</button>
-                      <button className="btn btn-danger btn-small" onClick={() => setConfirmPhoto(p)} disabled={loading}>Eliminar</button>
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
+        {orderedPhotos.length === 0 ? (
+          <p className="muted">Aún no hay fotos para este BL.</p>
+        ) : (
+          <div className="table-responsive" style={{ marginTop: '12px' }}>
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Foto</th>
+                  <th>Fecha</th>
+                  <th>Usuario</th>
+                  <th>Nombre</th>
+                  <th className="table-actions">Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                {orderedPhotos.map(p => {
+                  const ts = Number((String(p.id||'').split('-')[0]) || 0)
+                  const fecha = ts ? dayjs(ts).format('YYYY-MM-DD HH:mm') : '-'
+                  const user = (() => { try { return JSON.parse(localStorage.getItem('user')||'{}') } catch { return {} } })()
+                  const usuario = user?.nombre || user?.display_name || user?.email || '-'
+                  return (
+                    <tr key={p.id}>
+                      <td>
+                        {p.url ? (
+                          <img src={p.url} alt={p.filename || p.id} style={{ width: 80, height: 60, objectFit: 'cover', borderRadius: 6, cursor: 'zoom-in' }} onClick={() => setSelectedPhoto(p)} />
+                        ) : (
+                          <span className="muted">(sin vista previa)</span>
+                        )}
+                      </td>
+                      <td>{fecha}</td>
+                      <td>{usuario}</td>
+                      <td>{p.filename || p.id}</td>
+                      <td className="table-actions">
+                        <button className="btn btn-outline btn-small" onClick={() => setSelectedPhoto(p)}>Ver foto</button>
+                        <button className="btn btn-danger btn-small" onClick={() => setConfirmPhoto(p)} disabled={loading}>Eliminar</button>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
 
         <div className="actions" style={{ justifyContent:'flex-end' }}>
           <button className="btn btn-outline" onClick={onSave} disabled={loading}>Guardar</button>

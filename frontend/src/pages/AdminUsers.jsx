@@ -130,52 +130,56 @@ function AdminUsers({ user }) {
           <SearchBar placeholder="Buscar usuario por nombre o correo" value={query} onChange={e => setQuery(e.target.value)} />
         </div>
 
-        <div className="table-responsive" style={{ marginTop: '10px' }}>
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Nombre completo</th>
-                <th>Rol</th>
-                <th>Estado</th>
-                <th>Puerto</th>
-                <th className="table-actions">Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.slice((page - 1) * pageSize, (page - 1) * pageSize + pageSize).map(it => (
-                <tr key={it.id}>
-                  <td>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: '#e5e7eb', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{(it.nombre || '?').slice(0, 1).toUpperCase()}</div>
-                      <div>
-                        <div>{it.nombre || '(sin nombre)'}</div>
-                        <div className="muted" style={{ fontSize: '12px' }}>{it.email}</div>
-                      </div>
-                    </div>
-                  </td>
-                  <td>
-                    {(it.role === 'admin') ? <span className="badge badge-accent">Admin</span> : <span className="badge badge-accent">Operario</span>}
-                  </td>
-                  <td>
-                    {it.is_active ? (
-                      <span className="badge badge-green"><span className="badge-dot green" /> Activo</span>
-                    ) : (
-                      <span className="badge badge-red"><span className="badge-dot red" /> Inactivo</span>
-                    )}
-                  </td>
-                  <td>
-                    {it.puerto || '-'}
-                  </td>
-                  <td className="table-actions">
-                    <button className="btn btn-outline btn-small" onClick={() => startEdit(it)} disabled={loading}>Actualizar</button>
-                    {' '}
-                    <button className="btn btn-danger btn-small" onClick={() => setConfirmUser(it)} disabled={loading}>Eliminar</button>
-                  </td>
+        {filtered.length === 0 ? (
+          <p className="muted">No hay usuarios para mostrar.</p>
+        ) : (
+          <div className="table-responsive" style={{ marginTop: '10px' }}>
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Nombre completo</th>
+                  <th>Rol</th>
+                  <th>Estado</th>
+                  <th>Puerto</th>
+                  <th className="table-actions">Acciones</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {filtered.slice((page - 1) * pageSize, (page - 1) * pageSize + pageSize).map(it => (
+                  <tr key={it.id}>
+                    <td>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: '#e5e7eb', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{(it.nombre || '?').slice(0, 1).toUpperCase()}</div>
+                        <div>
+                          <div>{it.nombre || '(sin nombre)'}</div>
+                          <div className="muted" style={{ fontSize: '12px' }}>{it.email}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td>
+                      {(it.role === 'admin') ? <span className="badge badge-accent">Admin</span> : <span className="badge badge-accent">Operario</span>}
+                    </td>
+                    <td>
+                      {it.is_active ? (
+                        <span className="badge badge-green"><span className="badge-dot green" /> Activo</span>
+                      ) : (
+                        <span className="badge badge-red"><span className="badge-dot red" /> Inactivo</span>
+                      )}
+                    </td>
+                    <td>
+                      {it.puerto || '-'}
+                    </td>
+                    <td className="table-actions">
+                      <button className="btn btn-outline btn-small" onClick={() => startEdit(it)} disabled={loading}>Actualizar</button>
+                      {' '}
+                      <button className="btn btn-danger btn-small" onClick={() => setConfirmUser(it)} disabled={loading}>Eliminar</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
 
         <div className="pagination">
           <span className="muted">Mostrando {filtered.length ? ((page - 1) * pageSize + 1) : 0}-{Math.min(page * pageSize, filtered.length)} de {filtered.length} resultados</span>

@@ -333,7 +333,7 @@ card .user {
 
 /* --- Tabla --- */
 .table-responsive { overflow-x:auto; }
-.table { width:100%; border-collapse: collapse; background:#fff; border:1px solid #e5e7eb; border-radius:12px; overflow:hidden; }
+.table { width:100%; border-collapse: collapse; background:#fff; border:none; border-radius:12px; overflow:hidden; }
 .table thead th { text-align:left; font-size:13px; color:#6b7280; background:#f3f4f6; padding:10px; border-bottom:1px solid #e5e7eb; }
 .table tbody td { padding:10px; border-bottom:1px solid #eef2f7; font-size:14px; }
 .table-actions { text-align:center !important; }

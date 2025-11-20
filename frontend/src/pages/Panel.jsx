@@ -156,39 +156,45 @@ function Panel({ user }) {
 
         {msg && <p className="muted">{msg}</p>}
 
-        <div className="table-responsive" style={{ marginTop: '8px' }}>
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Master</th>
-                <th>Usuario</th>
-                <th>Hijos</th>
-                <th className="table-actions">Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {mastersList.slice((page-1)*pageSize, (page-1)*pageSize + pageSize).map((row, idx) => (
-                <tr key={idx}>
-                  <td>{row.master}</td>
-                  <td>{(() => { try { const u = JSON.parse(localStorage.getItem('user')||'{}'); return u.nombre || u.display_name || u.email || '-' } catch { return '-' } })()}</td>
-                  <td>{row.childrenCount}</td>
-                  <td className="table-actions">
-                    <button className="btn btn-outline btn-small" onClick={() => navigate('/bl/' + row.master)}>Ver detalle</button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        {mastersList.length === 0 ? (
+          <p className="muted">No hay registros para mostrar.</p>
+        ) : (
+          <>
+            <div className="table-responsive" style={{ marginTop: '8px' }}>
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Master</th>
+                    <th>Usuario</th>
+                    <th>Hijos</th>
+                    <th className="table-actions">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {mastersList.slice((page-1)*pageSize, (page-1)*pageSize + pageSize).map((row, idx) => (
+                    <tr key={idx}>
+                      <td>{row.master}</td>
+                      <td>{(() => { try { const u = JSON.parse(localStorage.getItem('user')||'{}'); return u.nombre || u.display_name || u.email || '-' } catch { return '-' } })()}</td>
+                      <td>{row.childrenCount}</td>
+                      <td className="table-actions">
+                        <button className="btn btn-outline btn-small" onClick={() => navigate('/bl/' + row.master)}>Ver detalle</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
 
-        <div className="pagination">
-          <span className="muted">Mostrando {mastersList.length ? ((page-1)*pageSize + 1) : 0}-{Math.min(page*pageSize, mastersList.length)} de {mastersList.length} resultados</span>
-          <button className="page-btn" disabled={page===1} onClick={() => setPage(p => Math.max(1, p-1))}>{'<'}</button>
-          {Array.from({ length: Math.max(1, Math.ceil(mastersList.length / pageSize)) }, (_, i) => (
-            <button key={i} className={'page-btn' + (page===i+1 ? ' active' : '')} onClick={() => setPage(i+1)}>{i+1}</button>
-          ))}
-          <button className="page-btn" disabled={page>=Math.max(1, Math.ceil(mastersList.length / pageSize))} onClick={() => setPage(p => Math.min(Math.max(1, Math.ceil(mastersList.length / pageSize)), p+1))}>{'>'}</button>
-        </div>
+            <div className="pagination">
+              <span className="muted">Mostrando {mastersList.length ? ((page-1)*pageSize + 1) : 0}-{Math.min(page*pageSize, mastersList.length)} de {mastersList.length} resultados</span>
+              <button className="page-btn" disabled={page===1} onClick={() => setPage(p => Math.max(1, p-1))}>{'<'}</button>
+              {Array.from({ length: Math.max(1, Math.ceil(mastersList.length / pageSize)) }, (_, i) => (
+                <button key={i} className={'page-btn' + (page===i+1 ? ' active' : '')} onClick={() => setPage(i+1)}>{i+1}</button>
+              ))}
+              <button className="page-btn" disabled={page>=Math.max(1, Math.ceil(mastersList.length / pageSize))} onClick={() => setPage(p => Math.min(Math.max(1, Math.ceil(mastersList.length / pageSize)), p+1))}>{'>'}</button>
+            </div>
+          </>
+        )}
       </div>
     </>
   )
