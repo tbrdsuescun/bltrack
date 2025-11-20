@@ -44,8 +44,11 @@ function BLList({ user }) {
 
   const filtered = useMemo(() => {
     return mine.filter(it => {
-      const matchesQuery = !query || (it.bl_id||'').toLowerCase().includes(query.toLowerCase()) || (''+(it.ol_id||''))
-        .toLowerCase().includes(query.toLowerCase())
+      const q = String(query || '').toLowerCase()
+      const matchesQuery = !q || (String(it.bl_id||'').toLowerCase().includes(q))
+        || (String(it.cliente_nit||'').toLowerCase().includes(q))
+        || (String(it.ie_number||'').toLowerCase().includes(q))
+        || (String(it.pedido_number||'').toLowerCase().includes(q))
       const matchesStatus = !status || (it.send_status||'pending') === status
       return matchesQuery && matchesStatus
     })
@@ -73,7 +76,7 @@ function BLList({ user }) {
 
       <div className="card">
         <div className="searchbar">
-          <SearchBar placeholder="Buscar por OL o BL..." value={query} onChange={e => setQuery(e.target.value)} />
+          <SearchBar placeholder="Buscar por BL, cliente, IE o pedido..." value={query} onChange={e => setQuery(e.target.value)} />
         </div>
 
         <div className="tabs">
@@ -100,9 +103,11 @@ function BLList({ user }) {
               <table className="table">
                 <thead>
                   <tr>
-                    <th>OL</th>
                     <th>BL</th>
-                    <th>Fotografías</th>
+                    <th>Cliente (Nit)</th>
+                    <th>IE</th>
+                    <th>Descripción</th>
+                    <th>Pedido</th>
                     <th>Estado</th>
                     <th className="table-actions">Acciones</th>
                   </tr>
@@ -110,12 +115,14 @@ function BLList({ user }) {
                 <tbody>
                   {visible.map(item => (
                     <tr key={item.bl_id}>
-                      <td>{item.ol_id || item.bl_id}</td>
                       <td>{item.bl_id}</td>
-                      <td>{(item.photos_count||0)} fotos</td>
+                      <td>{item.cliente_nit || '-'}</td>
+                      <td>{item.ie_number || '-'}</td>
+                      <td>{item.descripcion || '-'}</td>
+                      <td>{item.pedido_number || '-'}</td>
                       <td>{statusBadge(item.send_status || 'pending')}</td>
                       <td className="table-actions">
-                        <button className="btn btn-outline btn-small" onClick={() => navigate('/bl/' + item.bl_id)}>Ver detalle</button>
+                        <button className="btn btn-outline btn-small" onClick={() => navigate('/evidence/' + item.bl_id)}>Ver detalle</button>
                       </td>
                     </tr>
                   ))}

@@ -3,7 +3,8 @@ const { authRequired } = require('../middlewares/auth');
 const { getWithRetry } = require('../services/externalClient');
 const { EXTERNAL_RETRY_COUNT, EXTERNAL_ENDPOINT } = require('../config');
 const { RegistroFotografico } = require('../db/sequelize');
-const { Op } = require('sequelize');
+const { Op, QueryTypes } = require('sequelize');
+const { sequelize } = require('../db/sequelize');
 
 const router = express.Router();
 
@@ -23,12 +24,37 @@ router.get('/mine', authRequired, async (req, res) => {
   try {
     const userId = req.user.id;
     const rows = await RegistroFotografico.findAll({ where: { user_id: userId }, order: [['updated_at', 'DESC']] });
-    const items = rows.map(r => ({
-      bl_id: r.bl_id,
-      photos_count: Array.isArray(r.photos) ? r.photos.length : 0,
-      send_status: r.send_status,
-      sent_at: r.sent_at,
-    }));
+    const blIds = [...new Set(rows.map(r => r.bl_id))];
+    let detailsMap = {};
+    if (blIds.length) {
+      try {
+        const placeholders = blIds.map(() => '?').join(',');
+        const query = `SELECT * FROM master_children WHERE child_id IN (${placeholders})`;
+        const detailRows = await sequelize.query(query, { replacements: blIds, type: QueryTypes.SELECT });
+        detailRows.forEach(dr => { detailsMap[String(dr.child_id)] = dr; });
+      } catch (e) {
+        detailsMap = {};
+      }
+    }
+    const items = rows.map(r => {
+      const d = detailsMap[String(r.bl_id)] || {};
+      const nombreCliente = d.cliente_nombre || d.nombre_cliente || d.client_name || d.nombre || '';
+      const nitCliente = d.cliente_nit || d.nit || d.client_nit || '';
+      const clienteNit = [nombreCliente, nitCliente].filter(Boolean).join(' - ');
+      const ieNumero = d.numero_ie || d.ie || d.ie_number || '';
+      const descripcion = d.descripcion_mercancia || d.descripcion || d.descripcionMercancia || '';
+      const pedidoNumero = d.numero_pedido || d.pedido || d.order_number || d.orden || '';
+      return {
+        bl_id: r.bl_id,
+        photos_count: Array.isArray(r.photos) ? r.photos.length : 0,
+        send_status: r.send_status,
+        sent_at: r.sent_at,
+        cliente_nit: clienteNit || null,
+        ie_number: ieNumero || null,
+        descripcion: descripcion || null,
+        pedido_number: pedidoNumero || null,
+      };
+    });
     res.json({ items });
   } catch (err) {
     res.status(500).json({ ok: false, error: 'Fallo al listar tus BLs', detail: err.message });
