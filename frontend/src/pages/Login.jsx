@@ -7,6 +7,7 @@ function Login({ setUser }) {
   const navigate = useNavigate()
   const { register, handleSubmit, formState: { isSubmitting } } = useForm()
   const imageUrl = '/src/assets/banner-login.png'
+  const [error, setError] = useState(null)
 
   const onSubmit = async (data) => {
     try {
@@ -17,7 +18,7 @@ function Login({ setUser }) {
       navigate('/panel')
     } catch (e) {
       const msg = e.response?.data?.error || e.message || 'Error desconocido'
-      alert('Login falló: ' + msg)
+      setError('Login falló: ' + msg)
     }
   }
 
@@ -53,6 +54,7 @@ function Login({ setUser }) {
             <input className="input" type="password" placeholder="password" {...register('password', { required: true })} />
           </label>
           <button className="btn btn-primary" disabled={isSubmitting}>Entrar</button>
+          {error && <div className="error">{error}</div>}
         </form>
       </div>
     </div>

@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, useMemo } from 'react'
 import { useParams } from 'react-router-dom'
+import dayjs from 'dayjs'
 import API from '../lib/api.js'
 import SearchBar from '../components/SearchBar.jsx'
 
@@ -9,6 +10,7 @@ function BLEvidence() {
   const [loading, setLoading] = useState(false)
   const [status, setStatus] = useState(null)
   const fileInputRef = useRef()
+  const [selectedPhoto, setSelectedPhoto] = useState(null)
 
   useEffect(() => {
     let mounted = true
@@ -20,11 +22,21 @@ function BLEvidence() {
     return () => { mounted = false }
   }, [id])
 
+  const orderedPhotos = useMemo(() => {
+    const parseTs = (p) => {
+      const raw = String(p.id || '')
+      const n = Number((raw.split('-')[0]) || 0)
+      return Number.isFinite(n) ? n : 0
+    }
+    return (photos || [])
+      .filter(p => p && p.id)
+      .slice()
+      .sort((a, b) => parseTs(a) - parseTs(b))
+  }, [photos])
+
   async function onUpload(e) {
     const files = Array.from(e.target.files || [])
     if (!files.length || !id) return
-    const localPreviews = files.map((f, i) => ({ id: 'local-' + Date.now() + '-' + i, filename: f.name, url: URL.createObjectURL(f) }))
-    setPhotos(prev => prev.concat(localPreviews))
     const fd = new FormData()
     files.forEach(f => fd.append('photos', f))
     setLoading(true)
@@ -40,14 +52,35 @@ function BLEvidence() {
     }
   }
 
-  async function onSend() {
+  const [confirmPhoto, setConfirmPhoto] = useState(null)
+  async function onDeleteConfirmed() {
+    const photoId = confirmPhoto?.id
+    if (!photoId) { setConfirmPhoto(null); return }
+    setLoading(true)
+    try {
+      const res = await API.delete('/photos/' + photoId)
+      if (res.data?.deleted) {
+        setPhotos(prev => prev.filter(p => p.id !== photoId))
+        setStatus('Foto eliminada')
+      } else {
+        setStatus('No se pudo eliminar la foto')
+      }
+    } catch (err) {
+      setStatus('Error al eliminar: ' + (err.response?.data?.error || err.message))
+    } finally {
+      setLoading(false)
+      setConfirmPhoto(null)
+    }
+  }
+
+  async function onSave() {
     if (!id) return
     setLoading(true)
     try {
       const res = await API.post('/bls/' + id + '/send', {})
-      setStatus('Enviado: ' + (res.data.status || 'ok'))
+      setStatus('Guardado: ' + (res.data.status || 'ok'))
     } catch (err) {
-      setStatus('Error al enviar: ' + (err.response?.data?.error || err.message))
+      setStatus('Error al guardar: ' + (err.response?.data?.error || err.message))
     } finally {
       setLoading(false)
     }
@@ -79,19 +112,95 @@ function BLEvidence() {
 
         {status && <p className="muted">{status}</p>}
 
-        <div className="preview-grid">
-          {photos.map(p => (
-            <div key={p.id} className="preview-card">
-              {p.url ? <img src={p.url} alt={p.filename || p.id} /> : <div style={{ padding:'12px' }}>{p.filename || p.id}</div>}
-            </div>
-          ))}
+        <div className="table-responsive" style={{ marginTop: '12px' }}>
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Foto</th>
+                <th>Fecha</th>
+                <th>Usuario</th>
+                <th>Nombre</th>
+                <th className="table-actions">Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              {orderedPhotos.map(p => {
+                const ts = Number((String(p.id||'').split('-')[0]) || 0)
+                const fecha = ts ? dayjs(ts).format('YYYY-MM-DD HH:mm') : '-'
+                const user = (() => { try { return JSON.parse(localStorage.getItem('user')||'{}') } catch { return {} } })()
+                const usuario = user?.nombre || user?.display_name || user?.email || '-'
+                return (
+                  <tr key={p.id}>
+                    <td>
+                      {p.url ? (
+                        <img src={p.url} alt={p.filename || p.id} style={{ width: 80, height: 60, objectFit: 'cover', borderRadius: 6, cursor: 'zoom-in' }} onClick={() => setSelectedPhoto(p)} />
+                      ) : (
+                        <span className="muted">(sin vista previa)</span>
+                      )}
+                    </td>
+                    <td>{fecha}</td>
+                    <td>{usuario}</td>
+                    <td>{p.filename || p.id}</td>
+                    <td className="table-actions">
+                      <button className="btn btn-outline btn-small" onClick={() => setSelectedPhoto(p)}>Ver foto</button>
+                      <button className="btn btn-danger btn-small" onClick={() => setConfirmPhoto(p)} disabled={loading}>Eliminar</button>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
         </div>
 
         <div className="actions" style={{ justifyContent:'flex-end' }}>
-          <button className="btn btn-outline" disabled={loading}>Guardar</button>
-          <button className="btn btn-primary" onClick={onSend} disabled={loading}>Enviar</button>
+          <button className="btn btn-outline" onClick={onSave} disabled={loading}>Guardar</button>
         </div>
       </div>
+
+      {selectedPhoto && (
+        <div className="modal-backdrop" onClick={() => setSelectedPhoto(null)}>
+          <div className="modal" style={{ width: '70%' }} onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span>Vista de foto</span>
+              <button type="button" className="btn btn-outline btn-small" style={{ fontSize: '1.5rem' }} onClick={() => setSelectedPhoto(null)}>×</button>
+            </div>
+            <div className="modal-body">
+              {selectedPhoto?.url ? (
+                <img src={selectedPhoto.url} alt={selectedPhoto.filename || selectedPhoto.id} style={{ width: '100%', maxHeight: '70vh', objectFit: 'contain' }} />
+              ) : (
+                <div className="muted">No disponible</div>
+              )}
+            </div>
+            <div className="modal-footer">
+              <button className="btn" onClick={() => setSelectedPhoto(null)}>Cerrar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {confirmPhoto && (
+        <div className="modal-backdrop" onClick={() => setConfirmPhoto(null)}>
+          <div className="modal" style={{ width: '420px' }} onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span>Confirmar eliminación</span>
+              <button type="button" className="btn btn-outline btn-small" style={{ fontSize: '1.5rem' }} onClick={() => setConfirmPhoto(null)}>×</button>
+            </div>
+            <div className="modal-body">
+              <div style={{ display:'flex', alignItems:'center', gap:12 }}>
+                {confirmPhoto?.url ? <img src={confirmPhoto.url} alt={confirmPhoto.filename || confirmPhoto.id} style={{ width: 80, height: 60, objectFit: 'cover', borderRadius: 6 }} /> : null}
+                <div>
+                  <div>¿Eliminar la foto <strong>{confirmPhoto?.filename || confirmPhoto?.id}</strong>?</div>
+                  <div className="muted" style={{ fontSize:12 }}>Esta acción no se puede deshacer.</div>
+                </div>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn" onClick={() => setConfirmPhoto(null)}>Cancelar</button>
+              <button className="btn btn-danger" onClick={onDeleteConfirmed} disabled={loading}>Eliminar</button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   )
 }

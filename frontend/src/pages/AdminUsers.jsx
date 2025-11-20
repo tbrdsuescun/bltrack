@@ -56,7 +56,6 @@ function AdminUsers({ user }) {
   }
 
   async function onUpdate(e) {
-    alert("editing: " + editing)
     e.preventDefault()
     if (!editing) return
     setLoading(true)
@@ -78,18 +77,20 @@ function AdminUsers({ user }) {
     }
   }
 
-  async function onDelete(id) {
-    if (!confirm('¿Eliminar usuario ' + id + '?')) return
+  const [confirmUser, setConfirmUser] = useState(null)
+  async function onDeleteConfirmed() {
+    if (!confirmUser) { setConfirmUser(null); return }
     setLoading(true)
     setMsg(null)
     try {
-      await API.delete('/users/' + id)
+      await API.delete('/users/' + confirmUser.id)
       setMsg('Usuario eliminado')
       await load()
     } catch (err) {
       setMsg('Error al eliminar: ' + (err.response?.data?.error || err.message))
     } finally {
       setLoading(false)
+      setConfirmUser(null)
     }
   }
 
@@ -168,7 +169,7 @@ function AdminUsers({ user }) {
                   <td className="table-actions">
                     <button className="btn btn-outline btn-small" onClick={() => startEdit(it)} disabled={loading}>Actualizar</button>
                     {' '}
-                    <button className="btn btn-danger btn-small" onClick={() => onDelete(it.nombre)} disabled={loading}>Eliminar</button>
+                    <button className="btn btn-danger btn-small" onClick={() => setConfirmUser(it)} disabled={loading}>Eliminar</button>
                   </td>
                 </tr>
               ))}
@@ -243,6 +244,29 @@ function AdminUsers({ user }) {
                 <button type="submit" className="btn btn-primary" disabled={loading}>Guardar Cambios</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {confirmUser && (
+        <div className="modal-backdrop" onClick={() => setConfirmUser(null)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span>Confirmar eliminación</span>
+              <button type="button" className="btn btn-outline btn-small" style={{ fontSize: '1.5rem' }} onClick={() => setConfirmUser(null)}>×</button>
+            </div>
+            <div className="modal-body">
+              <div style={{ display:'flex', alignItems:'center', gap:12 }}>
+                <div>
+                  <div>¿Eliminar a <strong>{confirmUser?.nombre || confirmUser?.email}</strong>?</div>
+                  <div className="muted" style={{ fontSize:12 }}>Esta acción no se puede deshacer.</div>
+                </div>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn" onClick={() => setConfirmUser(null)}>Cancelar</button>
+              <button className="btn btn-danger" onClick={onDeleteConfirmed} disabled={loading}>Eliminar</button>
+            </div>
           </div>
         </div>
       )}

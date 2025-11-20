@@ -136,7 +136,7 @@ function Panel({ user }) {
                     <StatusBadge status={it.send_status} />
                   </td>
                   <td className="table-actions">
-                    <button className="btn btn-outline btn-small" onClick={() => navigate('/bl/' + it.bl_id)}>Ver detalle</button>
+                    <button className="btn btn-outline btn-small" onClick={() => navigate('/evidence/' + it.bl_id)}>Ver detalle</button>
                   </td>
                 </tr>
               ))}
