@@ -72,21 +72,6 @@ function Panel({ user }) {
       const v = JSON.parse(localStorage.getItem('tbMastersCache') || '{}')
       const arr = Array.isArray(v.data) ? v.data : []
       setMastersRaw(arr)
-      const flagged = localStorage.getItem('mcSynced')
-      if (!flagged && arr.length) {
-        const items = arr.filter(x => x.numeroMaster && x.numeroDo).map(x => ({
-          master_id: x.numeroMaster,
-          child_id: x.numeroDo,
-          cliente_nombre: x.nombreCliente || x.clienteNombre || x.razonSocial || x.nombre || undefined,
-          cliente_nit: x.nitCliente || x.clienteNit || x.nit || undefined,
-          numero_ie: x.numeroIE || x.ie || x.ieNumber || undefined,
-          descripcion_mercancia: x.descripcionMercancia || x.descripcion || undefined,
-          numero_pedido: x.numeroPedido || x.pedido || x.orderNumber || undefined,
-        }))
-        API_local.post('/masters/sync', { items }).then(() => {
-          localStorage.setItem('mcSynced', '1')
-        }).catch(() => {})
-      }
     } catch {
       setMastersRaw([])
     }
@@ -174,7 +159,7 @@ function Panel({ user }) {
                   <tr>
                     <th>Master</th>
                     <th>Usuario</th>
-                    <th>Hijos</th>
+                    <th>N° BLs</th>
                     <th className="table-actions">Acciones</th>
                   </tr>
                 </thead>
@@ -185,7 +170,14 @@ function Panel({ user }) {
                       <td>{(() => { try { const u = JSON.parse(localStorage.getItem('user')||'{}'); return u.nombre || u.display_name || u.email || '-' } catch { return '-' } })()}</td>
                       <td>{row.childrenCount}</td>
                       <td className="table-actions">
-                        <button className="btn btn-outline btn-small" onClick={() => navigate('/bl/' + row.master)}>Ver detalle</button>
+                        <button className="btn btn-outline btn-small" onClick={() => {
+                          const children = mastersMap[row.master] || []
+                          if (children.length === 1) {
+                            navigate('/evidence/' + children[0])
+                          } else {
+                            navigate('/bl/' + row.master)
+                          }
+                        }}>Ver detalle</button>
                       </td>
                     </tr>
                   ))}

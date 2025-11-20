@@ -108,6 +108,7 @@ function BLList({ user }) {
                     <th>IE</th>
                     <th>Descripción</th>
                     <th>Pedido</th>
+                    <th>Fotografías</th>
                     <th>Estado</th>
                     <th className="table-actions">Acciones</th>
                   </tr>
@@ -120,6 +121,7 @@ function BLList({ user }) {
                       <td>{item.ie_number || '-'}</td>
                       <td>{item.descripcion || '-'}</td>
                       <td>{item.pedido_number || '-'}</td>
+                      <td>{Number(item.photos_count || 0)}</td>
                       <td>{statusBadge(item.send_status || 'pending')}</td>
                       <td className="table-actions">
                         <button className="btn btn-outline btn-small" onClick={() => navigate('/evidence/' + item.bl_id)}>Ver detalle</button>

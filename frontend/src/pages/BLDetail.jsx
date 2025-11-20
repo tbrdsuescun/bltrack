@@ -103,7 +103,21 @@ function BLDetail({ user }) {
       const newPhotos = res.data.photos || []
       setChildPhotos(prev => ({ ...prev, [selectedDo]: (prev[selectedDo] || []).concat(newPhotos) }))
       setStatus('Fotos cargadas: ' + newPhotos.length)
-      try { if (selectedMaster && selectedDo) { await API.post('/masters/sync', { items: [{ master_id: selectedMaster, child_id: selectedDo }] }) } } catch {}
+      try {
+        if (selectedMaster && selectedDo) {
+          const entry = (() => { try { const v = JSON.parse(localStorage.getItem('tbMastersCache') || '{}'); const arr = Array.isArray(v.data) ? v.data : []; return arr.find(x => String(x.numeroDo||'') === String(selectedDo)) } catch { return null } })()
+          const item = {
+            master_id: selectedMaster,
+            child_id: selectedDo,
+            cliente_nombre: entry?.nombreCliente || entry?.clienteNombre || undefined,
+            cliente_nit: entry?.nitCliente || entry?.clienteNit || undefined,
+            numero_ie: entry?.numeroIE || undefined,
+            descripcion_mercancia: entry?.descripcionMercancia || undefined,
+            numero_pedido: entry?.numeroPedido || undefined,
+          }
+          await API.post('/masters/sync', { items: [item] })
+        }
+      } catch {}
     } catch (err) {
       setStatus('Error al subir fotos: ' + (err.response?.data?.error || err.message))
     } finally {
