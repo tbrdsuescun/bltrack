@@ -16,6 +16,7 @@ const User = sequelize.define('User', {
   is_active: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true },
   display_name: { type: DataTypes.STRING(100), allowNull: true },
   last_login: { type: DataTypes.DATE, allowNull: true },
+  puerto: { type: DataTypes.STRING(50), allowNull: true },
 }, {
   tableName: 'users',
 });

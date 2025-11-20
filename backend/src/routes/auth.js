@@ -28,7 +28,8 @@ router.post('/login', async (req, res) => {
       email: userModel.email,
       role: userModel.role,
       display_name: userModel.display_name,
-      nombre: userModel.nombre
+      nombre: userModel.nombre,
+      puerto: userModel.puerto
     };
     const token = jwt.sign(user, JWT_SECRET, { expiresIn: '12h' });
     return res.json({ token, user });

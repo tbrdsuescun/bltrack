@@ -7,7 +7,7 @@ import API from '../lib/api.js'
 function AdminUsers({ user }) {
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(false)
-  const [form, setForm] = useState({ nombre: '', email: '', password: '', role: 'operario', is_active: true })
+  const [form, setForm] = useState({ nombre: '', email: '', password: '', role: 'operario', puerto: 'Barranquilla', is_active: true })
   const [editing, setEditing] = useState(null)
   const [msg, setMsg] = useState(null)
   const [query, setQuery] = useState('')
@@ -39,7 +39,7 @@ function AdminUsers({ user }) {
     try {
       const res = await API.post('/users', form)
       setMsg('Usuario creado: ' + res.data.email)
-      setForm({ nombre: '', email: '', password: '', role: 'operario', is_active: true })
+      setForm({ nombre: '', email: '', password: '', role: 'operario', puerto: 'Barranquilla', is_active: true })
       setShowModal(false)
       await load()
     } catch (err) {
@@ -51,22 +51,24 @@ function AdminUsers({ user }) {
 
   function startEdit(item) {
     setEditing(item.id)
-    setForm({ nombre: item.nombre || '', email: item.email || '', password: '', role: item.role || 'operario', is_active: !!item.is_active })
+    setForm({ nombre: item.nombre || '', email: item.email || '', password: '', role: item.role || 'operario', puerto: item.puerto || 'Barranquilla', is_active: !!item.is_active })
     setShowModal(true)
   }
 
   async function onUpdate(e) {
+    alert("editing: " + editing)
     e.preventDefault()
     if (!editing) return
     setLoading(true)
     setMsg(null)
     try {
-      const payload = { nombre: form.nombre, email: form.email, role: form.role, is_active: form.is_active }
+      
+      const payload = { nombre: form.nombre, email: form.email, role: form.role, puerto: form.puerto, is_active: form.is_active }
       if (form.password) payload.password = form.password
       await API.patch('/users/' + editing, payload)
       setMsg('Usuario actualizado')
       setEditing(null)
-      setForm({ nombre: '', email: '', password: '', role: 'operario', is_active: true })
+      setForm({ nombre: '', email: '', password: '', role: 'operario', puerto: 'Barranquilla', is_active: true })
       setShowModal(false)
       await load()
     } catch (err) {
@@ -117,7 +119,7 @@ function AdminUsers({ user }) {
           <p className="muted">Administra, actualiza y elimina perfiles de usuario.</p>
         </div>
         <div className="actions-row">
-          <button className="btn btn-primary" onClick={() => { setEditing(null); setForm({ nombre: '', email: '', password: '', role: 'operario', is_active: true }); setShowModal(true); }}>+ Crear Nuevo Usuario</button>
+          <button className="btn btn-primary" onClick={() => { setEditing(null); setForm({ nombre: '', email: '', password: '', role: 'operario', puerto: 'Barranquilla', is_active: true }); setShowModal(true); }}>+ Crear Nuevo Usuario</button>
         </div>
       </div>
 
@@ -161,7 +163,7 @@ function AdminUsers({ user }) {
                     )}
                   </td>
                   <td>
-                    {(it.role === 'admin') ? <span className="badge badge-accent">Admin</span> : <span className="badge badge-accent">Operario</span>}
+                    {it.puerto || '-'}
                   </td>
                   <td className="table-actions">
                     <button className="btn btn-outline btn-small" onClick={() => startEdit(it)} disabled={loading}>Actualizar</button>
@@ -211,7 +213,7 @@ function AdminUsers({ user }) {
                   </label>
                   <label className="label">
                     Puerto
-                    <select className="input" value={form.role} onChange={(e) => onChangeField('role', e.target.value)}>
+                    <select className="input" value={form.puerto} onChange={(e) => onChangeField('puerto', e.target.value)}>
                       <option value="Barranquilla">Barranquilla</option>
                       <option value="Cartagena">Cartagena</option>
                       <option value="Buenaventura">Buenaventura</option>

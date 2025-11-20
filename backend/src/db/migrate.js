@@ -18,8 +18,25 @@ async function ensureUsersNombre() {
   }
 }
 
+async function ensureUsersPuerto() {
+  const qi = sequelize.getQueryInterface();
+  try {
+    const desc = await qi.describeTable('users');
+    if (!desc.puerto) {
+      await qi.addColumn('users', 'puerto', { type: DataTypes.STRING(50), allowNull: true });
+      logger.info({ msg: 'Migration applied: users.puerto added' });
+    } else {
+      logger.debug({ msg: 'Migration skipped: users.puerto already exists' });
+    }
+  } catch (err) {
+    logger.error({ msg: 'Migration failed: ensureUsersPuerto', error: err.message });
+    throw err;
+  }
+}
+
 async function runMigrations() {
   await ensureUsersNombre();
+  await ensureUsersPuerto();
 }
 
 module.exports = { runMigrations };

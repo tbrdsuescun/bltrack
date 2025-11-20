@@ -10,7 +10,7 @@ const router = express.Router();
 router.get('/', authRequired, requireRole('admin'), async (req, res) => {
   try {
     const items = await User.findAll({ order: [['id', 'ASC']] });
-    const data = items.map(u => ({ id: u.id, nombre: u.nombre || u.display_name || null, email: u.email, role: u.role, is_active: u.is_active, last_login: u.last_login }));
+    const data = items.map(u => ({ id: u.id, nombre: u.nombre || u.display_name || null, email: u.email, role: u.role, is_active: u.is_active, last_login: u.last_login, puerto: u.puerto }));
     res.json({ items: data });
   } catch (err) {
     res.status(500).json({ ok: false, error: 'Fallo al listar usuarios', detail: err.message });
@@ -22,7 +22,7 @@ router.get('/:id', authRequired, requireRole('admin'), async (req, res) => {
   try {
     const user = await User.findByPk(req.params.id);
     if (!user) return res.status(404).json({ ok: false, error: 'Usuario no encontrado' });
-    res.json({ id: user.id, nombre: user.nombre || user.display_name || null, email: user.email, role: user.role, is_active: user.is_active, last_login: user.last_login });
+    res.json({ id: user.id, nombre: user.nombre || user.display_name || null, email: user.email, role: user.role, is_active: user.is_active, last_login: user.last_login, puerto: user.puerto });
   } catch (err) {
     res.status(500).json({ ok: false, error: 'Fallo al obtener usuario', detail: err.message });
   }
@@ -31,15 +31,15 @@ router.get('/:id', authRequired, requireRole('admin'), async (req, res) => {
 // Crear usuario
 router.post('/', authRequired, requireRole('admin'), async (req, res) => {
   try {
-    const { nombre, email, password, role = 'operario', is_active = true } = req.body || {};
+    const { nombre, email, password, role = 'operario', is_active = true, puerto } = req.body || {};
     if (!nombre || !email || !password) return res.status(400).json({ ok: false, error: 'Nombre, email y password son requeridos' });
 
     const existing = await User.findOne({ where: { email } });
     if (existing) return res.status(409).json({ ok: false, error: 'Email ya existe' });
 
     const password_hash = await bcrypt.hash(password, 10);
-    const user = await User.create({ nombre, display_name: nombre, email, password_hash, role, is_active });
-    res.status(201).json({ id: user.id, nombre: user.nombre, email: user.email, role: user.role, is_active: user.is_active });
+    const user = await User.create({ nombre, display_name: nombre, email, password_hash, role, is_active, puerto });
+    res.status(201).json({ id: user.id, nombre: user.nombre, email: user.email, role: user.role, is_active: user.is_active, puerto: user.puerto });
   } catch (err) {
     res.status(500).json({ ok: false, error: 'Fallo al crear usuario', detail: err.message });
   }
@@ -49,7 +49,7 @@ router.post('/', authRequired, requireRole('admin'), async (req, res) => {
 router.patch('/:id', authRequired, requireRole('admin'), async (req, res) => {
   try {
     const { id } = req.params;
-    const { nombre, email, password, role, is_active } = req.body || {};
+    const { nombre, email, password, role, is_active, puerto } = req.body || {};
     const user = await User.findByPk(id);
     if (!user) return res.status(404).json({ ok: false, error: 'Usuario no encontrado' });
 
@@ -63,11 +63,11 @@ router.patch('/:id', authRequired, requireRole('admin'), async (req, res) => {
       user.display_name = nombre;
     }
     if (typeof role !== 'undefined') user.role = role;
+    if (typeof puerto !== 'undefined') user.puerto = puerto;
     if (typeof is_active !== 'undefined') user.is_active = !!is_active;
     if (password) user.password_hash = await bcrypt.hash(password, 10);
-
     await user.save();
-    res.json({ id: user.id, nombre: user.nombre, email: user.email, role: user.role, is_active: user.is_active });
+    res.json({ id: user.id, nombre: user.nombre, email: user.email, role: user.role, is_active: user.is_active, puerto: user.puerto });
   } catch (err) {
     res.status(500).json({ ok: false, error: 'Fallo al actualizar usuario', detail: err.message });
   }
