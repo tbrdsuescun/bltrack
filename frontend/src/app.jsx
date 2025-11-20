@@ -55,6 +55,30 @@ function App() {
     window.AppLogout = handleLogout
   }, [handleLogout])
 
+  useEffect(() => {
+    const key = 'tbMastersCache'
+    const existing = localStorage.getItem(key)
+    if (!existing) {
+      axios.get('http://tracking.transborder.com.co/Development/ApisNotes-Cotiz/DevRestApiNotesCotiz.nsf/api.xsp/operaciones/masters', {
+        auth: { username: 'cconsumer', password: 'cotizadorapiconsumer' }
+      }).then(res => {
+        const data = Array.isArray(res.data?.data) ? res.data.data : []
+        const payload = { data, ts: Date.now() }
+        try { localStorage.setItem(key, JSON.stringify(payload)) } catch {}
+      }).catch(() => {
+        const sample = {
+          data: [
+            { numeroMaster: 'LHV1334257', numeroDo: '01.000040.16' },
+            { numeroMaster: 'APLU067965538', numeroDo: '01.000054.16' },
+            { numeroMaster: 'SUDU759991678045', numeroDo: '01.000080.16' }
+          ],
+          ts: Date.now()
+        }
+        try { localStorage.setItem(key, JSON.stringify(sample)) } catch {}
+      })
+    }
+  }, [])
+
   return (
     <Router>
       <Routes>

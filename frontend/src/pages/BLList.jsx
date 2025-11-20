@@ -34,10 +34,7 @@ function BLList({ user }) {
   }, [])
 
   function startAdd() {
-    setAdding(true)
-    API.get('/bls/options').then(res => {
-      setOptions(res.data.items || [])
-    }).catch(() => setOptions([]))
+    navigate('/bl/new')
   }
   
   function confirmAdd() {
