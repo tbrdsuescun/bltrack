@@ -134,6 +134,7 @@ function AdminUsers({ user }) {
                 <th>Nombre completo</th>
                 <th>Rol</th>
                 <th>Estado</th>
+                <th>Puerto</th>
                 <th className="table-actions">Acciones</th>
               </tr>
             </thead>
@@ -158,6 +159,9 @@ function AdminUsers({ user }) {
                     ) : (
                       <span className="badge badge-red"><span className="badge-dot red" /> Inactivo</span>
                     )}
+                  </td>
+                  <td>
+                    {(it.role === 'admin') ? <span className="badge badge-accent">Admin</span> : <span className="badge badge-accent">Operario</span>}
                   </td>
                   <td className="table-actions">
                     <button className="btn btn-outline btn-small" onClick={() => startEdit(it)} disabled={loading}>Actualizar</button>
@@ -199,11 +203,20 @@ function AdminUsers({ user }) {
                     <input className="input" type="email" placeholder="usuario@ejemplo.com" value={form.email} onChange={(e) => onChangeField('email', e.target.value)} />
                   </label>
                 </div>
-                <div className="grid-1">
+                <div className="grid-2">
                   <label className="label" style={{ position: 'relative' }}>
                     Contraseña
                     <input className="input" type={showPass ? 'text' : 'password'} placeholder="Dejar en blanco para no cambiar" value={form.password} onChange={(e) => onChangeField('password', e.target.value)} />
                     <button type="button" className="btn btn-outline btn-small" style={{ position: 'absolute', right: 8, top: 34 }} onClick={() => setShowPass(s => !s)}>{showPass ? 'Ocultar' : 'Ver'}</button>
+                  </label>
+                  <label className="label">
+                    Puerto
+                    <select className="input" value={form.role} onChange={(e) => onChangeField('role', e.target.value)}>
+                      <option value="Barranquilla">Barranquilla</option>
+                      <option value="Cartagena">Cartagena</option>
+                      <option value="Buenaventura">Buenaventura</option>
+                      <option value="Santa Marta">Santa Marta</option>
+                    </select>
                   </label>
                 </div>
                 <div className="grid-2">

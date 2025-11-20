@@ -5,6 +5,7 @@ import Login from './pages/Login.jsx'
 import Panel from './pages/Panel.jsx'
 import BLList from './pages/BLList.jsx'
 import BLDetail from './pages/BLDetail.jsx'
+import BLEvidence from './pages/BLEvidence.jsx'
 import AdminUsers from './pages/AdminUsers.jsx'
 import Layout from './components/Layout.jsx'
 
@@ -109,6 +110,26 @@ function App() {
             <ProtectedRoute>
               <Layout user={user} onLogout={handleLogout}>
                 <BLDetail />
+              </Layout>
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/bl/new" 
+          element={
+            <ProtectedRoute>
+              <Layout user={user} onLogout={handleLogout}>
+                <BLDetail />
+              </Layout>
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/evidence/:id" 
+          element={
+            <ProtectedRoute>
+              <Layout user={user} onLogout={handleLogout}>
+                <BLEvidence />
               </Layout>
             </ProtectedRoute>
           } 

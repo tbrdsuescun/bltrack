@@ -46,6 +46,25 @@ router.post('/bls/:id/photos', authRequired, upload.array('photos', 12), async (
   }
 });
 
+// Obtener fotos existentes para un BL del usuario autenticado
+router.get('/bls/:id/photos', authRequired, async (req, res) => {
+  const { id } = req.params;
+  try {
+    const rec = await RegistroFotografico.findOne({ where: { bl_id: id, user_id: req.user.id } });
+    const photos = Array.isArray(rec?.photos) ? rec.photos.map(p => ({
+      id: p.id,
+      filename: p.filename,
+      url: p.path ? ('/uploads/' + p.id) : null,
+      size: p.size,
+      mime: p.mime,
+      status: p.status || 'kept',
+    })) : [];
+    res.json({ bl_id: id, count: photos.length, photos });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: 'Fallo al obtener fotos', detail: err.message });
+  }
+});
+
 // Eliminar foto (disco) - no actualiza registro; podría hacerse si se requiere
 router.delete('/photos/:photoId', authRequired, (req, res) => {
   const { photoId } = req.params;

@@ -1,11 +1,12 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams, useNavigate } from 'react-router-dom'
 import API from '../lib/api.js'
 import Layout from '../components/Layout.jsx'
 import SearchBar from '../components/SearchBar.jsx'
 
 function BLDetail({ user }) {
   const { blId } = useParams()
+  const navigate = useNavigate()
   const [photos, setPhotos] = useState([])
   const [status, setStatus] = useState(null)
   const [loading, setLoading] = useState(false)
@@ -15,6 +16,7 @@ function BLDetail({ user }) {
   const [selectedMaster, setSelectedMaster] = useState('')
   const [doInput, setDoInput] = useState('')
   const [selectedDo, setSelectedDo] = useState('')
+  const [childPhotos, setChildPhotos] = useState({})
   
   useEffect(() => {
     try {
@@ -38,18 +40,40 @@ function BLDetail({ user }) {
   }, [mastersRaw])
   const mastersOptions = useMemo(() => Object.keys(mastersMap).map(k => ({ label: k, value: k })), [mastersMap])
   const childrenOptions = useMemo(() => selectedMaster ? (mastersMap[selectedMaster] || []).map(d => ({ label: d, value: d })) : [], [mastersMap, selectedMaster])
+  const childrenRows = useMemo(() => {
+    if (!selectedMaster) return []
+    const ids = mastersMap[selectedMaster] || []
+    return ids.map((id, idx) => ({
+      numeroBL: id,
+      clienteNombre: 'Cliente ' + String(idx + 1).padStart(2, '0'),
+      clienteNit: '900' + String(100000 + idx),
+      numeroIE: 'IE-' + String(1000 + idx),
+      descripcionMercancia: 'Descripción de mercancía ' + (idx + 1),
+      numeroPedido: 'PED-' + String(5000 + idx)
+    }))
+  }, [selectedMaster, mastersMap])
 
   async function onUpload(e) {
     const files = Array.from(e.target.files || [])
     const targetId = selectedMaster || blId
     if (!files.length || !targetId) return
+    const previews = files.map((f, i) => ({ id: 'local-' + Date.now() + '-' + i, filename: f.name, url: URL.createObjectURL(f) }))
+    if (selectedDo) {
+      setChildPhotos(prev => ({ ...prev, [selectedDo]: (prev[selectedDo] || []).concat(previews) }))
+    } else {
+      setPhotos(prev => prev.concat(previews))
+    }
     const fd = new FormData()
     files.forEach(f => fd.append('photos', f))
     setLoading(true)
     try {
       const res = await API.post('/bls/' + targetId + '/photos', fd)
       const newPhotos = res.data.photos || []
-      setPhotos(prev => prev.concat(newPhotos))
+      if (selectedDo) {
+        setChildPhotos(prev => ({ ...prev, [selectedDo]: (prev[selectedDo] || []).concat(newPhotos) }))
+      } else {
+        setPhotos(prev => prev.concat(newPhotos))
+      }
       setStatus('Fotos cargadas: ' + newPhotos.length)
     } catch (err) {
       setStatus('Error al subir fotos: ' + (err.response?.data?.error || err.message))
@@ -96,49 +120,36 @@ function BLDetail({ user }) {
             </label>
           )}
         </div>
-        <div>
-          <h2 className="h2">Detalles del Registro</h2>
-          <div className="grid-2">
-            <div>
-              <label className="label">Proyecto
-                <input className="input" placeholder="Buscar y seleccionar un proyecto" />
-              </label>
-            </div>
-            <div>
-              <label className="label">Tipo de Registro
-                <select className="input">
-                  <option value="">Seleccionar tipo</option>
-                  <option value="general">General</option>
-                </select>
-              </label>
-            </div>
+        {selectedMaster && (
+          <div className="table-responsive" style={{ marginTop: '12px' }}>
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Número BL</th>
+                  <th>Nombre Cliente - NIT</th>
+                  <th>Número IE</th>
+                  <th>Descripción de la mercancía</th>
+                  <th>Número de pedido</th>
+                  <th className="table-actions">Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                {childrenRows.map(row => (
+                  <tr key={row.numeroBL}>
+                    <td>{row.numeroBL}</td>
+                    <td>{row.clienteNombre} - {row.clienteNit}</td>
+                    <td>{row.numeroIE}</td>
+                    <td>{row.descripcionMercancia}</td>
+                    <td>{row.numeroPedido}</td>
+                    <td className="table-actions">
+                      <button className="btn btn-outline btn-small" onClick={() => navigate('/evidence/' + row.numeroBL)}>Ingresar imágenes</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-        </div>
-
-        <div style={{ marginTop:'12px' }}>
-          <h2 className="h2">Evidencia Fotográfica</h2>
-          <div className="dropzone" onClick={openFileDialog} onDrop={onDrop} onDragOver={onDragOver}>Arrastra y suelta archivos aquí<br/>o haz clic para buscar</div>
-          <div className="actions" style={{ justifyContent:'flex-start' }}>
-            <button className="btn btn-primary" onClick={openFileDialog}>Subir Archivo</button>
-            <button className="btn btn-outline" onClick={openFileDialog}>Tomar Foto</button>
-          </div>
-          <input ref={fileInputRef} type="file" accept="image/*" multiple capture="environment" style={{ display:'none' }} onChange={onUpload} disabled={loading} />
-        </div>
-
-        {status && <p className="muted">{status}</p>}
-
-        <div className="preview-grid">
-          {photos.map(p => (
-            <div key={p.id} className="preview-card">
-              {p.url ? <img src={p.url} alt={p.filename || p.id} /> : <div style={{ padding:'12px' }}>{p.filename || p.id}</div>}
-            </div>
-          ))}
-        </div>
-
-        <div className="actions" style={{ justifyContent:'flex-end' }}>
-          <button className="btn btn-outline" disabled={loading}>Guardar</button>
-          <button className="btn btn-primary" onClick={onSend} disabled={loading}>Enviar</button>
-        </div>
+        )}
       </div>
     </>
   )
