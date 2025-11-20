@@ -55,6 +55,32 @@ async function runMigrations() {
       throw err;
     }
   }
+  try {
+    const desc = await qi.describeTable('master_children');
+    if (!desc.cliente_nombre) {
+      await qi.addColumn('master_children', 'cliente_nombre', { type: DataTypes.STRING(255), allowNull: true });
+      logger.info({ msg: 'Migration applied: master_children.cliente_nombre added' });
+    }
+    if (!desc.cliente_nit) {
+      await qi.addColumn('master_children', 'cliente_nit', { type: DataTypes.STRING(100), allowNull: true });
+      logger.info({ msg: 'Migration applied: master_children.cliente_nit added' });
+    }
+    if (!desc.numero_ie) {
+      await qi.addColumn('master_children', 'numero_ie', { type: DataTypes.STRING(100), allowNull: true });
+      logger.info({ msg: 'Migration applied: master_children.numero_ie added' });
+    }
+    if (!desc.descripcion_mercancia) {
+      await qi.addColumn('master_children', 'descripcion_mercancia', { type: DataTypes.TEXT, allowNull: true });
+      logger.info({ msg: 'Migration applied: master_children.descripcion_mercancia added' });
+    }
+    if (!desc.numero_pedido) {
+      await qi.addColumn('master_children', 'numero_pedido', { type: DataTypes.STRING(100), allowNull: true });
+      logger.info({ msg: 'Migration applied: master_children.numero_pedido added' });
+    }
+  } catch (err) {
+    logger.error({ msg: 'Migration failed: ensure master_children details', error: err.message });
+    throw err;
+  }
 }
 
 module.exports = { runMigrations };

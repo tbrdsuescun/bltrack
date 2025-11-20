@@ -11,6 +11,7 @@ function BLEvidence() {
   const [status, setStatus] = useState(null)
   const fileInputRef = useRef()
   const [selectedPhoto, setSelectedPhoto] = useState(null)
+  const [cacheEntry, setCacheEntry] = useState(null)
 
   useEffect(() => {
     let mounted = true
@@ -19,6 +20,12 @@ function BLEvidence() {
       const list = Array.isArray(res.data?.photos) ? res.data.photos : []
       setPhotos(list)
     }).catch(() => setPhotos([]))
+    try {
+      const cache = JSON.parse(localStorage.getItem('tbMastersCache') || '{}')
+      const arr = Array.isArray(cache.data) ? cache.data : []
+      const entry = arr.find(x => (x.numeroMaster || '') && (x.numeroDo || '') && String(x.numeroDo) === String(id))
+      if (entry) setCacheEntry(entry)
+    } catch {}
     return () => { mounted = false }
   }, [id])
 
@@ -50,7 +57,16 @@ function BLEvidence() {
         const arr = Array.isArray(cache.data) ? cache.data : []
         const entry = arr.find(x => (x.numeroMaster || '') && (x.numeroDo || '') && String(x.numeroDo) === String(id))
         if (entry) {
-          await API.post('/masters/sync', { items: [{ master_id: entry.numeroMaster, child_id: entry.numeroDo }] })
+          const item = {
+            master_id: entry.numeroMaster,
+            child_id: entry.numeroDo,
+            cliente_nombre: entry.nombreCliente || entry.clienteNombre || entry.razonSocial || entry.nombre || undefined,
+            cliente_nit: entry.nitCliente || entry.clienteNit || entry.nit || undefined,
+            numero_ie: entry.numeroIE || entry.ie || entry.ieNumber || undefined,
+            descripcion_mercancia: entry.descripcionMercancia || entry.descripcion || undefined,
+            numero_pedido: entry.numeroPedido || entry.pedido || entry.orderNumber || undefined,
+          }
+          await API.post('/masters/sync', { items: [item] })
         }
       } catch {}
     } catch (err) {
@@ -85,16 +101,29 @@ function BLEvidence() {
     if (!id) return
     setLoading(true)
     try {
-      const res = await API.post('/bls/' + id + '/send', {})
-      setStatus('Guardado: ' + (res.data.status || 'ok'))
       try {
-        const cache = JSON.parse(localStorage.getItem('tbMastersCache') || '{}')
-        const arr = Array.isArray(cache.data) ? cache.data : []
-        const entry = arr.find(x => (x.numeroMaster || '') && (x.numeroDo || '') && String(x.numeroDo) === String(id))
+        const entry = cacheEntry || (() => {
+          try {
+            const cache = JSON.parse(localStorage.getItem('tbMastersCache') || '{}')
+            const arr = Array.isArray(cache.data) ? cache.data : []
+            return arr.find(x => (x.numeroMaster || '') && (x.numeroDo || '') && String(x.numeroDo) === String(id))
+          } catch { return null }
+        })()
         if (entry) {
-          await API.post('/masters/sync', { items: [{ master_id: entry.numeroMaster, child_id: entry.numeroDo }] })
+          const item = {
+            master_id: entry.numeroMaster,
+            child_id: entry.numeroDo,
+            cliente_nombre: entry.nombreCliente || entry.clienteNombre || entry.razonSocial || entry.nombre || undefined,
+            cliente_nit: entry.nitCliente || entry.clienteNit || entry.nit || undefined,
+            numero_ie: entry.numeroIE || entry.ie || entry.ieNumber || undefined,
+            descripcion_mercancia: entry.descripcionMercancia || entry.descripcion || undefined,
+            numero_pedido: entry.numeroPedido || entry.pedido || entry.orderNumber || undefined,
+          }
+          await API.post('/masters/sync', { items: [item] })
         }
       } catch {}
+      const res = await API.post('/bls/' + id + '/send', {})
+      setStatus('Guardado: ' + (res.data.status || 'ok'))
     } catch (err) {
       setStatus('Error al guardar: ' + (err.response?.data?.error || err.message))
     } finally {
@@ -116,6 +145,7 @@ function BLEvidence() {
       </div>
 
       <div className="card">
+        
         <div style={{ marginTop:'12px' }}>
           <h2 className="h2">Evidencia</h2>
           <div className="dropzone" onClick={openFileDialog} onDrop={onDrop} onDragOver={onDragOver}>Arrastra y suelta archivos aquí<br/>o haz clic para buscar</div>

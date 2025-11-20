@@ -61,7 +61,24 @@ router.post('/masters/sync', authRequired, async (req, res) => {
       const master_id = String(it.master_id || it.master || '').trim();
       const child_id = String(it.child_id || it.child || '').trim();
       if (!master_id || !child_id) continue;
-      await MasterChild.findOrCreate({ where: { master_id, child_id }, defaults: { master_id, child_id } });
+      const [rec, wasCreated] = await MasterChild.findOrCreate({ where: { master_id, child_id }, defaults: {
+        master_id,
+        child_id,
+        cliente_nombre: it.cliente_nombre || it.nombre_cliente || null,
+        cliente_nit: it.cliente_nit || it.nit || null,
+        numero_ie: it.numero_ie || it.ie || null,
+        descripcion_mercancia: it.descripcion_mercancia || it.descripcion || null,
+        numero_pedido: it.numero_pedido || it.pedido || it.order_number || null,
+      } });
+      const updates = {};
+      if (it.cliente_nombre || it.nombre_cliente) updates.cliente_nombre = it.cliente_nombre || it.nombre_cliente;
+      if (it.cliente_nit || it.nit) updates.cliente_nit = it.cliente_nit || it.nit;
+      if (it.numero_ie || it.ie) updates.numero_ie = it.numero_ie || it.ie;
+      if (it.descripcion_mercancia || it.descripcion) updates.descripcion_mercancia = it.descripcion_mercancia || it.descripcion;
+      if (it.numero_pedido || it.pedido || it.order_number) updates.numero_pedido = it.numero_pedido || it.pedido || it.order_number;
+      if (Object.keys(updates).length) {
+        await rec.update(updates);
+      }
       created++;
     }
     res.status(201).json({ ok: true, created });

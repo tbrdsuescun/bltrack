@@ -74,7 +74,15 @@ function Panel({ user }) {
       setMastersRaw(arr)
       const flagged = localStorage.getItem('mcSynced')
       if (!flagged && arr.length) {
-        const items = arr.filter(x => x.numeroMaster && x.numeroDo).map(x => ({ master_id: x.numeroMaster, child_id: x.numeroDo }))
+        const items = arr.filter(x => x.numeroMaster && x.numeroDo).map(x => ({
+          master_id: x.numeroMaster,
+          child_id: x.numeroDo,
+          cliente_nombre: x.nombreCliente || x.clienteNombre || x.razonSocial || x.nombre || undefined,
+          cliente_nit: x.nitCliente || x.clienteNit || x.nit || undefined,
+          numero_ie: x.numeroIE || x.ie || x.ieNumber || undefined,
+          descripcion_mercancia: x.descripcionMercancia || x.descripcion || undefined,
+          numero_pedido: x.numeroPedido || x.pedido || x.orderNumber || undefined,
+        }))
         API_local.post('/masters/sync', { items }).then(() => {
           localStorage.setItem('mcSynced', '1')
         }).catch(() => {})
