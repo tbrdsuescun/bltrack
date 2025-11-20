@@ -40,6 +40,16 @@ const RegistroFotografico = sequelize.define('RegistroFotografico', {
 User.hasMany(RegistroFotografico, { foreignKey: 'user_id' });
 RegistroFotografico.belongsTo(User, { foreignKey: 'user_id' });
 
+const MasterChild = sequelize.define('MasterChild', {
+  master_id: { type: DataTypes.STRING(100), allowNull: false },
+  child_id: { type: DataTypes.STRING(100), allowNull: false },
+}, {
+  tableName: 'master_children',
+  indexes: [
+    { unique: true, fields: ['master_id', 'child_id'] }
+  ]
+});
+
 async function initDb() {
   try {
     await sequelize.authenticate();
@@ -50,4 +60,4 @@ async function initDb() {
   }
 }
 
-module.exports = { sequelize, initDb, User, RegistroFotografico };
+module.exports = { sequelize, initDb, User, RegistroFotografico, MasterChild };

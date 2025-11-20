@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
+import StatusBadge from '../components/StatusBadge.jsx'
 import API from '../lib/api.js'
 import Layout from '../components/Layout.jsx'
 import SearchBar from '../components/SearchBar.jsx'
@@ -17,6 +18,8 @@ function BLDetail({ user }) {
   const [doInput, setDoInput] = useState('')
   const [selectedDo, setSelectedDo] = useState('')
   const [childPhotos, setChildPhotos] = useState({})
+  const [mineMap, setMineMap] = useState({})
+  const [childrenList, setChildrenList] = useState([])
   
   useEffect(() => {
     try {
@@ -26,6 +29,15 @@ function BLDetail({ user }) {
     } catch {
       setMastersRaw([])
     }
+  }, [])
+
+  useEffect(() => {
+    API.get('/bls/mine').then(res => {
+      const list = Array.isArray(res.data?.items) ? res.data.items : []
+      const map = {}
+      list.forEach(it => { map[it.bl_id] = { photos_count: it.photos_count || 0, send_status: it.send_status || 'pending' } })
+      setMineMap(map)
+    }).catch(() => setMineMap({}))
   }, [])
 
   const mastersMap = useMemo(() => {
@@ -42,7 +54,7 @@ function BLDetail({ user }) {
   const childrenOptions = useMemo(() => selectedMaster ? (mastersMap[selectedMaster] || []).map(d => ({ label: d, value: d })) : [], [mastersMap, selectedMaster])
   const childrenRows = useMemo(() => {
     if (!selectedMaster) return []
-    const ids = mastersMap[selectedMaster] || []
+    const ids = childrenList
     return ids.map((id, idx) => ({
       numeroBL: id,
       clienteNombre: 'Cliente ' + String(idx + 1).padStart(2, '0'),
@@ -51,29 +63,45 @@ function BLDetail({ user }) {
       descripcionMercancia: 'Descripción de mercancía ' + (idx + 1),
       numeroPedido: 'PED-' + String(5000 + idx)
     }))
+  }, [selectedMaster, childrenList])
+
+  useEffect(() => {
+    if (!blId) return
+    const isMaster = !!mastersMap[blId]
+    if (isMaster) {
+      setSelectedMaster(blId)
+      setMasterInput(blId)
+      setChildrenList(mastersMap[blId] || [])
+      setDoInput('')
+      setSelectedDo('')
+      return
+    }
+    const found = Object.entries(mastersMap).find(([k, arr]) => arr.includes(blId))
+    if (found) {
+      const [master] = found
+      setSelectedMaster(master)
+      setMasterInput(master)
+      setChildrenList(mastersMap[master] || [])
+      setSelectedDo(blId)
+      setDoInput(blId)
+    }
+  }, [blId, mastersMap])
+
+  useEffect(() => {
+    if (!selectedMaster) return
+    setChildrenList(mastersMap[selectedMaster] || [])
   }, [selectedMaster, mastersMap])
 
   async function onUpload(e) {
     const files = Array.from(e.target.files || [])
-    const targetId = selectedMaster || blId
-    if (!files.length || !targetId) return
-    const previews = files.map((f, i) => ({ id: 'local-' + Date.now() + '-' + i, filename: f.name, url: URL.createObjectURL(f) }))
-    if (selectedDo) {
-      setChildPhotos(prev => ({ ...prev, [selectedDo]: (prev[selectedDo] || []).concat(previews) }))
-    } else {
-      setPhotos(prev => prev.concat(previews))
-    }
+    if (!files.length || !selectedDo) { setStatus('Seleccione un hijo (DO) para subir fotos'); return }
     const fd = new FormData()
     files.forEach(f => fd.append('photos', f))
     setLoading(true)
     try {
-      const res = await API.post('/bls/' + targetId + '/photos', fd)
+      const res = await API.post('/bls/' + selectedDo + '/photos', fd)
       const newPhotos = res.data.photos || []
-      if (selectedDo) {
-        setChildPhotos(prev => ({ ...prev, [selectedDo]: (prev[selectedDo] || []).concat(newPhotos) }))
-      } else {
-        setPhotos(prev => prev.concat(newPhotos))
-      }
+      setChildPhotos(prev => ({ ...prev, [selectedDo]: (prev[selectedDo] || []).concat(newPhotos) }))
       setStatus('Fotos cargadas: ' + newPhotos.length)
     } catch (err) {
       setStatus('Error al subir fotos: ' + (err.response?.data?.error || err.message))
@@ -112,42 +140,46 @@ function BLDetail({ user }) {
       <div className="card">
         <div className="grid-2">
           <label className="label">Master
-            <SearchBar placeholder="Buscar master" value={masterInput} onChange={e => setMasterInput(e.target.value)} options={mastersOptions} onSelect={(o) => { const v = o.value ?? o.label ?? String(o); setSelectedMaster(v); setMasterInput(String(o.label ?? v)); setDoInput(''); setSelectedDo('') }} />
+            <SearchBar placeholder="Buscar master" value={masterInput} onChange={e => setMasterInput(e.target.value)} options={mastersOptions} onSelect={(o) => { const v = o.value ?? o.label ?? String(o); setSelectedMaster(v); setMasterInput(String(o.label ?? v)); setDoInput(''); setSelectedDo('') }} fullWidth />
           </label>
           {selectedMaster && (
             <label className="label">Hijo (DO)
-              <SearchBar placeholder="Seleccionar hijo" value={doInput} onChange={e => setDoInput(e.target.value)} options={childrenOptions} onSelect={(o) => { const v = o.value ?? o.label ?? String(o); setSelectedDo(v); setDoInput(String(o.label ?? v)) }} />
+              <SearchBar placeholder="Seleccionar hijo" value={doInput} onChange={e => setDoInput(e.target.value)} options={childrenOptions} onSelect={(o) => { const v = o.value ?? o.label ?? String(o); setSelectedDo(v); setDoInput(String(o.label ?? v)) }} fullWidth />
             </label>
           )}
         </div>
         {selectedMaster && (
-          <div className="table-responsive" style={{ marginTop: '12px' }}>
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>Número BL</th>
-                  <th>Nombre Cliente - NIT</th>
-                  <th>Número IE</th>
-                  <th>Descripción de la mercancía</th>
-                  <th>Número de pedido</th>
-                  <th className="table-actions">Acciones</th>
+        <div className="table-responsive" style={{ marginTop: '12px' }}>
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Número BL</th>
+                <th>Nombre Cliente - NIT</th>
+                <th>Número IE</th>
+                <th>Descripción de la mercancía</th>
+                <th>Número de pedido</th>
+                <th>Fotografías</th>
+                <th>Estado</th>
+                <th className="table-actions">Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              {childrenRows.map(row => (
+                <tr key={row.numeroBL}>
+                  <td>{row.numeroBL}</td>
+                  <td>{row.clienteNombre} - {row.clienteNit}</td>
+                  <td>{row.numeroIE}</td>
+                  <td>{row.descripcionMercancia}</td>
+                  <td>{row.numeroPedido}</td>
+                  <td>{mineMap[row.numeroBL]?.photos_count || 0}</td>
+                  <td>{(mineMap[row.numeroBL]?.photos_count || 0) > 0 ? <StatusBadge status={mineMap[row.numeroBL]?.send_status || ''} /> : ''}</td>
+                  <td className="table-actions">
+                    <button className="btn btn-outline btn-small" onClick={() => navigate('/evidence/' + row.numeroBL)}>Ingresar imágenes</button>
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {childrenRows.map(row => (
-                  <tr key={row.numeroBL}>
-                    <td>{row.numeroBL}</td>
-                    <td>{row.clienteNombre} - {row.clienteNit}</td>
-                    <td>{row.numeroIE}</td>
-                    <td>{row.descripcionMercancia}</td>
-                    <td>{row.numeroPedido}</td>
-                    <td className="table-actions">
-                      <button className="btn btn-outline btn-small" onClick={() => navigate('/evidence/' + row.numeroBL)}>Ingresar imágenes</button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+              ))}
+            </tbody>
+          </table>
           </div>
         )}
       </div>

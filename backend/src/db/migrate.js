@@ -37,6 +37,24 @@ async function ensureUsersPuerto() {
 async function runMigrations() {
   await ensureUsersNombre();
   await ensureUsersPuerto();
+  const qi = sequelize.getQueryInterface();
+  try {
+    await qi.describeTable('master_children');
+  } catch (e) {
+    try {
+      await qi.createTable('master_children', {
+        master_id: { type: DataTypes.STRING(100), allowNull: false },
+        child_id: { type: DataTypes.STRING(100), allowNull: false },
+        created_at: { type: DataTypes.DATE, allowNull: true },
+        updated_at: { type: DataTypes.DATE, allowNull: true },
+      });
+      await qi.addIndex('master_children', ['master_id', 'child_id'], { unique: true, name: 'mc_master_child_unique' });
+      logger.info({ msg: 'Migration applied: master_children created' });
+    } catch (err) {
+      logger.error({ msg: 'Migration failed: master_children', error: err.message });
+      throw err;
+    }
+  }
 }
 
 module.exports = { runMigrations };

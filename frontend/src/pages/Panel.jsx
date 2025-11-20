@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import axios from 'axios'
 import Layout from '../components/Layout.jsx'
@@ -16,6 +16,8 @@ function Panel({ user }) {
   const navigate = useNavigate()
   const abortRef = useRef(null)
   const typingTimerRef = useRef(null)
+  const [mastersRaw, setMastersRaw] = useState([])
+  const [mastersListRaw, setMastersListRaw] = useState([])
 
   const API_local = API
 
@@ -66,6 +68,50 @@ function Panel({ user }) {
   }, [])
 
   useEffect(() => {
+    try {
+      const v = JSON.parse(localStorage.getItem('tbMastersCache') || '{}')
+      const arr = Array.isArray(v.data) ? v.data : []
+      setMastersRaw(arr)
+      const flagged = localStorage.getItem('mcSynced')
+      if (!flagged && arr.length) {
+        const items = arr.filter(x => x.numeroMaster && x.numeroDo).map(x => ({ master_id: x.numeroMaster, child_id: x.numeroDo }))
+        API_local.post('/masters/sync', { items }).then(() => {
+          localStorage.setItem('mcSynced', '1')
+        }).catch(() => {})
+      }
+    } catch {
+      setMastersRaw([])
+    }
+    API_local.get('/masters/with-photos').then(res => {
+      const list = Array.isArray(res.data?.items) ? res.data.items : []
+      setMastersListRaw(list)
+    }).catch(() => setMastersListRaw([]))
+  }, [])
+
+  const mastersMap = useMemo(() => {
+    const m = {}
+    mastersRaw.forEach(x => {
+      const k = x.numeroMaster || ''
+      if (!k) return
+      if (!m[k]) m[k] = []
+      if (x.numeroDo) m[k].push(x.numeroDo)
+    })
+    return m
+  }, [mastersRaw])
+
+  function masterFor(blId) {
+    const id = String(blId || '')
+    if (mastersMap[id]) return id
+    const entry = Object.entries(mastersMap).find(([k, arr]) => arr.includes(id))
+    return entry ? entry[0] : id
+  }
+
+  const mastersList = useMemo(() => {
+    const filtered = mastersListRaw.filter(row => !filters.bl_id || String(row.master).toLowerCase().includes(String(filters.bl_id).toLowerCase()))
+    return filtered.map(row => ({ master: row.master, childrenCount: row.children_count }))
+  }, [mastersListRaw, filters.bl_id])
+
+  useEffect(() => {
     // debounce de filtros
     if (typingTimerRef.current) clearTimeout(typingTimerRef.current)
     typingTimerRef.current = setTimeout(() => { load() }, 300)
@@ -91,7 +137,7 @@ function Panel({ user }) {
           <p className="muted">Gestiona y visualiza todos los registros fotográficos.</p>
         </div>
         <div className="actions-row">
-          <button className="btn btn-primary" onClick={() => navigate('/bl')}>+ Nuevo Registro</button>
+          <button className="btn btn-primary" onClick={() => navigate('/bl/new')}>+ Nuevo Registro</button>
         </div>
       </div>
 
@@ -106,12 +152,7 @@ function Panel({ user }) {
           </div>
         </form>
 
-        <div className="tabs">
-          <button className={'tab' + (filters.status === '' ? ' active' : '')} onClick={() => setTab('todos')}>Todos</button>
-          <button className={'tab' + (filters.status === 'sent' ? ' active' : '')} onClick={() => setTab('completo')}>Completo</button>
-          <button className={'tab' + (filters.status === 'pending' ? ' active' : '')} onClick={() => setTab('pendiente')}>Pendiente</button>
-          <button className={'tab' + (filters.status === 'failed' ? ' active' : '')} onClick={() => setTab('rechazado')}>Rechazado</button>
-        </div>
+        
 
         {msg && <p className="muted">{msg}</p>}
 
@@ -119,24 +160,20 @@ function Panel({ user }) {
           <table className="table">
             <thead>
               <tr>
-                <th>OL</th>
-                <th>BL</th>
-                <th>Fotografías</th>
-                <th>Estado</th>
+                <th>Master</th>
+                <th>Usuario</th>
+                <th>Hijos</th>
                 <th className="table-actions">Acciones</th>
               </tr>
             </thead>
             <tbody>
-              {items.slice((page-1)*pageSize, (page-1)*pageSize + pageSize).map((it, idx) => (
+              {mastersList.slice((page-1)*pageSize, (page-1)*pageSize + pageSize).map((row, idx) => (
                 <tr key={idx}>
-                  <td>{it.ol_id || it.bl_id}</td>
-                  <td>{it.bl_id}</td>
-                  <td>{(it.photos_count || 0)} fotos</td>
-                  <td>
-                    <StatusBadge status={it.send_status} />
-                  </td>
+                  <td>{row.master}</td>
+                  <td>{(() => { try { const u = JSON.parse(localStorage.getItem('user')||'{}'); return u.nombre || u.display_name || u.email || '-' } catch { return '-' } })()}</td>
+                  <td>{row.childrenCount}</td>
                   <td className="table-actions">
-                    <button className="btn btn-outline btn-small" onClick={() => navigate('/evidence/' + it.bl_id)}>Ver detalle</button>
+                    <button className="btn btn-outline btn-small" onClick={() => navigate('/bl/' + row.master)}>Ver detalle</button>
                   </td>
                 </tr>
               ))}
@@ -145,12 +182,12 @@ function Panel({ user }) {
         </div>
 
         <div className="pagination">
-          <span className="muted">Mostrando {items.length ? ((page-1)*pageSize + 1) : 0}-{Math.min(page*pageSize, items.length)} de {items.length} resultados</span>
+          <span className="muted">Mostrando {mastersList.length ? ((page-1)*pageSize + 1) : 0}-{Math.min(page*pageSize, mastersList.length)} de {mastersList.length} resultados</span>
           <button className="page-btn" disabled={page===1} onClick={() => setPage(p => Math.max(1, p-1))}>{'<'}</button>
-          {Array.from({ length: Math.max(1, Math.ceil(items.length / pageSize)) }, (_, i) => (
+          {Array.from({ length: Math.max(1, Math.ceil(mastersList.length / pageSize)) }, (_, i) => (
             <button key={i} className={'page-btn' + (page===i+1 ? ' active' : '')} onClick={() => setPage(i+1)}>{i+1}</button>
           ))}
-          <button className="page-btn" disabled={page>=Math.max(1, Math.ceil(items.length / pageSize))} onClick={() => setPage(p => Math.min(Math.max(1, Math.ceil(items.length / pageSize)), p+1))}>{'>'}</button>
+          <button className="page-btn" disabled={page>=Math.max(1, Math.ceil(mastersList.length / pageSize))} onClick={() => setPage(p => Math.min(Math.max(1, Math.ceil(mastersList.length / pageSize)), p+1))}>{'>'}</button>
         </div>
       </div>
     </>

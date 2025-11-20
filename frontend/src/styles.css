@@ -98,6 +98,7 @@ body {
     border-radius: 8px;
     background: #fff
 }
+.input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(1,141,196,0.15); }
 .grid-1 {
     display: grid;
     gap: 4%;
@@ -319,8 +320,9 @@ card .user {
 
 /* --- Headers, search and actions --- */
 .page-header { display:flex; align-items:center; justify-content: space-between; margin-bottom: 12px; }
-.searchbar { position: relative; }
+.searchbar { position: relative; display: inline-block; }
 .searchbar input { width: 320px; max-width: 100%; padding: 10px 12px 10px 34px; border: 1px solid #e5e7eb; border-radius: 8px; }
+.searchbar input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(1,141,196,0.15); }
 .searchbar .search-icon { position:absolute; left:10px; top:50%; transform:translateY(-50%); color:#6b7280; font-size:14px; }
 .actions-row { display:flex; gap: 10px; }
 
