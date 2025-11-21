@@ -46,7 +46,6 @@ function Sidebar({ user, onLogout, onNavigate }) {
       </div>
       <nav className="side-nav">
         {NavItem('Dashboard', '/panel', <IconDashboard />)}
-        {NavItem('BLs', '/bl', <IconPhotos />)}
         {isAdmin && NavItem('Users', '/admin/users', <IconUsers />)}
         {/* Extras del mockup */}
         {/* NavItem('Photos', '/bls', '🖼️'), */}

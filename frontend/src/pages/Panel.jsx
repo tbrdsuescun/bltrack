@@ -159,25 +159,29 @@ function Panel({ user }) {
                   <tr>
                     <th>Master</th>
                     <th>Usuario</th>
-                    <th>N° BLs</th>
+                    <th>Puerto</th>
+                    <th>N° Hbls</th>
                     <th className="table-actions">Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
                   {mastersList.slice((page-1)*pageSize, (page-1)*pageSize + pageSize).map((row, idx) => (
                     <tr key={idx}>
-                      <td>{row.master}</td>
+                      <td style={{ cursor:'pointer', color:'#06467c' }} onClick={() => navigate('/bl?master=' + encodeURIComponent(row.master))}>{row.master}</td>
                       <td>{(() => { try { const u = JSON.parse(localStorage.getItem('user')||'{}'); return u.nombre || u.display_name || u.email || '-' } catch { return '-' } })()}</td>
+                      <td>{(() => { try { const u = JSON.parse(localStorage.getItem('user')||'{}'); return u.puerto} catch { return '-' } })()}</td>
                       <td>{row.childrenCount}</td>
                       <td className="table-actions">
+                        <button className="btn btn-outline btn-small" onClick={() => {navigate('/bl?master=' + encodeURIComponent(row.master))
+                        }}>Ver detalle</button>
                         <button className="btn btn-outline btn-small" onClick={() => {
                           const children = mastersMap[row.master] || []
                           if (children.length === 1) {
                             navigate('/evidence/' + children[0])
                           } else {
-                            navigate('/bl/' + row.master)
+                            navigate('/bl?master=' + encodeURIComponent(row.master))
                           }
-                        }}>Ver detalle</button>
+                        }}>Ingresar imagenes</button>
                       </td>
                     </tr>
                   ))}

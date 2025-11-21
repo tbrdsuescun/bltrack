@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams, useNavigate } from 'react-router-dom'
 import dayjs from 'dayjs'
 import API from '../lib/api.js'
 import SearchBar from '../components/SearchBar.jsx'
 
 function BLEvidence() {
   const { id } = useParams()
+  const navigate = useNavigate()
   const [photos, setPhotos] = useState([])
   const [loading, setLoading] = useState(false)
   const [status, setStatus] = useState(null)
@@ -141,6 +142,9 @@ function BLEvidence() {
         <div>
           <h1 className="h1">Evidencia Fotográfica</h1>
           <p className="muted">BL {id}</p>
+        </div>
+        <div className="actions-row">
+          <button className="btn btn-outline" onClick={() => navigate(-1)}>← Volver</button>
         </div>
       </div>
 
