@@ -172,6 +172,11 @@ function BLDetail({ user }) {
           )}
         </div>
         {selectedMaster && (
+          <div className="actions-row">
+            <button className="btn btn-primary" onClick={() => navigate('/evidence/' + selectedMaster)}>Ingresar imágenes al master</button>
+          </div>
+        )}
+        {selectedMaster && (
           childrenRows.length === 0 ? (
             <p className="muted" style={{ marginTop: '12px' }}>No hay hijos para este master.</p>
           ) : (

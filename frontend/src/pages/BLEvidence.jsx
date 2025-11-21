@@ -204,7 +204,7 @@ function BLEvidence() {
       <div className="page-header">
         <div>
           <h1 className="h1">Evidencia Fotográfica</h1>
-          <p className="muted">BL {id}</p>
+          <p className="muted">{isMaster ? 'MASTER ' : 'HBL '}{id}</p>
         </div>
         <div className="actions-row">
           <button className="btn btn-outline" onClick={() => navigate(-1)}>← Volver</button>
