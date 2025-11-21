@@ -136,7 +136,9 @@ function Panel({ user }) {
           <p className="muted">Gestiona y visualiza todos los registros fotográficos.</p>
         </div>
         <div className="actions-row">
-          <button className="btn btn-primary" onClick={() => navigate('/bl/new')}>+ Nuevo Registro</button>
+          {(() => { try { const u = JSON.parse(localStorage.getItem('user') || '{}'); return String(u.role || '') !== 'admin' } catch { return true } })() && (
+            <button className="btn btn-primary" onClick={() => navigate('/bl/new')}>+ Nuevo Registro</button>
+          )}
         </div>
       </div>
 

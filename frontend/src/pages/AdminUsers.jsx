@@ -37,7 +37,8 @@ function AdminUsers({ user }) {
     setLoading(true)
     setMsg(null)
     try {
-      const res = await API.post('/users', form)
+      const payload = { nombre: form.nombre, email: form.email, role: form.role, puerto: form.role === 'admin' ? '' : form.puerto, is_active: form.is_active, password: form.password }
+      const res = await API.post('/users', payload)
       setMsg('Usuario creado: ' + res.data.email)
       setForm({ nombre: '', email: '', password: '', role: 'operario', puerto: 'Barranquilla', is_active: true })
       setShowModal(false)
@@ -61,8 +62,8 @@ function AdminUsers({ user }) {
     setLoading(true)
     setMsg(null)
     try {
-      
-      const payload = { nombre: form.nombre, email: form.email, role: form.role, puerto: form.puerto, is_active: form.is_active }
+
+      const payload = { nombre: form.nombre, email: form.email, role: form.role, puerto: form.role === 'admin' ? '' : form.puerto, is_active: form.is_active }
       if (form.password) payload.password = form.password
       await API.patch('/users/' + editing, payload)
       setMsg('Usuario actualizado')
@@ -217,23 +218,25 @@ function AdminUsers({ user }) {
                     <button type="button" className="btn btn-outline btn-small" style={{ position: 'absolute', right: 8, top: 34 }} onClick={() => setShowPass(s => !s)}>{showPass ? 'Ocultar' : 'Ver'}</button>
                   </label>
                   <label className="label">
-                    Puerto
-                    <select className="input" value={form.puerto} onChange={(e) => onChangeField('puerto', e.target.value)}>
-                      <option value="Barranquilla">Barranquilla</option>
-                      <option value="Cartagena">Cartagena</option>
-                      <option value="Buenaventura">Buenaventura</option>
-                      <option value="Santa Marta">Santa Marta</option>
-                    </select>
-                  </label>
-                </div>
-                <div className="grid-2">
-                  <label className="label">
                     Rol
                     <select className="input" value={form.role} onChange={(e) => onChangeField('role', e.target.value)}>
                       <option value="operario">Operario</option>
                       <option value="admin">Admin</option>
                     </select>
                   </label>
+                </div>
+                <div className="grid-2">
+                  {form.role !== 'admin' && (
+                    <label className="label">
+                      Puerto
+                      <select className="input" value={form.puerto} onChange={(e) => onChangeField('puerto', e.target.value)}>
+                        <option value="Barranquilla">Barranquilla</option>
+                        <option value="Cartagena">Cartagena</option>
+                        <option value="Buenaventura">Buenaventura</option>
+                        <option value="Santa Marta">Santa Marta</option>
+                      </select>
+                    </label>
+                  )}
                   <div className="label">
                     Estado
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '8px' }}>
@@ -260,10 +263,10 @@ function AdminUsers({ user }) {
               <button type="button" className="btn btn-outline btn-small" style={{ fontSize: '1.5rem' }} onClick={() => setConfirmUser(null)}>×</button>
             </div>
             <div className="modal-body">
-              <div style={{ display:'flex', alignItems:'center', gap:12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 <div>
                   <div>¿Eliminar a <strong>{confirmUser?.nombre || confirmUser?.email}</strong>?</div>
-                  <div className="muted" style={{ fontSize:12 }}>Esta acción no se puede deshacer.</div>
+                  <div className="muted" style={{ fontSize: 12 }}>Esta acción no se puede deshacer.</div>
                 </div>
               </div>
             </div>
