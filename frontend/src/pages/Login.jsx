@@ -28,7 +28,7 @@ function Login({ setUser }) {
         <div className="login-overlay">
           <div className="login-overlay-content">
             <h2 className="h2" style={{ color: '#fff', marginBottom: '8px' }}>Logística ágil</h2>
-            <p className="muted" style={{ color: '#e5e7eb' }}>Sube fotos y gestiona tus BLs.</p>
+            <p className="muted" style={{ color: '#e5e7eb' }}>Sube fotos y gestiona tus Hbls.</p>
           </div>
         </div>
       </div>
@@ -47,11 +47,11 @@ function Login({ setUser }) {
         <form onSubmit={handleSubmit(onSubmit)} className="form">
           <label className="label">
             Email
-            <input className="input" type="email" placeholder="admin@empresa.com" {...register('email', { required: true })} />
+            <input className="input" type="email" placeholder="usuario@transborder.com.co" {...register('email', { required: true })} />
           </label>
           <label className="label">
             Password
-            <input className="input" type="password" placeholder="password" {...register('password', { required: true })} />
+            <input className="input" type="password" placeholder="contraseña" {...register('password', { required: true })} />
           </label>
           <button className="btn btn-primary" disabled={isSubmitting}>Entrar</button>
           {error && <div className="error">{error}</div>}
