@@ -10,6 +10,7 @@ const sendRouter = require('./routes/send');
 const logsRouter = require('./routes/logs');
 const usersRouter = require('./routes/users');
 const mastersRouter = require('./routes/masters');
+const externalRouter = require('./routes/external');
 
 const app = express();
 
@@ -38,6 +39,7 @@ app.use(sendRouter);
 app.use(logsRouter);
 app.use('/users', usersRouter);
 app.use(mastersRouter);
+app.use(externalRouter);
 
 // Error handler last
 app.use(errorHandler);

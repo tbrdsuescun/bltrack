@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom'
-import axios from 'axios'
+import API from './lib/api.js'
 import Login from './pages/Login.jsx'
 import Panel from './pages/Panel.jsx'
 import BLList from './pages/BLList.jsx'
@@ -9,19 +9,7 @@ import BLEvidence from './pages/BLEvidence.jsx'
 import AdminUsers from './pages/AdminUsers.jsx'
 import Layout from './components/Layout.jsx'
 
-// Configure axios
-const API = axios.create({ 
-  baseURL: import.meta.env.PROD ? '' : 'http://localhost:4001'
-})
-
-// Add auth token to requests
-API.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token')
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`
-  }
-  return config
-})
+ 
 
 // Protected Route component
 const ProtectedRoute = ({ children }) => {
@@ -58,24 +46,22 @@ function App() {
 
   useEffect(() => {
     const key = 'tbMastersCache'
-    const existing = localStorage.getItem(key)
-    if (!existing) {
-      axios.get('http://tracking.transborder.com.co/Development/ApisNotes-Cotiz/DevRestApiNotesCotiz.nsf/api.xsp/operaciones/masters', {
-        auth: { username: 'cconsumer', password: 'cotizadorapiconsumer' }
-      }).then(res => {
+    let stale = true
+    try {
+      const v = JSON.parse(localStorage.getItem(key) || 'null')
+      const ts = Number(v?.ts || 0)
+      const ttl = 24 * 60 * 60 * 1000
+      stale = !v || !Array.isArray(v.data) || (Date.now() - ts) > ttl
+    } catch { stale = true }
+    if (stale) {
+      API.get('/external/masters').then(res => {
         const data = Array.isArray(res.data?.data) ? res.data.data : []
         const payload = { data, ts: Date.now() }
         try { localStorage.setItem(key, JSON.stringify(payload)) } catch {}
-      }).catch(() => {
-        const sample = {
-          data: [
-            { numeroMaster: 'LHV1334257', numeroDo: '01.000040.16' },
-            { numeroMaster: 'APLU067965538', numeroDo: '01.000054.16' },
-            { numeroMaster: 'SUDU759991678045', numeroDo: '01.000080.16' }
-          ],
-          ts: Date.now()
-        }
-        try { localStorage.setItem(key, JSON.stringify(sample)) } catch {}
+      }).catch((err) => {
+        const payload = { data: [], ts: Date.now(), error: 'No se pudo obtener información del API' }
+        try { localStorage.setItem(key, JSON.stringify(payload)) } catch {}
+        try { alert('No se obtuvo información o no se pudo conectar con el servidor') } catch {}
       })
     }
   }, [])
