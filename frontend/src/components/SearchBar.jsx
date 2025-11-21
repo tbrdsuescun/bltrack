@@ -6,7 +6,7 @@ export default function SearchBar({ placeholder, value, onChange, options = [], 
   const list = useMemo(() => {
     const q = String(value || '').toLowerCase()
     if (!Array.isArray(options) || !options.length) return []
-    return options.filter(o => String(o.label ?? o).toLowerCase().includes(q)).slice(0, 50)
+    return options.filter(o => String(o.label ?? o).toLowerCase().includes(q))
   }, [options, value])
 
   useEffect(() => {

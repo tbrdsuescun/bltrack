@@ -45,23 +45,30 @@ function BLDetail({ user }) {
     mastersRaw.forEach(x => {
       const k = x.numeroMaster || ''
       if (!k) return
-      if (!m[k]) m[k] = []
-      if (x.numeroDo) m[k].push(x.numeroDo)
+      const children = Array.isArray(x.hijos) ? x.hijos : []
+      m[k] = children.map(c => ({
+        cliente: c.cliente || '',
+        puertoOrigen: c.puertoOrigen || '',
+        numeroIE: c.numeroIE || '',
+        numeroDo: c.numeroDo || '',
+        paisOrigen: c.paisOrigen || '',
+        numeroHBL: c.numeroHBL || ''
+      }))
     })
     return m
   }, [mastersRaw])
   const mastersOptions = useMemo(() => Object.keys(mastersMap).map(k => ({ label: k, value: k })), [mastersMap])
-  const childrenOptions = useMemo(() => selectedMaster ? (mastersMap[selectedMaster] || []).map(d => ({ label: d, value: d })) : [], [mastersMap, selectedMaster])
+  const childrenOptions = useMemo(() => selectedMaster ? (mastersMap[selectedMaster] || []).map(ch => ({ label: ch.numeroHBL || '', value: ch.numeroHBL || '' })) : [], [mastersMap, selectedMaster])
   const childrenRows = useMemo(() => {
     if (!selectedMaster) return []
-    const ids = childrenList
-    return ids.map((id, idx) => ({
-      numeroBL: id,
-      clienteNombre: 'Cliente ' + String(idx + 1).padStart(2, '0'),
-      clienteNit: '900' + String(100000 + idx),
-      numeroIE: 'IE-' + String(1000 + idx),
-      descripcionMercancia: 'Descripción de mercancía ' + (idx + 1),
-      numeroPedido: 'PED-' + String(5000 + idx)
+    const rows = Array.isArray(childrenList) ? childrenList : []
+    return rows.map(ch => ({
+      cliente: ch.cliente || '',
+      puertoOrigen: ch.puertoOrigen || '',
+      numeroIE: ch.numeroIE || '',
+      numeroDo: ch.numeroDo || '',
+      paisOrigen: ch.paisOrigen || '',
+      numeroHBL: ch.numeroHBL || ''
     }))
   }, [selectedMaster, childrenList])
 
@@ -76,7 +83,7 @@ function BLDetail({ user }) {
       setSelectedDo('')
       return
     }
-    const found = Object.entries(mastersMap).find(([k, arr]) => arr.includes(blId))
+    const found = Object.entries(mastersMap).find(([k, arr]) => (arr || []).some(ch => String(ch.numeroDo || '') === String(blId) || String(ch.numeroHBL || '') === String(blId)))
     if (found) {
       const [master] = found
       setSelectedMaster(master)
@@ -158,7 +165,7 @@ function BLDetail({ user }) {
             <SearchBar placeholder="Buscar master" value={masterInput} onChange={e => setMasterInput(e.target.value)} options={mastersOptions} onSelect={(o) => { const v = o.value ?? o.label ?? String(o); setSelectedMaster(v); setMasterInput(String(o.label ?? v)); setDoInput(''); setSelectedDo('') }} fullWidth />
           </label>
           {selectedMaster && (
-            <label className="label">Hijo (DO)
+            <label className="label">Hijo (HBL)
               <SearchBar placeholder="Seleccionar hijo" value={doInput} onChange={e => setDoInput(e.target.value)} options={childrenOptions} onSelect={(o) => { const v = o.value ?? o.label ?? String(o); setSelectedDo(v); setDoInput(String(o.label ?? v)) }} fullWidth />
             </label>
           )}
@@ -171,11 +178,12 @@ function BLDetail({ user }) {
               <table className="table">
                 <thead>
                   <tr>
-                    <th>Número BL</th>
-                    <th>Nombre Cliente - NIT</th>
+                    <th>Cliente</th>
+                    <th>Puerto Origen</th>
                     <th>Número IE</th>
-                    <th>Descripción de la mercancía</th>
-                    <th>Número de pedido</th>
+                    <th>Número DO</th>
+                    <th>País Origen</th>
+                    <th>Número HBL</th>
                     <th>Fotografías</th>
                     <th>Estado</th>
                     <th className="table-actions">Acciones</th>
@@ -183,16 +191,17 @@ function BLDetail({ user }) {
                 </thead>
                 <tbody>
                   {childrenRows.map(row => (
-                    <tr key={row.numeroBL}>
-                      <td>{row.numeroBL}</td>
-                      <td>{row.clienteNombre} - {row.clienteNit}</td>
+                    <tr key={row.numeroHBL || row.numeroDo}>
+                      <td>{row.cliente}</td>
+                      <td>{row.puertoOrigen}</td>
                       <td>{row.numeroIE}</td>
-                      <td>{row.descripcionMercancia}</td>
-                      <td>{row.numeroPedido}</td>
-                      <td>{mineMap[row.numeroBL]?.photos_count || 0}</td>
-                      <td>{(mineMap[row.numeroBL]?.photos_count || 0) > 0 ? <StatusBadge status={mineMap[row.numeroBL]?.send_status || ''} /> : ''}</td>
+                      <td>{row.numeroDo}</td>
+                      <td>{row.paisOrigen}</td>
+                      <td>{row.numeroHBL}</td>
+                      <td>{mineMap[row.numeroHBL || row.numeroDo]?.photos_count || 0}</td>
+                      <td>{(mineMap[row.numeroHBL || row.numeroDo]?.photos_count || 0) > 0 ? <StatusBadge status={mineMap[row.numeroHBL || row.numeroDo]?.send_status || ''} /> : ''}</td>
                       <td className="table-actions">
-                        <button className="btn btn-outline btn-small" onClick={() => navigate('/evidence/' + row.numeroBL)}>Ingresar imágenes</button>
+                        <button className="btn btn-outline btn-small" onClick={() => navigate('/evidence/' + (row.numeroHBL || row.numeroDo))}>Ingresar imágenes</button>
                       </td>
                     </tr>
                   ))}
