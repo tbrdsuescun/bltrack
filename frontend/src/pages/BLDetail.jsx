@@ -148,7 +148,7 @@ function BLDetail({ user }) {
       <div className="page-header">
         <div>
           <h1 className="h1">Nuevo Registro Fotográfico</h1>
-          <p className="muted">BL {blId || ''}</p>
+          <p className="muted">Selecciona un master para agregar una foto al {blId || 'HBL'}</p>
         </div>
       </div>
 

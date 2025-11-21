@@ -38,9 +38,6 @@ export default function SearchBar({ placeholder, value, onChange, options = [], 
         {String(value || '').length > 0 && (
           <button type="button" onClick={clearInput} style={{ appearance:'none', border:'none', background:'transparent', color:'#6b7280', fontSize:16, lineHeight:1, cursor:'pointer', pointerEvents: 'auto' }}>×</button>
         )}
-        <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ pointerEvents: 'auto' }}>
-          <path d="M6 9l6 6 6-6" />
-        </svg>
       </div>
       {open && list.length > 0 && (
         <div style={{ position: 'absolute', left: 0, right: 0, top: '100%', background: '#fff', border: '1px solid #e5e7eb', borderRadius: 8, marginTop: 6, maxHeight: 240, overflowY: 'auto', zIndex: 20 }}>
