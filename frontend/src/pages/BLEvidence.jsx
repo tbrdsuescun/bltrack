@@ -13,6 +13,23 @@ function BLEvidence() {
   const fileInputRef = useRef()
   const [selectedPhoto, setSelectedPhoto] = useState(null)
   const [cacheEntry, setCacheEntry] = useState(null)
+  const [isMaster, setIsMaster] = useState(false)
+  const [selectedPrefix, setSelectedPrefix] = useState('')
+  const [counters, setCounters] = useState({})
+  const [prefixModalOpen, setPrefixModalOpen] = useState(false)
+  const [prefixError, setPrefixError] = useState(false)
+  const PREFIXES = [
+    { label: 'Contenedor cerrado', slug: 'contenedor_cerrado' },
+    { label: 'Contenedor abierto', slug: 'contenedor_abierto' },
+    { label: 'No. de contenedor', slug: 'no_de_contenedor' },
+    { label: 'Sello', slug: 'sello' },
+    { label: 'Líneas de cargue', slug: 'lineas_de_cargue' },
+    { label: 'Avería', slug: 'averia' },
+    { label: 'SGA', slug: 'sga' },
+    { label: 'Contenedor vacío ( lado izquierdo, lado derecho, piso, techo.)', slug: 'contenedor_vacio' },
+    { label: 'Tarja', slug: 'tarja' },
+    { label: 'Acta de avería', slug: 'acta_de_averia' },
+  ]
 
   useEffect(() => {
     let mounted = true
@@ -28,6 +45,7 @@ function BLEvidence() {
       const entryMaster = arr.find(x => (x.numeroMaster || '') && String(x.numeroMaster) === String(id))
       const entry = entryChild || entryMaster || null
       if (entry) setCacheEntry(entry)
+      setIsMaster(!!entryMaster && !entryChild)
     } catch {}
     return () => { mounted = false }
   }, [id])
@@ -44,22 +62,53 @@ function BLEvidence() {
       .sort((a, b) => parseTs(a) - parseTs(b))
   }, [photos])
 
+  useEffect(() => {
+    const next = {}
+    const list = Array.isArray(photos) ? photos : []
+    PREFIXES.forEach(p => { next[p.slug] = 1 })
+    list.forEach(p => {
+      const name = String(p.filename || '')
+      PREFIXES.forEach(px => {
+        const prefix = px.slug + '_'
+        if (name.startsWith(prefix)) {
+          const rest = name.slice(prefix.length)
+          const num = Number((rest.split('.')[0]) || rest)
+          if (Number.isFinite(num)) next[px.slug] = Math.max(next[px.slug] || 1, num + 1)
+        }
+      })
+    })
+    setCounters(next)
+  }, [photos])
+
   async function onUpload(e) {
     const files = Array.from(e.target.files || [])
     if (!files.length || !id) return
+    if (isMaster && !selectedPrefix) { setStatus('Selecciona un prefijo para nombrar las fotos'); setPrefixError(true); setPrefixModalOpen(true); return }
     const fd = new FormData()
-    files.forEach(f => fd.append('photos', f))
+    let filesToUse = files
     try {
       const cache = JSON.parse(localStorage.getItem('tbMastersCache') || '{}')
       const arr = Array.isArray(cache.data) ? cache.data : []
       const entryChild = arr.find(x => (x.numeroDo || '') && String(x.numeroDo) === String(id))
       const entryMaster = arr.find(x => (x.numeroMaster || '') && String(x.numeroMaster) === String(id))
-      const isMaster = !!entryMaster && !entryChild
+      const isMasterLocal = !!entryMaster && !entryChild
       const entry = entryChild || entryMaster || null
-      const masterId = isMaster ? String(id) : String((entry && (entry.numeroMaster || entry.numeroDo)) || id)
-      const childId = isMaster ? '' : String((entry && entry.numeroDo) || id)
+      const masterId = isMasterLocal ? String(id) : String((entry && (entry.numeroMaster || entry.numeroDo)) || id)
+      const childId = isMasterLocal ? '' : String((entry && entry.numeroDo) || id)
       fd.append('master_id', masterId)
       fd.append('child_id', childId)
+      if (isMaster && selectedPrefix) {
+        const slug = selectedPrefix
+        const start = Math.max(1, Number(counters[slug] || 1))
+        filesToUse = files.map((f, i) => {
+          const original = String(f.name || '')
+          const dot = original.lastIndexOf('.')
+          const ext = dot >= 0 ? original.slice(dot) : ''
+          const newName = `${slug}_${start + i}${ext}`
+          return new File([f], newName, { type: f.type })
+        })
+        fd.append('prefix', slug)
+      }
       if (entry) {
         fd.append('cliente_nombre', String(entry.nombreCliente || entry.clienteNombre || entry.razonSocial || entry.nombre || ''))
         fd.append('cliente_nit', String(entry.nitCliente || entry.clienteNit || entry.nit || ''))
@@ -68,13 +117,18 @@ function BLEvidence() {
         fd.append('numero_pedido', String(entry.numeroPedido || entry.pedido || entry.orderNumber || ''))
       }
     } catch {}
+    filesToUse.forEach(f => fd.append('photos', f))
     setLoading(true)
     try {
       const res = await API.post('/bls/' + id + '/photos', fd)
       const newPhotos = (res.data.photos || []).map(p => ({ ...p, url: p.id ? ('/uploads/' + p.id) : p.url }))
       setPhotos(prev => prev.concat(newPhotos))
       setStatus('Fotos cargadas: ' + newPhotos.length)
-      // masters/sync ya se envía junto con la subida; se mantiene compatible sin segunda llamada
+      if (isMaster && selectedPrefix) {
+        const slug = selectedPrefix
+        const inc = filesToUse.length
+        setCounters(prev => ({ ...prev, [slug]: Math.max(1, Number(prev[slug] || 1)) + inc }))
+      }
     } catch (err) {
       setStatus('Error al subir fotos: ' + (err.response?.data?.error || err.message))
     } finally {
@@ -141,8 +195,8 @@ function BLEvidence() {
     }
   }
 
-  function openFileDialog(){ fileInputRef.current?.click() }
-  function onDrop(e){ e.preventDefault(); const files = Array.from(e.dataTransfer?.files || []); if (!files.length) return; const synthetic = { target: { files } }; onUpload(synthetic) }
+  function openFileDialog(){ if (isMaster && !selectedPrefix) { setStatus('Selecciona un prefijo para nombrar las fotos'); setPrefixError(true); setPrefixModalOpen(true); return } fileInputRef.current?.click() }
+  function onDrop(e){ e.preventDefault(); if (isMaster && !selectedPrefix) { setStatus('Selecciona un prefijo para nombrar las fotos'); setPrefixError(true); setPrefixModalOpen(true); return } const files = Array.from(e.dataTransfer?.files || []); if (!files.length) return; const synthetic = { target: { files } }; onUpload(synthetic) }
   function onDragOver(e){ e.preventDefault() }
 
   return (
@@ -158,6 +212,16 @@ function BLEvidence() {
       </div>
 
       <div className="card">
+        {isMaster && (
+          <div className="grid-2">
+            <label className="label">Prefijo para nombrar
+              <select className="input" value={selectedPrefix} onChange={(e) => { const v = e.target.value; setSelectedPrefix(v); if (v) { setPrefixError(false); setPrefixModalOpen(false) } }}>
+                <option value="">Selecciona prefijo</option>
+                {PREFIXES.map(o => <option key={o.slug} value={o.slug}>{o.label}</option>)}
+              </select>
+            </label>
+          </div>
+        )}
         
         <div style={{ marginTop:'12px' }}>
           <h2 className="h2">Evidencia</h2>
@@ -169,7 +233,7 @@ function BLEvidence() {
           <input ref={fileInputRef} type="file" accept="image/*" multiple capture="environment" style={{ display:'none' }} onChange={onUpload} disabled={loading} />
         </div>
 
-        {status && <p className="muted">{status}</p>}
+        {status && <p className="muted" style={prefixError ? { color: '#e11' } : undefined}>{status}</p>}
 
         {orderedPhotos.length === 0 ? (
           <p className="muted">Aún no hay fotos para este BL.</p>
@@ -260,6 +324,23 @@ function BLEvidence() {
             <div className="modal-footer">
               <button className="btn" onClick={() => setConfirmPhoto(null)}>Cancelar</button>
               <button className="btn btn-danger" onClick={onDeleteConfirmed} disabled={loading}>Eliminar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {prefixModalOpen && (
+        <div className="modal-backdrop" onClick={() => setPrefixModalOpen(false)}>
+          <div className="modal" style={{ width: '420px' }} onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span>Prefijo requerido</span>
+              <button type="button" className="btn btn-outline btn-small" style={{ fontSize: '1.5rem' }} onClick={() => setPrefixModalOpen(false)}>×</button>
+            </div>
+            <div className="modal-body">
+              <div>Selecciona un prefijo para nombrar las fotos antes de continuar.</div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn" onClick={() => setPrefixModalOpen(false)}>Entendido</button>
             </div>
           </div>
         </div>
