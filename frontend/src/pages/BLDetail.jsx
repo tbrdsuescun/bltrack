@@ -61,7 +61,8 @@ function BLDetail({ user }) {
   const childrenOptions = useMemo(() => selectedMaster ? (mastersMap[selectedMaster] || []).map(ch => ({ label: ch.numeroHBL || '', value: ch.numeroHBL || '' })) : [], [mastersMap, selectedMaster])
   const childrenRows = useMemo(() => {
     if (!selectedMaster) return []
-    const rows = Array.isArray(childrenList) ? childrenList : []
+    let rows = Array.isArray(childrenList) ? childrenList : []
+    if (selectedDo) rows = rows.filter(ch => String(ch.numeroHBL || '') === String(selectedDo))
     return rows.map(ch => ({
       cliente: ch.cliente || '',
       puertoOrigen: ch.puertoOrigen || '',
@@ -70,7 +71,7 @@ function BLDetail({ user }) {
       paisOrigen: ch.paisOrigen || '',
       numeroHBL: ch.numeroHBL || ''
     }))
-  }, [selectedMaster, childrenList])
+  }, [selectedMaster, childrenList, selectedDo])
 
   useEffect(() => {
     if (!blId) return
@@ -83,7 +84,7 @@ function BLDetail({ user }) {
       setSelectedDo('')
       return
     }
-    const found = Object.entries(mastersMap).find(([k, arr]) => (arr || []).some(ch => String(ch.numeroDo || '') === String(blId) || String(ch.numeroHBL || '') === String(blId)))
+    const found = Object.entries(mastersMap).find(([k, arr]) => (arr || []).some(ch => String(ch.numeroHBL || '') === String(blId)))
     if (found) {
       const [master] = found
       setSelectedMaster(master)
@@ -191,17 +192,17 @@ function BLDetail({ user }) {
                 </thead>
                 <tbody>
                   {childrenRows.map(row => (
-                    <tr key={row.numeroHBL || row.numeroDo}>
+                    <tr key={row.numeroHBL}>
                       <td>{row.cliente}</td>
                       <td>{row.puertoOrigen}</td>
                       <td>{row.numeroIE}</td>
                       <td>{row.numeroDo}</td>
                       <td>{row.paisOrigen}</td>
                       <td>{row.numeroHBL}</td>
-                      <td>{mineMap[row.numeroHBL || row.numeroDo]?.photos_count || 0}</td>
-                      <td>{(mineMap[row.numeroHBL || row.numeroDo]?.photos_count || 0) > 0 ? <StatusBadge status={mineMap[row.numeroHBL || row.numeroDo]?.send_status || ''} /> : ''}</td>
+                      <td>{mineMap[row.numeroHBL]?.photos_count || 0}</td>
+                      <td>{(mineMap[row.numeroHBL]?.photos_count || 0) > 0 ? <StatusBadge status={mineMap[row.numeroHBL]?.send_status || ''} /> : ''}</td>
                       <td className="table-actions">
-                        <button className="btn btn-outline btn-small" onClick={() => navigate('/evidence/' + (row.numeroHBL || row.numeroDo))}>Ingresar imágenes</button>
+                        <button className="btn btn-outline btn-small" onClick={() => navigate('/evidence/' + row.numeroHBL)}>Ingresar imágenes</button>
                       </td>
                     </tr>
                   ))}
