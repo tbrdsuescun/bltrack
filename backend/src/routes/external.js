@@ -7,10 +7,14 @@ const router = express.Router()
 
 router.get('/external/masters', authRequired, async (req, res) => {
   try {
-    const url = MASTERS_URL || 'http://tracking.transborder.com.co/Development/ApisNotes-Cotiz/DevRestApiNotesCotiz.nsf/api.xsp/operaciones/masters'
-    const username = MASTERS_USER || ''
-    const password = MASTERS_PASS || ''
-    const response = await axios.get(url, { auth: { username, password }, timeout: EXTERNAL_TIMEOUT_MS })
+    const puerto = String(req.query?.puerto || '').trim().toLowerCase()
+    const base = 'https://tracking.transborder.com.co/Development/ApisNotes-Cotiz/DevRestApiNotesCotiz.nsf/api.xsp/operaciones/masters'
+    const url = puerto ? `${base}?puerto=${encodeURIComponent(puerto)}` : base
+    const username = process.env.MASTERS_USER || ''
+    const password = process.env.MASTERS_PASS || ''
+    const opts = { timeout: EXTERNAL_TIMEOUT_MS }
+    if (username && password) opts.auth = { username, password }
+    const response = await axios.get(url, opts)
     const data = Array.isArray(response.data?.data) ? response.data.data : []
     res.json({ data })
   } catch (err) {

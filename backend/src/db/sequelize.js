@@ -4,7 +4,7 @@ const { logger } = require('../utils/logger');
 const DB_URL = process.env.DB_URL || 'mysql://root:Transborder2025*@localhost:3306/app_db';
 
 const sequelize = new Sequelize(DB_URL, {
-  logging: (msg) => logger.debug(msg),
+  // logging: (msg) => logger.debug(msg),
   define: { underscored: true },
 });
 
@@ -61,9 +61,9 @@ const MasterChild = sequelize.define('MasterChild', {
 async function initDb() {
   try {
     await sequelize.authenticate();
-    logger.info('DB connection established');
+    // logger.info('DB connection established');
   } catch (err) {
-    logger.error({ msg: 'DB connect error', error: err.message });
+    // logger.error({ msg: 'DB connect error', error: err.message });
     throw err;
   }
 }
