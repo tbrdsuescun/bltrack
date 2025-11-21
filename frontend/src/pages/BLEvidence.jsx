@@ -46,29 +46,29 @@ function BLEvidence() {
     if (!files.length || !id) return
     const fd = new FormData()
     files.forEach(f => fd.append('photos', f))
+    try {
+      const cache = JSON.parse(localStorage.getItem('tbMastersCache') || '{}')
+      const arr = Array.isArray(cache.data) ? cache.data : []
+      const entry = arr.find(x => (x.numeroDo || '') && String(x.numeroDo) === String(id))
+      const masterId = String((entry && (entry.numeroMaster || entry.numeroDo)) || id)
+      const childId = String((entry && entry.numeroDo) || id)
+      fd.append('master_id', masterId)
+      fd.append('child_id', childId)
+      if (entry) {
+        fd.append('cliente_nombre', String(entry.nombreCliente || entry.clienteNombre || entry.razonSocial || entry.nombre || ''))
+        fd.append('cliente_nit', String(entry.nitCliente || entry.clienteNit || entry.nit || ''))
+        fd.append('numero_ie', String(entry.numeroIE || entry.ie || entry.ieNumber || ''))
+        fd.append('descripcion_mercancia', String(entry.descripcionMercancia || entry.descripcion || ''))
+        fd.append('numero_pedido', String(entry.numeroPedido || entry.pedido || entry.orderNumber || ''))
+      }
+    } catch {}
     setLoading(true)
     try {
       const res = await API.post('/bls/' + id + '/photos', fd)
       const newPhotos = (res.data.photos || []).map(p => ({ ...p, url: p.id ? ('/uploads/' + p.id) : p.url }))
       setPhotos(prev => prev.concat(newPhotos))
       setStatus('Fotos cargadas: ' + newPhotos.length)
-      try {
-        const cache = JSON.parse(localStorage.getItem('tbMastersCache') || '{}')
-        const arr = Array.isArray(cache.data) ? cache.data : []
-        const entry = arr.find(x => (x.numeroMaster || '') && (x.numeroDo || '') && String(x.numeroDo) === String(id))
-        if (entry) {
-          const item = {
-            master_id: entry.numeroMaster,
-            child_id: entry.numeroDo,
-            cliente_nombre: entry.nombreCliente || entry.clienteNombre || entry.razonSocial || entry.nombre || undefined,
-            cliente_nit: entry.nitCliente || entry.clienteNit || entry.nit || undefined,
-            numero_ie: entry.numeroIE || entry.ie || entry.ieNumber || undefined,
-            descripcion_mercancia: entry.descripcionMercancia || entry.descripcion || undefined,
-            numero_pedido: entry.numeroPedido || entry.pedido || entry.orderNumber || undefined,
-          }
-          await API.post('/masters/sync', { items: [item] })
-        }
-      } catch {}
+      // masters/sync ya se envía junto con la subida; se mantiene compatible sin segunda llamada
     } catch (err) {
       setStatus('Error al subir fotos: ' + (err.response?.data?.error || err.message))
     } finally {

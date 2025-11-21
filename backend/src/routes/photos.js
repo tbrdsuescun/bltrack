@@ -3,7 +3,7 @@ const multer = require('multer');
 const path = require('path');
 const { authRequired } = require('../middlewares/auth');
 const { ensureStorageDir, filePath, deleteFileSafe } = require('../services/storage');
-const { RegistroFotografico } = require('../db/sequelize');
+const { RegistroFotografico, sequelize } = require('../db/sequelize');
 
 ensureStorageDir();
 
@@ -40,7 +40,38 @@ router.post('/bls/:id/photos', authRequired, upload.array('photos', 12), async (
       rec.send_status = 'pending';
       await rec.save();
     }
-    res.status(201).json({ bl_id: id, user_id: req.user.id, count: photos.length, photos });
+    try {
+      const master_id = String(req.body.master_id || '').trim();
+      const child_id = String(req.body.child_id || '').trim() || String(id || '').trim();
+      const cliente_nombre = req.body.cliente_nombre ?? req.body.nombre_cliente ?? null;
+      const cliente_nit = req.body.cliente_nit ?? req.body.nit ?? null;
+      const numero_ie = req.body.numero_ie ?? req.body.ie ?? null;
+      const descripcion_mercancia = req.body.descripcion_mercancia ?? req.body.descripcion ?? null;
+      const numero_pedido = req.body.numero_pedido ?? req.body.pedido ?? req.body.order_number ?? null;
+      if (master_id && child_id) {
+        await sequelize.query(
+          'INSERT INTO master_children (master_id, child_id, cliente_nombre, cliente_nit, numero_ie, descripcion_mercancia, numero_pedido, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW()) ON DUPLICATE KEY UPDATE cliente_nombre = VALUES(cliente_nombre), cliente_nit = VALUES(cliente_nit), numero_ie = VALUES(numero_ie), descripcion_mercancia = VALUES(descripcion_mercancia), numero_pedido = VALUES(numero_pedido), updated_at = NOW()',
+          { replacements: [master_id, child_id, cliente_nombre, cliente_nit, numero_ie, descripcion_mercancia, numero_pedido] }
+        );
+      }
+    } catch (e) {
+      // noop: si falla la inserción de detalles, no bloquea la carga de fotos
+    }
+    res.status(201).json({
+      bl_id: id,
+      user_id: req.user.id,
+      count: photos.length,
+      photos,
+      details: {
+        master_id: String(req.body.master_id || id),
+        child_id: String(req.body.child_id || id),
+        cliente_nombre: req.body.cliente_nombre ?? req.body.nombre_cliente ?? null,
+        cliente_nit: req.body.cliente_nit ?? req.body.nit ?? null,
+        numero_ie: req.body.numero_ie ?? req.body.ie ?? null,
+        descripcion_mercancia: req.body.descripcion_mercancia ?? req.body.descripcion ?? null,
+        numero_pedido: req.body.numero_pedido ?? req.body.pedido ?? req.body.order_number ?? null,
+      }
+    });
   } catch (err) {
     res.status(500).json({ ok: false, error: 'Fallo al persistir fotos', detail: err.message });
   }
