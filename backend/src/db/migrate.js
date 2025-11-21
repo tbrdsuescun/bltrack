@@ -69,13 +69,33 @@ async function runMigrations() {
       await qi.addColumn('master_children', 'numero_ie', { type: DataTypes.STRING(100), allowNull: true });
       logger.info({ msg: 'Migration applied: master_children.numero_ie added' });
     }
-    if (!desc.descripcion_mercancia) {
-      await qi.addColumn('master_children', 'descripcion_mercancia', { type: DataTypes.TEXT, allowNull: true });
-      logger.info({ msg: 'Migration applied: master_children.descripcion_mercancia added' });
+    if (desc.descripcion_mercancia) {
+      await qi.removeColumn('master_children', 'descripcion_mercancia');
+      logger.info({ msg: 'Migration applied: master_children.descripcion_mercancia removed' });
     }
-    if (!desc.numero_pedido) {
-      await qi.addColumn('master_children', 'numero_pedido', { type: DataTypes.STRING(100), allowNull: true });
-      logger.info({ msg: 'Migration applied: master_children.numero_pedido added' });
+    if (desc.numero_pedido) {
+      await qi.removeColumn('master_children', 'numero_pedido');
+      logger.info({ msg: 'Migration applied: master_children.numero_pedido removed' });
+    }
+    if (!desc.user_id) {
+      await qi.addColumn('master_children', 'user_id', { type: DataTypes.INTEGER, allowNull: true });
+      logger.info({ msg: 'Migration applied: master_children.user_id added' });
+    }
+    if (!desc.numero_DO_master) {
+      await qi.addColumn('master_children', 'numero_DO_master', { type: DataTypes.STRING(100), allowNull: true });
+      logger.info({ msg: 'Migration applied: master_children.numero_DO_master added' });
+    }
+    if (!desc.numero_DO_hijo) {
+      await qi.addColumn('master_children', 'numero_DO_hijo', { type: DataTypes.STRING(100), allowNull: true });
+      logger.info({ msg: 'Migration applied: master_children.numero_DO_hijo added' });
+    }
+    if (!desc.pais_de_origen) {
+      await qi.addColumn('master_children', 'pais_de_origen', { type: DataTypes.STRING(100), allowNull: true });
+      logger.info({ msg: 'Migration applied: master_children.pais_de_origen added' });
+    }
+    if (!desc.puerto_de_origen) {
+      await qi.addColumn('master_children', 'puerto_de_origen', { type: DataTypes.STRING(100), allowNull: true });
+      logger.info({ msg: 'Migration applied: master_children.puerto_de_origen added' });
     }
   } catch (err) {
     logger.error({ msg: 'Migration failed: ensure master_children details', error: err.message });

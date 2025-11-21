@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import API from '../lib/api.js'
+import axios from 'axios'
 
 function Login({ setUser }) {
   const navigate = useNavigate()
@@ -14,6 +15,15 @@ function Login({ setUser }) {
       const res = await API.post('/auth/login', data)
       localStorage.setItem('token', res.data.token)
       localStorage.setItem('user', JSON.stringify(res.data.user))
+      try {
+        const puertoRaw = String(res.data.user?.puerto || '').trim()
+        const puerto = puertoRaw ? encodeURIComponent(puertoRaw.toLowerCase()) : ''
+        if (puerto) {
+          const url = `http://tracking.transborder.com.co/Development/ApisNotes-Cotiz/DevRestApiNotesCotiz.nsf/api.xsp/operaciones/masters?puerto=${puerto}`
+          const mastersRes = await axios.get(url, { auth: { username: 'cconsumer', password: 'cotizadorapiconsumer' } })
+          try { localStorage.setItem('tbMastersCache', JSON.stringify(mastersRes.data)) } catch {}
+        }
+      } catch {}
       setUser(res.data.user)
       navigate('/panel')
     } catch (e) {

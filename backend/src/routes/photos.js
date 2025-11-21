@@ -46,12 +46,14 @@ router.post('/bls/:id/photos', authRequired, upload.array('photos', 12), async (
       const cliente_nombre = req.body.cliente_nombre ?? req.body.nombre_cliente ?? null;
       const cliente_nit = req.body.cliente_nit ?? req.body.nit ?? null;
       const numero_ie = req.body.numero_ie ?? req.body.ie ?? null;
-      const descripcion_mercancia = req.body.descripcion_mercancia ?? req.body.descripcion ?? null;
-      const numero_pedido = req.body.numero_pedido ?? req.body.pedido ?? req.body.order_number ?? null;
+      const numero_DO_master = req.body.numero_DO_master ?? req.body.numero_master ?? master_id || null;
+      const numero_DO_hijo = req.body.numero_DO_hijo ?? req.body.numero_do ?? child_id || null;
+      const pais_de_origen = req.body.pais_de_origen ?? req.body.pais_origen ?? null;
+      const puerto_de_origen = req.body.puerto_de_origen ?? req.body.puerto_origen ?? null;
       if (master_id && child_id) {
         await sequelize.query(
-          'INSERT INTO master_children (master_id, child_id, cliente_nombre, cliente_nit, numero_ie, descripcion_mercancia, numero_pedido, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW()) ON DUPLICATE KEY UPDATE cliente_nombre = VALUES(cliente_nombre), cliente_nit = VALUES(cliente_nit), numero_ie = VALUES(numero_ie), descripcion_mercancia = VALUES(descripcion_mercancia), numero_pedido = VALUES(numero_pedido), updated_at = NOW()',
-          { replacements: [master_id, child_id, cliente_nombre, cliente_nit, numero_ie, descripcion_mercancia, numero_pedido] }
+          'INSERT INTO master_children (master_id, child_id, user_id, cliente_nombre, cliente_nit, numero_ie, numero_DO_master, numero_DO_hijo, pais_de_origen, puerto_de_origen, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW()) ON DUPLICATE KEY UPDATE user_id = VALUES(user_id), cliente_nombre = VALUES(cliente_nombre), cliente_nit = VALUES(cliente_nit), numero_ie = VALUES(numero_ie), numero_DO_master = VALUES(numero_DO_master), numero_DO_hijo = VALUES(numero_DO_hijo), pais_de_origen = VALUES(pais_de_origen), puerto_de_origen = VALUES(puerto_de_origen), updated_at = NOW()',
+          { replacements: [master_id, child_id, req.user.id, cliente_nombre, cliente_nit, numero_ie, numero_DO_master, numero_DO_hijo, pais_de_origen, puerto_de_origen] }
         );
       }
     } catch (e) {

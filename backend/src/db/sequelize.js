@@ -43,11 +43,14 @@ RegistroFotografico.belongsTo(User, { foreignKey: 'user_id' });
 const MasterChild = sequelize.define('MasterChild', {
   master_id: { type: DataTypes.STRING(100), allowNull: false, primaryKey: true },
   child_id: { type: DataTypes.STRING(100), allowNull: false, primaryKey: true },
+  user_id: { type: DataTypes.INTEGER, allowNull: true },
   cliente_nombre: { type: DataTypes.STRING(255), allowNull: true },
   cliente_nit: { type: DataTypes.STRING(100), allowNull: true },
   numero_ie: { type: DataTypes.STRING(100), allowNull: true },
-  descripcion_mercancia: { type: DataTypes.TEXT, allowNull: true },
-  numero_pedido: { type: DataTypes.STRING(100), allowNull: true },
+  numero_DO_master: { type: DataTypes.STRING(100), allowNull: true },
+  numero_DO_hijo: { type: DataTypes.STRING(100), allowNull: true },
+  pais_de_origen: { type: DataTypes.STRING(100), allowNull: true },
+  puerto_de_origen: { type: DataTypes.STRING(100), allowNull: true },
 }, {
   tableName: 'master_children',
   indexes: [
