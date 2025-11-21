@@ -138,7 +138,7 @@ function Panel({ user }) {
         <form onSubmit={onApplyFilters}>
           <div className="searchbar">
             <SearchBar
-              placeholder="Buscar por OL o BL..."
+              placeholder="Filtra por Master, Usuario o Puerto..."
               value={filters.bl_id}
               onChange={(e) => setFilters(prev => ({ ...prev, bl_id: e.target.value }))}
             />
@@ -175,12 +175,7 @@ function Panel({ user }) {
                         <button className="btn btn-outline btn-small" onClick={() => {navigate('/bl?master=' + encodeURIComponent(row.master))
                         }}>Ver detalle</button>
                         <button className="btn btn-outline btn-small" onClick={() => {
-                          const children = mastersMap[row.master] || []
-                          if (children.length === 1) {
-                            navigate('/evidence/' + children[0])
-                          } else {
-                            navigate('/bl?master=' + encodeURIComponent(row.master))
-                          }
+                          navigate('/evidence/' + row.master)
                         }}>Ingresar imagenes</button>
                       </td>
                     </tr>

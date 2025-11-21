@@ -24,7 +24,9 @@ function BLEvidence() {
     try {
       const cache = JSON.parse(localStorage.getItem('tbMastersCache') || '{}')
       const arr = Array.isArray(cache.data) ? cache.data : []
-      const entry = arr.find(x => (x.numeroMaster || '') && (x.numeroDo || '') && String(x.numeroDo) === String(id))
+      const entryChild = arr.find(x => (x.numeroMaster || '') && (x.numeroDo || '') && String(x.numeroDo) === String(id))
+      const entryMaster = arr.find(x => (x.numeroMaster || '') && String(x.numeroMaster) === String(id))
+      const entry = entryChild || entryMaster || null
       if (entry) setCacheEntry(entry)
     } catch {}
     return () => { mounted = false }
@@ -50,9 +52,12 @@ function BLEvidence() {
     try {
       const cache = JSON.parse(localStorage.getItem('tbMastersCache') || '{}')
       const arr = Array.isArray(cache.data) ? cache.data : []
-      const entry = arr.find(x => (x.numeroDo || '') && String(x.numeroDo) === String(id))
-      const masterId = String((entry && (entry.numeroMaster || entry.numeroDo)) || id)
-      const childId = String((entry && entry.numeroDo) || id)
+      const entryChild = arr.find(x => (x.numeroDo || '') && String(x.numeroDo) === String(id))
+      const entryMaster = arr.find(x => (x.numeroMaster || '') && String(x.numeroMaster) === String(id))
+      const isMaster = !!entryMaster && !entryChild
+      const entry = entryChild || entryMaster || null
+      const masterId = isMaster ? String(id) : String((entry && (entry.numeroMaster || entry.numeroDo)) || id)
+      const childId = isMaster ? '' : String((entry && entry.numeroDo) || id)
       fd.append('master_id', masterId)
       fd.append('child_id', childId)
       if (entry) {
@@ -107,13 +112,17 @@ function BLEvidence() {
           try {
             const cache = JSON.parse(localStorage.getItem('tbMastersCache') || '{}')
             const arr = Array.isArray(cache.data) ? cache.data : []
-            return arr.find(x => (x.numeroMaster || '') && (x.numeroDo || '') && String(x.numeroDo) === String(id))
+            const byChild = arr.find(x => (x.numeroMaster || '') && (x.numeroDo || '') && String(x.numeroDo) === String(id))
+            if (byChild) return byChild
+            const byMaster = arr.find(x => (x.numeroMaster || '') && String(x.numeroMaster) === String(id))
+            return byMaster || null
           } catch { return null }
         })()
         if (entry) {
+          const isMaster = String(entry.numeroMaster || '') === String(id) && String(entry.numeroDo || '') !== String(id)
           const item = {
-            master_id: entry.numeroMaster,
-            child_id: entry.numeroDo,
+            master_id: isMaster ? id : entry.numeroMaster,
+            child_id: isMaster ? undefined : entry.numeroDo,
             cliente_nombre: entry.nombreCliente || entry.clienteNombre || entry.razonSocial || entry.nombre || undefined,
             cliente_nit: entry.nitCliente || entry.clienteNit || entry.nit || undefined,
             numero_ie: entry.numeroIE || entry.ie || entry.ieNumber || undefined,
