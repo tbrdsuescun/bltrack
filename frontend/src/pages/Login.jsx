@@ -62,10 +62,16 @@ function Login({ setUser }) {
             Password
             <input className="input" type="password" placeholder="contraseña" {...register('password', { required: true })} />
           </label>
-          <button className="btn btn-primary" disabled={isSubmitting}>Entrar</button>
+          <button className="btn btn-primary" disabled={isSubmitting}>{isSubmitting ? 'Cargando...' : 'Entrar'}</button>
           {error && <div className="error">{error}</div>}
         </form>
       </div>
+      {isSubmitting && (
+        <div className="loading-backdrop" aria-live="polite" aria-busy="true">
+          <div className="loading-spinner"></div>
+          <div className="loading-text">Cargando...</div>
+        </div>
+      )}
     </div>
   )
 }
