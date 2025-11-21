@@ -41,8 +41,8 @@ function Sidebar({ user, onLogout, onNavigate }) {
   return (
     <aside className="sidebar">
       <div className="side-header">
-        <div className="side-logo">PhotoRegistry</div>
-        <div className="side-subtitle">Web Application</div>
+        <img src="/src/assets/Logo-TB_Secundario_blanco.png" alt="BL tracker" width={100} />
+        
       </div>
       <nav className="side-nav">
         {NavItem('Dashboard', '/panel', <IconDashboard />)}
