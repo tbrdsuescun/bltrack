@@ -18,6 +18,8 @@ function BLEvidence() {
   const [counters, setCounters] = useState({})
   const [prefixModalOpen, setPrefixModalOpen] = useState(false)
   const [prefixError, setPrefixError] = useState(false)
+  const [saveModalOpen, setSaveModalOpen] = useState(false)
+  const [saveError, setSaveError] = useState(false)
   const PREFIXES = [
     { label: 'Contenedor cerrado', slug: 'contenedor_cerrado' },
     { label: 'Contenedor abierto', slug: 'contenedor_abierto' },
@@ -159,37 +161,48 @@ function BLEvidence() {
 
   async function onSave() {
     if (!id) return
+    setSaveError(false)
+    setStatus('Guardando...')
+    setSaveModalOpen(true)
     setLoading(true)
     try {
-      try {
-        const entry = cacheEntry || (() => {
-          try {
-            const cache = JSON.parse(localStorage.getItem('tbMastersCache') || '{}')
-            const arr = Array.isArray(cache.data) ? cache.data : []
-            const byChild = arr.find(x => (x.numeroMaster || '') && (x.numeroDo || '') && String(x.numeroDo) === String(id))
-            if (byChild) return byChild
-            const byMaster = arr.find(x => (x.numeroMaster || '') && String(x.numeroMaster) === String(id))
-            return byMaster || null
-          } catch { return null }
-        })()
-        if (entry) {
-          const isMaster = String(entry.numeroMaster || '') === String(id) && String(entry.numeroDo || '') !== String(id)
-          const item = {
-            master_id: isMaster ? id : entry.numeroMaster,
-            child_id: isMaster ? undefined : entry.numeroDo,
-            cliente_nombre: entry.nombreCliente || entry.clienteNombre || entry.razonSocial || entry.nombre || undefined,
-            cliente_nit: entry.nitCliente || entry.clienteNit || entry.nit || undefined,
-            numero_ie: entry.numeroIE || entry.ie || entry.ieNumber || undefined,
-            descripcion_mercancia: entry.descripcionMercancia || entry.descripcion || undefined,
-            numero_pedido: entry.numeroPedido || entry.pedido || entry.orderNumber || undefined,
+      const entry = cacheEntry || (() => {
+        try {
+          const cache = JSON.parse(localStorage.getItem('tbMastersCache') || '{}')
+          const arr = Array.isArray(cache.data) ? cache.data : []
+          const byChild = arr.find(x => (x.numeroMaster || '') && (x.numeroDo || '') && String(x.numeroDo) === String(id))
+          if (byChild) return byChild
+          const byMaster = arr.find(x => (x.numeroMaster || '') && String(x.numeroMaster) === String(id))
+          return byMaster || null
+        } catch { return null }
+      })()
+
+      let payload = {}
+      if (entry) {
+        const isMasterLocal = String(entry.numeroMaster || '') === String(id) && String(entry.numeroDo || '') !== String(id)
+        if (isMasterLocal) {
+          payload = {
+            numero_DO_master: String(entry.numeroDo || '')
           }
-          await API.post('/masters/sync', { items: [item] })
+        } else {
+          const child = Array.isArray(entry.hijos) ? (entry.hijos.find(h => String(h?.numeroDo || '') === String(id)) || entry.hijos[0] || {}) : {}
+          payload = {
+            child_id: String(entry.numeroHBL || entry.hbl || ''),
+            cliente_nombre: String(entry.cliente || entry.nombreCliente || entry.clienteNombre || entry.razonSocial || entry.nombre || ''),
+            numero_ie: String(entry.numeroIE || entry.ie || entry.ieNumber || ''),
+            numero_DO_master: String(entry.numeroDo || entry.numeroDO || ''),
+            numero_DO_hijo: String(child.numeroDo || ''),
+            pais_de_origen: String(entry.paisOrigen || ''),
+            puerto_de_origen: String(entry.puertoOrigen || '')
+          }
         }
-      } catch {}
-      const res = await API.post('/bls/' + id + '/send', {})
-      setStatus('Guardado: ' + (res.data.status || 'ok'))
+      }
+
+      const res = await API.post('/bls/' + id + '/send', payload)
+      setStatus('Guardado correctamente')
     } catch (err) {
       setStatus('Error al guardar: ' + (err.response?.data?.error || err.message))
+      setSaveError(true)
     } finally {
       setLoading(false)
     }
@@ -341,6 +354,24 @@ function BLEvidence() {
             </div>
             <div className="modal-footer">
               <button className="btn" onClick={() => setPrefixModalOpen(false)}>Entendido</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {saveModalOpen && (
+        <div className="modal-backdrop" onClick={() => setSaveModalOpen(false)}>
+          <div className="modal" style={{ width: '420px' }} onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span>{saveError ? 'Error' : 'Resultado de guardado'}</span>
+              <button type="button" className="btn btn-outline btn-small" style={{ fontSize: '1.5rem' }} onClick={() => setSaveModalOpen(false)}>×</button>
+            </div>
+            <div className="modal-body">
+              <div className={saveError ? 'muted' : ''} style={saveError ? { color: '#e11' } : undefined}>{status}</div>
+              {loading ? <div className="muted" style={{ marginTop: 8 }}>Procesando...</div> : null}
+            </div>
+            <div className="modal-footer">
+              <button className="btn" onClick={() => setSaveModalOpen(false)} disabled={loading}>Cerrar</button>
             </div>
           </div>
         </div>
