@@ -18,29 +18,16 @@ function Panel({ user }) {
   const typingTimerRef = useRef(null)
   const [mastersRaw, setMastersRaw] = useState([])
   const [mastersListRaw, setMastersListRaw] = useState([])
+  const [mastersLoading, setMastersLoading] = useState(false)
 
   const API_local = API
-
-  // Eliminar creación de axios ad-hoc y usar API compartida
-  // const API = axios.create({ 
-  //   baseURL: import.meta.env.PROD ? '' : '/api'
-  // })
-
-  // Remove per-render interceptors (ya en API compartida)
-  // API.interceptors.request.use((config) => {
-  //   const token = localStorage.getItem('token')
-  //   if (token) {
-  //     config.headers.Authorization = `Bearer ${token}`
-  //   }
-  //   return config
-  // })
 
   async function load() {
     setLoading(true)
     setMsg(null)
     // cancelar solicitud anterior si existe
     if (abortRef.current) {
-      try { abortRef.current.abort() } catch {}
+      try { abortRef.current.abort() } catch { }
     }
     const controller = new AbortController()
     abortRef.current = controller
@@ -62,7 +49,7 @@ function Panel({ user }) {
     }
   }
 
-  useEffect(() => { 
+  useEffect(() => {
     load()
     return () => { abortRef.current?.abort() }
   }, [])
@@ -79,12 +66,14 @@ function Panel({ user }) {
     try {
       const u = JSON.parse(localStorage.getItem('user') || '{}')
       isAdmin = String(u.role || '') === 'admin'
-    } catch {}
+    } catch { }
     const endpoint = isAdmin ? '/masters' : '/masters/with-photos'
+    setMastersLoading(true)
     API_local.get(endpoint).then(res => {
       const list = Array.isArray(res.data?.items) ? res.data.items : []
+      console.log("list: ", list)
       setMastersListRaw(list)
-    }).catch(() => setMastersListRaw([]))
+    }).catch(() => setMastersListRaw([])).finally(() => setMastersLoading(false))
   }, [])
 
   const mastersMap = useMemo(() => {
@@ -106,8 +95,14 @@ function Panel({ user }) {
   }
 
   const mastersList = useMemo(() => {
-    const filtered = mastersListRaw.filter(row => !filters.bl_id || String(row.master).toLowerCase().includes(String(filters.bl_id).toLowerCase()))
-    return filtered.map(row => ({ master: row.master, childrenCount: row.children_count, photosCount: Number(row.photos_count_master || 0) }))
+    const term = String(filters.bl_id || '').toLowerCase()
+    const filtered = mastersListRaw.filter(row => {
+      if (!term) return true
+      const masterStr = String(row.master || '').toLowerCase()
+      const doStr = String(row.numero_DO_master || '').toLowerCase()
+      return masterStr.includes(term) || doStr.includes(term)
+    })
+    return filtered.map(row => ({ master: row.master, doNumber: String(row.numero_DO_master || ''), childrenCount: Number(row.children_count || 0), photosCount: Number(row.photos_count_master || 0) }))
   }, [mastersListRaw, filters.bl_id])
 
   useEffect(() => {
@@ -123,7 +118,7 @@ function Panel({ user }) {
     setPage(1)
   }
 
-  function onApplyFilters(e) { 
+  function onApplyFilters(e) {
     e.preventDefault()
     load()
   }
@@ -153,11 +148,13 @@ function Panel({ user }) {
           </div>
         </form>
 
-        
+
 
         {msg && <p className="muted">{msg}</p>}
 
-        {mastersList.length === 0 ? (
+        {mastersLoading ? (
+          <p className="muted">Cargando listado...</p>
+        ) : mastersList.length === 0 ? (
           <p className="muted">No hay registros para mostrar.</p>
         ) : (
           <>
@@ -166,31 +163,37 @@ function Panel({ user }) {
                 <thead>
                   <tr>
                     <th>Master</th>
-                    {(() => { try { const u = JSON.parse(localStorage.getItem('user')||'{}'); return String(u.role||'')==='admin' } catch { return false } })() ? <th>Usuario</th> : null}
-                    {(() => { try { const u = JSON.parse(localStorage.getItem('user')||'{}'); return String(u.role||'')==='admin' } catch { return false } })() ? <th>Puerto</th> : null}
+                    {(() => { try { const u = JSON.parse(localStorage.getItem('user') || '{}'); return String(u.role || '') === 'admin' } catch { return false } })() ? <th>Usuario</th> : null}
+                    {(() => { try { const u = JSON.parse(localStorage.getItem('user') || '{}'); return String(u.role || '') === 'admin' } catch { return false } })() ? <th>Puerto</th> : null}
+                    <th>Fotografías master</th>
+                    <th>Número DO</th>
                     <th>N° Hbls</th>
-                    <th>Fotografías</th>
                     <th className="table-actions">Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {mastersList.slice((page-1)*pageSize, (page-1)*pageSize + pageSize).map((row, idx) => (
+                  {mastersList.slice((page - 1) * pageSize, (page - 1) * pageSize + pageSize).map((row, idx) => (
                     <tr key={idx}>
-                      <td style={{ cursor:'pointer', color:'#06467c' }} onClick={() => navigate('/bl?master=' + encodeURIComponent(row.master))}>{row.master}</td>
-                      {(() => { try { const u = JSON.parse(localStorage.getItem('user')||'{}'); return String(u.role||'')==='admin' } catch { return false } })() ? (
-                        <td>{(() => { try { const u = JSON.parse(localStorage.getItem('user')||'{}'); return u.nombre || u.display_name || u.email || '-' } catch { return '-' } })()}</td>
+                      <td style={{ cursor: 'pointer', color: '#06467c' }} onClick={() => { const hasChildren = Number(row.childrenCount) > 0; navigate(hasChildren ? '/bl?master=' + encodeURIComponent(row.master) : '/evidence/' + row.master) }}>{row.master}</td>
+                      {(() => { try { const u = JSON.parse(localStorage.getItem('user') || '{}'); return String(u.role || '') === 'admin' } catch { return false } })() ? (
+                        <td>{(() => { try { const u = JSON.parse(localStorage.getItem('user') || '{}'); return u.nombre || u.display_name || u.email || '-' } catch { return '-' } })()}</td>
                       ) : null}
-                      {(() => { try { const u = JSON.parse(localStorage.getItem('user')||'{}'); return String(u.role||'')==='admin' } catch { return false } })() ? (
-                        <td>{(() => { try { const u = JSON.parse(localStorage.getItem('user')||'{}'); return u.puerto} catch { return '-' } })()}</td>
+                      {(() => { try { const u = JSON.parse(localStorage.getItem('user') || '{}'); return String(u.role || '') === 'admin' } catch { return false } })() ? (
+                        <td>{(() => { try { const u = JSON.parse(localStorage.getItem('user') || '{}'); return u.puerto } catch { return '-' } })()}</td>
                       ) : null}
-                      <td>{row.childrenCount}</td>
                       <td>{row.photosCount}</td>
+                      <td>{row.doNumber || '-'}</td>
+                      <td>{row.childrenCount}</td>
                       <td className="table-actions">
-                        <button className="btn btn-outline btn-small" onClick={() => {navigate('/bl?master=' + encodeURIComponent(row.master))
-                        }}>Ver detalle</button>
                         <button className="btn btn-outline btn-small" onClick={() => {
-                          navigate('/evidence/' + row.master)
-                        }}>Ingresar imagenes</button>
+                          const hasChildren = Number(row.childrenCount) > 0
+                          navigate(hasChildren ? '/bl?master=' + encodeURIComponent(row.master) : '/evidence/' + row.master)
+                        }}>Ver detalle</button>
+                        {Number(row.childrenCount) > 0 && (
+                          <button className="btn btn-outline btn-small" onClick={() => {
+                            navigate('/evidence/' + row.master)
+                          }}>Ingresar imagenes</button>
+                        )}
                       </td>
                     </tr>
                   ))}
@@ -199,12 +202,12 @@ function Panel({ user }) {
             </div>
 
             <div className="pagination">
-              <span className="muted">Mostrando {mastersList.length ? ((page-1)*pageSize + 1) : 0}-{Math.min(page*pageSize, mastersList.length)} de {mastersList.length} resultados</span>
-              <button className="page-btn" disabled={page===1} onClick={() => setPage(p => Math.max(1, p-1))}>{'<'}</button>
+              <span className="muted">Mostrando {mastersList.length ? ((page - 1) * pageSize + 1) : 0}-{Math.min(page * pageSize, mastersList.length)} de {mastersList.length} resultados</span>
+              <button className="page-btn" disabled={page === 1} onClick={() => setPage(p => Math.max(1, p - 1))}>{'<'}</button>
               {Array.from({ length: Math.max(1, Math.ceil(mastersList.length / pageSize)) }, (_, i) => (
-                <button key={i} className={'page-btn' + (page===i+1 ? ' active' : '')} onClick={() => setPage(i+1)}>{i+1}</button>
+                <button key={i} className={'page-btn' + (page === i + 1 ? ' active' : '')} onClick={() => setPage(i + 1)}>{i + 1}</button>
               ))}
-              <button className="page-btn" disabled={page>=Math.max(1, Math.ceil(mastersList.length / pageSize))} onClick={() => setPage(p => Math.min(Math.max(1, Math.ceil(mastersList.length / pageSize)), p+1))}>{'>'}</button>
+              <button className="page-btn" disabled={page >= Math.max(1, Math.ceil(mastersList.length / pageSize))} onClick={() => setPage(p => Math.min(Math.max(1, Math.ceil(mastersList.length / pageSize)), p + 1))}>{'>'}</button>
             </div>
           </>
         )}
