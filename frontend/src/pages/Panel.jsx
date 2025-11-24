@@ -68,6 +68,7 @@ function Panel({ user }) {
       isAdmin = String(u.role || '') === 'admin'
     } catch { }
     const endpoint = isAdmin ? '/masters' : '/masters/with-photos'
+    console.log("endpoint: ", endpoint)
     setMastersLoading(true)
     API_local.get(endpoint).then(res => {
       const list = Array.isArray(res.data?.items) ? res.data.items : []
@@ -166,7 +167,7 @@ function Panel({ user }) {
                     {(() => { try { const u = JSON.parse(localStorage.getItem('user') || '{}'); return String(u.role || '') === 'admin' } catch { return false } })() ? <th>Usuario</th> : null}
                     {(() => { try { const u = JSON.parse(localStorage.getItem('user') || '{}'); return String(u.role || '') === 'admin' } catch { return false } })() ? <th>Puerto</th> : null}
                     <th>Fotografías master</th>
-                    <th>Número DO</th>
+                    <th>Número DO master</th>
                     <th>N° Hbls</th>
                     <th className="table-actions">Acciones</th>
                   </tr>
@@ -182,7 +183,7 @@ function Panel({ user }) {
                         <td>{(() => { try { const u = JSON.parse(localStorage.getItem('user') || '{}'); return u.puerto } catch { return '-' } })()}</td>
                       ) : null}
                       <td>{row.photosCount}</td>
-                      <td>{row.doNumber || '-'}</td>
+                      <td>{row.doNumber}</td>
                       <td>{row.childrenCount}</td>
                       <td className="table-actions">
                         <button className="btn btn-outline btn-small" onClick={() => {
