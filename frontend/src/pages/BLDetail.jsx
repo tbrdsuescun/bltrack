@@ -191,7 +191,7 @@ function BLDetail({ user }) {
                     <th>País Origen</th>
                     <th>Número HBL</th>
                     <th>Fotografías</th>
-                    <th>Estado</th>
+                    {/* <th>Estado</th> */}
                     <th className="table-actions">Acciones</th>
                   </tr>
                 </thead>
@@ -205,7 +205,7 @@ function BLDetail({ user }) {
                       <td>{row.paisOrigen}</td>
                       <td>{row.numeroHBL}</td>
                       <td>{mineMap[row.numeroHBL]?.photos_count || 0}</td>
-                      <td>{(mineMap[row.numeroHBL]?.photos_count || 0) > 0 ? <StatusBadge status={mineMap[row.numeroHBL]?.send_status || ''} /> : ''}</td>
+                      {/* <td>{(mineMap[row.numeroHBL]?.photos_count || 0) > 0 ? <StatusBadge status={mineMap[row.numeroHBL]?.send_status || ''} /> : ''}</td> */}
                       <td className="table-actions">
                         <button className="btn btn-outline btn-small" onClick={() => navigate('/evidence/' + row.numeroHBL)}>Ingresar imágenes</button>
                       </td>

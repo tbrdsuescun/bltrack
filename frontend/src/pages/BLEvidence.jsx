@@ -15,6 +15,7 @@ function BLEvidence() {
   const [cacheEntry, setCacheEntry] = useState(null)
   const [isMaster, setIsMaster] = useState(false)
   const [selectedPrefix, setSelectedPrefix] = useState('')
+  const [childUseAveria, setChildUseAveria] = useState(false)
   const [counters, setCounters] = useState({})
   const [prefixModalOpen, setPrefixModalOpen] = useState(false)
   const [prefixError, setPrefixError] = useState(false)
@@ -106,6 +107,31 @@ function BLEvidence() {
           const newName = `${slug}_${start + i}${ext}`
           return new File([f], newName, { type: f.type })
         })
+      } else if (!isMaster) {
+        const hblName = String(entryChild?.numeroHBL || entry?.numeroHBL || entryChild?.hbl || '').trim()
+        const prefix = childUseAveria ? 'avería' : (hblName ? ('hbl_' + hblName) : 'hbl')
+        const getNextIndex = (pref) => {
+          let max = 0
+          const list = Array.isArray(photos) ? photos : []
+          list.forEach(p => {
+            const name = String(p.filename || '')
+            const target = pref + '_'
+            if (name.startsWith(target)) {
+              const rest = name.slice(target.length)
+              const num = Number((rest.split('.')[0]) || rest)
+              if (Number.isFinite(num)) { max = Math.max(max, num) }
+            }
+          })
+          return max + 1
+        }
+        const start = getNextIndex(prefix)
+        filesToUse = files.map((f, i) => {
+          const original = String(f.name || '')
+          const dot = original.lastIndexOf('.')
+          const ext = dot >= 0 ? original.slice(dot) : ''
+          const newName = `${prefix}_${start + i}${ext}`
+          return new File([f], newName, { type: f.type })
+        })
       }
       const now = Date.now()
       const staged = filesToUse.map((f, i) => ({ id: `${now + i}-local`, filename: f.name, url: URL.createObjectURL(f) }))
@@ -171,7 +197,7 @@ function BLEvidence() {
         const masterId = isMasterLocal ? String(id) : String((entry && (entry.numeroMaster || entry.numeroDo)) || id)
         fd.append('master_id', masterId)
         if (!isMasterLocal) {
-          const childId = String((entry && entry.numeroDo) || id)
+          const childId = String((entry && (entry.numeroHBL || entry.hbl)) || '')
           fd.append('child_id', childId)
         } else {
           fd.append('numero_DO_master', String(entry?.numeroDo || ''))
@@ -197,13 +223,20 @@ function BLEvidence() {
         if (isMasterLocal) {
           payload = { numero_DO_master: String(entry.numeroDo || '') }
         } else {
-          const child = Array.isArray(entry.hijos) ? (entry.hijos.find(h => String(h?.numeroDo || '') === String(id)) || entry.hijos[0] || {}) : {}
+          const masterDo = (() => {
+            try {
+              const cache = JSON.parse(localStorage.getItem('tbMastersCache') || '{}')
+              const arr = Array.isArray(cache.data) ? cache.data : []
+              const m = arr.find(m => String(m.numeroMaster || '') === String(entry.numeroMaster || ''))
+              return String(m?.numeroDo || m?.numeroDO || '')
+            } catch { return '' }
+          })()
           payload = {
             child_id: String(entry.numeroHBL || entry.hbl || ''),
             cliente_nombre: String(entry.cliente || entry.nombreCliente || entry.clienteNombre || entry.razonSocial || entry.nombre || ''),
             numero_ie: String(entry.numeroIE || entry.ie || entry.ieNumber || ''),
-            numero_DO_master: String(entry.numeroDo || entry.numeroDO || ''),
-            numero_DO_hijo: String(child.numeroDo || ''),
+            numero_DO_master: masterDo,
+            numero_DO_hijo: String(entry.numeroDo || ''),
             pais_de_origen: String(entry.paisOrigen || ''),
             puerto_de_origen: String(entry.puertoOrigen || '')
           }
@@ -244,6 +277,14 @@ function BLEvidence() {
                 <option value="">Selecciona prefijo</option>
                 {PREFIXES.map(o => <option key={o.slug} value={o.slug}>{o.label}</option>)}
               </select>
+            </label>
+          </div>
+        )}
+        {!isMaster && (
+          <div className="grid-2">
+            <label className="label" style={{ display:'flex', alignItems:'center', gap:8 }}>
+              <input type="checkbox" checked={childUseAveria} onChange={(e) => setChildUseAveria(e.target.checked)} />
+              Nombrar HBL como 'avería_xx'
             </label>
           </div>
         )}
