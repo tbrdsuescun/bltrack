@@ -20,6 +20,7 @@ function BLEvidence() {
   const [prefixError, setPrefixError] = useState(false)
   const [saveModalOpen, setSaveModalOpen] = useState(false)
   const [saveError, setSaveError] = useState(false)
+  const [pendingFiles, setPendingFiles] = useState([])
   const PREFIXES = [
     { label: 'Contenedor cerrado', slug: 'contenedor_cerrado' },
     { label: 'Contenedor abierto', slug: 'contenedor_abierto' },
@@ -86,7 +87,7 @@ function BLEvidence() {
     const files = Array.from(e.target.files || [])
     if (!files.length || !id) return
     if (isMaster && !selectedPrefix) { setStatus('Selecciona un prefijo para nombrar las fotos'); setPrefixError(true); setPrefixModalOpen(true); return }
-    const fd = new FormData()
+    setLoading(true)
     let filesToUse = files
     try {
       const cache = JSON.parse(localStorage.getItem('tbMastersCache') || '{}')
@@ -95,10 +96,6 @@ function BLEvidence() {
       const entryMaster = arr.find(x => (x.numeroMaster || '') && String(x.numeroMaster) === String(id))
       const isMasterLocal = !!entryMaster && !entryChild
       const entry = entryChild || entryMaster || null
-      const masterId = isMasterLocal ? String(id) : String((entry && (entry.numeroMaster || entry.numeroDo)) || id)
-      const childId = isMasterLocal ? '' : String((entry && entry.numeroDo) || id)
-      fd.append('master_id', masterId)
-      fd.append('child_id', childId)
       if (isMaster && selectedPrefix) {
         const slug = selectedPrefix
         const start = Math.max(1, Number(counters[slug] || 1))
@@ -109,30 +106,19 @@ function BLEvidence() {
           const newName = `${slug}_${start + i}${ext}`
           return new File([f], newName, { type: f.type })
         })
-        fd.append('prefix', slug)
       }
-      if (entry) {
-        fd.append('cliente_nombre', String(entry.nombreCliente || entry.clienteNombre || entry.razonSocial || entry.nombre || ''))
-        fd.append('cliente_nit', String(entry.nitCliente || entry.clienteNit || entry.nit || ''))
-        fd.append('numero_ie', String(entry.numeroIE || entry.ie || entry.ieNumber || ''))
-        fd.append('descripcion_mercancia', String(entry.descripcionMercancia || entry.descripcion || ''))
-        fd.append('numero_pedido', String(entry.numeroPedido || entry.pedido || entry.orderNumber || ''))
-      }
-    } catch {}
-    filesToUse.forEach(f => fd.append('photos', f))
-    setLoading(true)
-    try {
-      const res = await API.post('/bls/' + id + '/photos', fd)
-      const newPhotos = (res.data.photos || []).map(p => ({ ...p, url: p.id ? ('/uploads/' + p.id) : p.url }))
-      setPhotos(prev => prev.concat(newPhotos))
-      setStatus('Fotos cargadas: ' + newPhotos.length)
+      const now = Date.now()
+      const staged = filesToUse.map((f, i) => ({ id: `${now + i}-local`, filename: f.name, url: URL.createObjectURL(f) }))
+      setPendingFiles(prev => prev.concat(filesToUse))
+      setPhotos(prev => prev.concat(staged))
+      setStatus('Fotos preparadas: ' + staged.length)
       if (isMaster && selectedPrefix) {
         const slug = selectedPrefix
         const inc = filesToUse.length
         setCounters(prev => ({ ...prev, [slug]: Math.max(1, Number(prev[slug] || 1)) + inc }))
       }
     } catch (err) {
-      setStatus('Error al subir fotos: ' + (err.response?.data?.error || err.message))
+      setStatus('Error al preparar fotos: ' + (err.response?.data?.error || err.message))
     } finally {
       setLoading(false)
     }
@@ -177,13 +163,39 @@ function BLEvidence() {
         } catch { return null }
       })()
 
+      if (pendingFiles.length) {
+        const fd = new FormData()
+        const entryChild = entry && (entry.numeroDo || '') && String(entry.numeroDo) === String(id) ? entry : null
+        const entryMaster = entry && (entry.numeroMaster || '') && String(entry.numeroMaster) === String(id) ? entry : null
+        const isMasterLocal = !!entryMaster && !entryChild
+        const masterId = isMasterLocal ? String(id) : String((entry && (entry.numeroMaster || entry.numeroDo)) || id)
+        fd.append('master_id', masterId)
+        if (!isMasterLocal) {
+          const childId = String((entry && entry.numeroDo) || id)
+          fd.append('child_id', childId)
+        } else {
+          fd.append('numero_DO_master', String(entry?.numeroDo || ''))
+        }
+        if (isMaster && selectedPrefix) fd.append('prefix', selectedPrefix)
+        if (entry) {
+          fd.append('cliente_nombre', String(entry.nombreCliente || entry.clienteNombre || entry.razonSocial || entry.nombre || ''))
+          fd.append('cliente_nit', String(entry.nitCliente || entry.clienteNit || entry.nit || ''))
+          fd.append('numero_ie', String(entry.numeroIE || entry.ie || entry.ieNumber || ''))
+          fd.append('descripcion_mercancia', String(entry.descripcionMercancia || entry.descripcion || ''))
+          fd.append('numero_pedido', String(entry.numeroPedido || entry.pedido || entry.orderNumber || ''))
+        }
+        pendingFiles.forEach(f => fd.append('photos', f))
+        const upRes = await API.post('/bls/' + id + '/photos', fd)
+        const newPhotos = (upRes.data.photos || []).map(p => ({ ...p, url: p.id ? ('/uploads/' + p.id) : p.url }))
+        setPhotos(prev => prev.filter(p => !String(p.id||'').endsWith('-local')).concat(newPhotos))
+        setPendingFiles([])
+      }
+
       let payload = {}
       if (entry) {
         const isMasterLocal = String(entry.numeroMaster || '') === String(id) && String(entry.numeroDo || '') !== String(id)
         if (isMasterLocal) {
-          payload = {
-            numero_DO_master: String(entry.numeroDo || '')
-          }
+          payload = { numero_DO_master: String(entry.numeroDo || '') }
         } else {
           const child = Array.isArray(entry.hijos) ? (entry.hijos.find(h => String(h?.numeroDo || '') === String(id)) || entry.hijos[0] || {}) : {}
           payload = {
@@ -198,7 +210,7 @@ function BLEvidence() {
         }
       }
 
-      const res = await API.post('/bls/' + id + '/send', payload)
+      await API.post('/bls/' + id + '/send', payload)
       setStatus('Guardado correctamente')
     } catch (err) {
       setStatus('Error al guardar: ' + (err.response?.data?.error || err.message))
@@ -366,12 +378,23 @@ function BLEvidence() {
               <span>{saveError ? 'Error' : 'Resultado de guardado'}</span>
               <button type="button" className="btn btn-outline btn-small" style={{ fontSize: '1.5rem' }} onClick={() => setSaveModalOpen(false)}>×</button>
             </div>
-            <div className="modal-body">
-              <div className={saveError ? 'muted' : ''} style={saveError ? { color: '#e11' } : undefined}>{status}</div>
+            <div className="modal-body" style={{ textAlign:'center' }}>
+              {!saveError && !loading ? <div style={{ fontSize: '48px', color: '#19a45b' }}>✔</div> : null}
+              <div className={saveError ? 'muted' : ''} style={saveError ? { color: '#e11' } : { marginTop: 8 }}>{status}</div>
               {loading ? <div className="muted" style={{ marginTop: 8 }}>Procesando...</div> : null}
             </div>
             <div className="modal-footer">
               <button className="btn" onClick={() => setSaveModalOpen(false)} disabled={loading}>Cerrar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {loading && !saveModalOpen && (
+        <div className="modal-backdrop" onClick={(e) => e.stopPropagation()}>
+          <div className="modal" style={{ width: '280px' }} onClick={(e) => e.stopPropagation()}>
+            <div className="modal-body" style={{ textAlign:'center' }}>
+              <div className="muted">Procesando...</div>
             </div>
           </div>
         </div>
