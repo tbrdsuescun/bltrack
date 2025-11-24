@@ -111,6 +111,16 @@ function App() {
           } 
         />
         <Route 
+          path="/evidence/:masterId/:hblId" 
+          element={
+            <ProtectedRoute>
+              <Layout user={user} onLogout={handleLogout}>
+                <BLEvidence />
+              </Layout>
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
           path="/evidence/:id" 
           element={
             <ProtectedRoute>

@@ -5,8 +5,9 @@ import API from '../lib/api.js'
 import SearchBar from '../components/SearchBar.jsx'
 
 function BLEvidence() {
-  const { id } = useParams()
+  const { masterId, hblId, id } = useParams()
   const navigate = useNavigate()
+  const targetId = hblId || masterId || id
   const [photos, setPhotos] = useState([])
   const [loading, setLoading] = useState(false)
   const [status, setStatus] = useState(null)
@@ -28,16 +29,90 @@ function BLEvidence() {
     { label: 'No. de contenedor', slug: 'no_de_contenedor' },
     { label: 'Sello', slug: 'sello' },
     { label: 'Líneas de cargue', slug: 'lineas_de_cargue' },
-    { label: 'Avería', slug: 'averia' },
+    { label: 'Averia', slug: 'averia' },
     { label: 'SGA', slug: 'sga' },
     { label: 'Contenedor vacío ( lado izquierdo, lado derecho, piso, techo.)', slug: 'contenedor_vacio' },
     { label: 'Tarja', slug: 'tarja' },
-    { label: 'Acta de avería', slug: 'acta_de_averia' },
+    { label: 'Acta de averia', slug: 'acta_de_averia' },
   ]
+
+  const numeroHblCurrent = useMemo(() => {
+    const directParam = String(hblId || '').trim()
+    if (directParam) return directParam
+    const directCache = String(cacheEntry?.numeroHBL || cacheEntry?.hbl || '').trim()
+    if (directCache) return directCache
+    try {
+      const cache = JSON.parse(localStorage.getItem('tbMastersCache') || '{}')
+      const arr = Array.isArray(cache.data) ? cache.data : []
+      const masterCode = String(masterId || cacheEntry?.numeroMaster || '')
+      const masterObj = arr.find(m => String(m.numeroMaster || '') === masterCode && Array.isArray(m.hijos))
+      const childObj = masterObj?.hijos?.find(h => String(h?.numeroHBL || h?.hbl || '') === String(hblId || '')) || masterObj?.hijos?.find(h => String(h?.numeroDo || '') === String(targetId || ''))
+      const v = String(childObj?.numeroHBL || childObj?.hbl || '').trim()
+      return v
+    } catch { return '' }
+  }, [cacheEntry, masterId, hblId, targetId])
+
+  const details = useMemo(() => {
+    try {
+      const cache = JSON.parse(localStorage.getItem('tbMastersCache') || '{}')
+      const arr = Array.isArray(cache.data) ? cache.data : []
+      console.log("arr: ", arr)
+      if (hblId) {
+        const masterRow = arr.find(m => String(m.numeroMaster || '') === String(masterId || ''))
+        const childRow = masterRow?.hijos?.find(h => String(h.numeroHBL || h.hbl || '') === String(hblId || '')) || arr.find(x => String(x.numeroHBL || x.hbl || '') === String(hblId || ''))
+        const masterDo = String(masterRow?.numeroDo || masterRow?.numeroDO || '')
+        return {
+          isChild: true,
+          master_id: String(masterId || masterRow?.numeroMaster || ''),
+          child_id: String(hblId || childRow?.numeroHBL || childRow?.hbl || ''),
+          cliente_nombre: String(childRow?.cliente || childRow?.nombreCliente || childRow?.clienteNombre || childRow?.razonSocial || childRow?.nombre || ''),
+          numero_ie: String(childRow?.numeroIE || childRow?.ie || childRow?.ieNumber || ''),
+          numero_DO_master: masterDo,
+          numero_DO_hijo: String(childRow?.numeroDo || ''),
+          pais_de_origen: String(childRow?.paisOrigen || ''),
+          puerto_de_origen: String(childRow?.puertoOrigen || '')
+        }
+      }
+      const childRow = arr.find(x => {
+        const h = String(x.numeroHBL || x.hbl || '')
+        const d = String(x.numeroDo || '')
+        const target = String(targetId || '')
+        return (h && h === target) || (d && d === target)
+      }) || null
+      if (childRow) {
+        const masterIdLocal = String(childRow.numeroMaster || '')
+        const masterDo = (() => {
+          const m = arr.find(m => String(m.numeroMaster || '') === masterIdLocal)
+          return String(m?.numeroDo || m?.numeroDO || '')
+        })()
+        return {
+          isChild: true,
+          master_id: masterIdLocal,
+          child_id: String(childRow.numeroHBL || childRow.hbl || '') || String(targetId || ''),
+          cliente_nombre: String(childRow.cliente || childRow.nombreCliente || childRow.clienteNombre || childRow.razonSocial || childRow.nombre || ''),
+          numero_ie: String(childRow.numeroIE || childRow.ie || childRow.ieNumber || ''),
+          numero_DO_master: masterDo,
+          numero_DO_hijo: String(childRow.numeroDo || ''),
+          pais_de_origen: String(childRow.paisOrigen || ''),
+          puerto_de_origen: String(childRow.puertoOrigen || '')
+        }
+      }
+      const masterIdLocal = String(masterId || targetId || '')
+      const masterDo = (() => {
+        const m = arr.find(m => String(m.numeroMaster || '') === masterIdLocal)
+        return String(m?.numeroDo || m?.numeroDO || '')
+      })()
+      return { isChild: false, master_id: masterIdLocal, child_id: '', numero_DO_master: masterDo }
+    } catch { 
+      return { isChild: !!hblId, master_id: String(masterId || targetId || ''), child_id: String(hblId || '') } 
+    }
+  }, [masterId, hblId, targetId])
 
   useEffect(() => {
     let mounted = true
-    API.get('/bls/' + id + '/photos').then(res => {
+    const tid = String(targetId || '')
+    if (!tid) return () => { mounted = false }
+    API.get('/bls/' + tid + '/photos').then(res => {
       if (!mounted) return
       const list = Array.isArray(res.data?.photos) ? res.data.photos : []
       setPhotos(list)
@@ -45,14 +120,26 @@ function BLEvidence() {
     try {
       const cache = JSON.parse(localStorage.getItem('tbMastersCache') || '{}')
       const arr = Array.isArray(cache.data) ? cache.data : []
-      const entryChild = arr.find(x => (x.numeroMaster || '') && (x.numeroDo || '') && String(x.numeroDo) === String(id))
-      const entryMaster = arr.find(x => (x.numeroMaster || '') && String(x.numeroMaster) === String(id))
-      const entry = entryChild || entryMaster || null
+      let entry = null
+      if (hblId) {
+        const masterRow = arr.find(x => String(x.numeroMaster || '') === String(masterId || ''))
+        const childRow = masterRow?.hijos?.find(h => String(h.numeroHBL || h.hbl || '') === String(hblId || '')) || arr.find(x => String(x.numeroHBL || x.hbl || '') === String(hblId || ''))
+        entry = childRow || masterRow || null
+        setIsMaster(false)
+      } else {
+        const entryChild = arr.find(x => {
+          const h = String(x.numeroHBL || x.hbl || '')
+          const d = String(x.numeroDo || '')
+          return (h && h === tid) || (d && d === tid)
+        })
+        const entryMaster = arr.find(x => (x.numeroMaster || '') && String(x.numeroMaster) === tid)
+        entry = entryChild || entryMaster || null
+        setIsMaster(!!entryMaster && !entryChild)
+      }
       if (entry) setCacheEntry(entry)
-      setIsMaster(!!entryMaster && !entryChild)
     } catch {}
     return () => { mounted = false }
-  }, [id])
+  }, [targetId, masterId, hblId])
 
   const orderedPhotos = useMemo(() => {
     const parseTs = (p) => {
@@ -86,15 +173,15 @@ function BLEvidence() {
 
   async function onUpload(e) {
     const files = Array.from(e.target.files || [])
-    if (!files.length || !id) return
+    if (!files.length || !targetId) return
     if (isMaster && !selectedPrefix) { setStatus('Selecciona un prefijo para nombrar las fotos'); setPrefixError(true); setPrefixModalOpen(true); return }
     setLoading(true)
     let filesToUse = files
     try {
       const cache = JSON.parse(localStorage.getItem('tbMastersCache') || '{}')
       const arr = Array.isArray(cache.data) ? cache.data : []
-      const entryChild = arr.find(x => (x.numeroDo || '') && String(x.numeroDo) === String(id))
-      const entryMaster = arr.find(x => (x.numeroMaster || '') && String(x.numeroMaster) === String(id))
+      const entryChild = arr.find(x => (x.numeroDo || '') && String(x.numeroDo) === String(targetId))
+      const entryMaster = arr.find(x => (x.numeroMaster || '') && String(x.numeroMaster) === String(targetId))
       const isMasterLocal = !!entryMaster && !entryChild
       const entry = entryChild || entryMaster || null
       if (isMaster && selectedPrefix) {
@@ -108,8 +195,8 @@ function BLEvidence() {
           return new File([f], newName, { type: f.type })
         })
       } else if (!isMaster) {
-        const hblName = String(entryChild?.numeroHBL || entry?.numeroHBL || entryChild?.hbl || '').trim()
-        const prefix = childUseAveria ? 'avería' : (hblName ? ('hbl_' + hblName) : 'hbl')
+        const numeroHbl = String(details.child_id || numeroHblCurrent || '').trim()
+        const prefix = childUseAveria ? 'averia' : (numeroHbl ? ('hbl_' + numeroHbl) : 'hbl')
         const getNextIndex = (pref) => {
           let max = 0
           const list = Array.isArray(photos) ? photos : []
@@ -191,59 +278,50 @@ function BLEvidence() {
 
       if (pendingFiles.length) {
         const fd = new FormData()
-        const entryChild = entry && (entry.numeroDo || '') && String(entry.numeroDo) === String(id) ? entry : null
-        const entryMaster = entry && (entry.numeroMaster || '') && String(entry.numeroMaster) === String(id) ? entry : null
-        const isMasterLocal = !!entryMaster && !entryChild
-        const masterId = isMasterLocal ? String(id) : String((entry && (entry.numeroMaster || entry.numeroDo)) || id)
-        fd.append('master_id', masterId)
+        const isMasterLocal = isMaster
+        const masterIdVal = isMasterLocal ? String(masterId || targetId || '') : String(details.master_id || '')
+        fd.append('master_id', masterIdVal)
         if (!isMasterLocal) {
-          const childId = String((entry && (entry.numeroHBL || entry.hbl)) || '')
-          fd.append('child_id', childId)
+          fd.append('child_id', String(details.child_id || ''))
+          fd.append('numero_DO_master', String(details.numero_DO_master || ''))
+          fd.append('numero_DO_hijo', String(details.numero_DO_hijo || ''))
+          fd.append('cliente_nombre', String(details.cliente_nombre || ''))
+          fd.append('numero_ie', String(details.numero_ie || ''))
+          fd.append('pais_de_origen', String(details.pais_de_origen || ''))
+          fd.append('puerto_de_origen', String(details.puerto_de_origen || ''))
         } else {
-          fd.append('numero_DO_master', String(entry?.numeroDo || ''))
+          fd.append('numero_DO_master', String(details.numero_DO_master || ''))
         }
         if (isMaster && selectedPrefix) fd.append('prefix', selectedPrefix)
-        if (entry) {
-          fd.append('cliente_nombre', String(entry.nombreCliente || entry.clienteNombre || entry.razonSocial || entry.nombre || ''))
-          fd.append('cliente_nit', String(entry.nitCliente || entry.clienteNit || entry.nit || ''))
-          fd.append('numero_ie', String(entry.numeroIE || entry.ie || entry.ieNumber || ''))
-          fd.append('descripcion_mercancia', String(entry.descripcionMercancia || entry.descripcion || ''))
-          fd.append('numero_pedido', String(entry.numeroPedido || entry.pedido || entry.orderNumber || ''))
+        if (cacheEntry) {
+          fd.append('cliente_nit', String(cacheEntry.nitCliente || cacheEntry.clienteNit || cacheEntry.nit || ''))
+          fd.append('descripcion_mercancia', String(cacheEntry.descripcionMercancia || cacheEntry.descripcion || ''))
+          fd.append('numero_pedido', String(cacheEntry.numeroPedido || cacheEntry.pedido || cacheEntry.orderNumber || ''))
         }
         pendingFiles.forEach(f => fd.append('photos', f))
-        const upRes = await API.post('/bls/' + id + '/photos', fd)
+        const upRes = await API.post('/bls/' + (hblId || targetId) + '/photos', fd)
         const newPhotos = (upRes.data.photos || []).map(p => ({ ...p, url: p.id ? ('/uploads/' + p.id) : p.url }))
         setPhotos(prev => prev.filter(p => !String(p.id||'').endsWith('-local')).concat(newPhotos))
         setPendingFiles([])
       }
 
       let payload = {}
-      if (entry) {
-        const isMasterLocal = String(entry.numeroMaster || '') === String(id) && String(entry.numeroDo || '') !== String(id)
-        if (isMasterLocal) {
-          payload = { numero_DO_master: String(entry.numeroDo || '') }
-        } else {
-          const masterDo = (() => {
-            try {
-              const cache = JSON.parse(localStorage.getItem('tbMastersCache') || '{}')
-              const arr = Array.isArray(cache.data) ? cache.data : []
-              const m = arr.find(m => String(m.numeroMaster || '') === String(entry.numeroMaster || ''))
-              return String(m?.numeroDo || m?.numeroDO || '')
-            } catch { return '' }
-          })()
-          payload = {
-            child_id: String(entry.numeroHBL || entry.hbl || ''),
-            cliente_nombre: String(entry.cliente || entry.nombreCliente || entry.clienteNombre || entry.razonSocial || entry.nombre || ''),
-            numero_ie: String(entry.numeroIE || entry.ie || entry.ieNumber || ''),
-            numero_DO_master: masterDo,
-            numero_DO_hijo: String(entry.numeroDo || ''),
-            pais_de_origen: String(entry.paisOrigen || ''),
-            puerto_de_origen: String(entry.puertoOrigen || '')
-          }
+      if (isMaster) {
+        payload = { numero_DO_master: String(details.numero_DO_master || '') }
+      } else {
+        payload = {
+          master_id: String(details.master_id || ''),
+          child_id: String(details.child_id || ''),
+          cliente_nombre: String(details.cliente_nombre || ''),
+          numero_ie: String(details.numero_ie || ''),
+          numero_DO_master: String(details.numero_DO_master || ''),
+          numero_DO_hijo: String(details.numero_DO_hijo || ''),
+          pais_de_origen: String(details.pais_de_origen || ''),
+          puerto_de_origen: String(details.puerto_de_origen || '')
         }
       }
 
-      await API.post('/bls/' + id + '/send', payload)
+      await API.post('/bls/' + (hblId || targetId) + '/send', payload)
       setStatus('Guardado correctamente')
     } catch (err) {
       setStatus('Error al guardar: ' + (err.response?.data?.error || err.message))
@@ -262,7 +340,7 @@ function BLEvidence() {
       <div className="page-header">
         <div>
           <h1 className="h1">Evidencia Fotográfica</h1>
-          <p className="muted">{isMaster ? 'MASTER ' : 'HBL '}{id}</p>
+          <p className="muted">{isMaster ? 'MASTER ' : 'HBL '}{isMaster ? (masterId || targetId) : (hblId || targetId)}</p>
         </div>
         <div className="actions-row">
           <button className="btn btn-outline" onClick={() => navigate(-1)}>← Volver</button>
@@ -281,11 +359,16 @@ function BLEvidence() {
           </div>
         )}
         {!isMaster && (
-          <div className="grid-2">
-            <label className="label" style={{ display:'flex', alignItems:'center', gap:8 }}>
-              <input type="checkbox" checked={childUseAveria} onChange={(e) => setChildUseAveria(e.target.checked)} />
-              Nombrar HBL como 'avería_xx'
-            </label>
+          <div style={{ border:'1px solid #e5e7eb', borderRadius:8, padding:12, background:'#fff', marginTop:8 }}>
+            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:12 }}>
+              <div>
+                <div style={{ fontWeight:600, color:'var(--brand)' }}>Nombrado de HBL</div>
+              </div>
+              <label className="label" style={{ flexDirection:'row', alignItems:'center', gap:10, margin:0 }}>
+                <input type="checkbox" checked={childUseAveria} onChange={(e) => setChildUseAveria(e.target.checked)} />
+                <span>Usar 'averia'</span>
+              </label>
+            </div>
           </div>
         )}
         
@@ -300,9 +383,14 @@ function BLEvidence() {
         </div>
 
         {status && <p className="muted" style={prefixError ? { color: '#e11' } : undefined}>{status}</p>}
+        {!isMaster && (
+          <div className="muted" style={{ fontSize:12, marginTop:6 }}>
+            master_id: {String(details.master_id||'-')} • child_id: {String(details.child_id||'-')} • DO master: {String(details.numero_DO_master||'-')} • DO hijo: {String(details.numero_DO_hijo||'-')}
+          </div>
+        )}
 
         {orderedPhotos.length === 0 ? (
-          <p className="muted">Aún no hay fotos para este BL.</p>
+          <p className="muted">Aún no hay fotos para este HBL.</p>
         ) : (
           <div className="table-responsive" style={{ marginTop: '12px' }}>
             <table className="table">

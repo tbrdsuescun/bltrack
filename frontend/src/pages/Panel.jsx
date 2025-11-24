@@ -68,11 +68,9 @@ function Panel({ user }) {
       isAdmin = String(u.role || '') === 'admin'
     } catch { }
     const endpoint = isAdmin ? '/masters' : '/masters/with-photos'
-    console.log("endpoint: ", endpoint)
     setMastersLoading(true)
     API_local.get(endpoint).then(res => {
       const list = Array.isArray(res.data?.items) ? res.data.items : []
-      console.log("list: ", list)
       setMastersListRaw(list)
     }).catch(() => setMastersListRaw([])).finally(() => setMastersLoading(false))
   }, [])

@@ -207,7 +207,7 @@ function BLDetail({ user }) {
                       <td>{mineMap[row.numeroHBL]?.photos_count || 0}</td>
                       {/* <td>{(mineMap[row.numeroHBL]?.photos_count || 0) > 0 ? <StatusBadge status={mineMap[row.numeroHBL]?.send_status || ''} /> : ''}</td> */}
                       <td className="table-actions">
-                        <button className="btn btn-outline btn-small" onClick={() => navigate('/evidence/' + row.numeroHBL)}>Ingresar imágenes</button>
+                        <button className="btn btn-outline btn-small" onClick={() => navigate('/evidence/' + selectedMaster + '/' + row.numeroHBL)}>Ingresar imágenes</button>
                       </td>
                     </tr>
                   ))}
