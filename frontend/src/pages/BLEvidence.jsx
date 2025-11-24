@@ -259,7 +259,7 @@ function BLEvidence() {
   }
 
   async function onSave() {
-    if (!id) return
+    if (!targetId) return
     setSaveError(false)
     setStatus('Guardando...')
     setSaveModalOpen(true)
@@ -319,6 +319,8 @@ function BLEvidence() {
           pais_de_origen: String(details.pais_de_origen || ''),
           puerto_de_origen: String(details.puerto_de_origen || '')
         }
+        const syncItem = { ...payload }
+        await API.post('/masters/sync', { items: [syncItem] })
       }
 
       await API.post('/bls/' + (hblId || targetId) + '/send', payload)
@@ -385,7 +387,7 @@ function BLEvidence() {
         {status && <p className="muted" style={prefixError ? { color: '#e11' } : undefined}>{status}</p>}
         {!isMaster && (
           <div className="muted" style={{ fontSize:12, marginTop:6 }}>
-            master_id: {String(details.master_id||'-')} • child_id: {String(details.child_id||'-')} • DO master: {String(details.numero_DO_master||'-')} • DO hijo: {String(details.numero_DO_hijo||'-')}
+            master_id: {String(details.master_id||'-')} • child_id: {String(details.child_id||'-')} • cliente_nombre: {String(details.cliente_nombre||'-')} • numero_ie: {String(details.numero_ie||'-')} • DO master: {String(details.numero_DO_master||'-')} • DO hijo: {String(details.numero_DO_hijo||'-')} • pais_origen: {String(details.pais_de_origen||'-')} • puerto_origen: {String(details.puerto_de_origen||'-')}
           </div>
         )}
 
