@@ -108,6 +108,8 @@ function BLEvidence() {
     }
   }, [masterId, hblId, targetId])
 
+  const isMasterSolo = !String(details.child_id || '').trim()
+
   useEffect(() => {
     let mounted = true
     const tid = String(targetId || '')
@@ -174,7 +176,7 @@ function BLEvidence() {
   async function onUpload(e) {
     const files = Array.from(e.target.files || [])
     if (!files.length || !targetId) return
-    if (isMaster && !selectedPrefix) { setStatus('Selecciona un prefijo para nombrar las fotos'); setPrefixError(true); setPrefixModalOpen(true); return }
+    if (isMasterSolo && !selectedPrefix) { setStatus('Selecciona un prefijo para nombrar las fotos'); setPrefixError(true); setPrefixModalOpen(true); return }
     setLoading(true)
     let filesToUse = files
     try {
@@ -184,7 +186,7 @@ function BLEvidence() {
       const entryMaster = arr.find(x => (x.numeroMaster || '') && String(x.numeroMaster) === String(targetId))
       const isMasterLocal = !!entryMaster && !entryChild
       const entry = entryChild || entryMaster || null
-      if (isMaster && selectedPrefix) {
+      if (isMasterSolo && selectedPrefix) {
         const slug = selectedPrefix
         const start = Math.max(1, Number(counters[slug] || 1))
         filesToUse = files.map((f, i) => {
@@ -194,7 +196,7 @@ function BLEvidence() {
           const newName = `${slug}_${start + i}${ext}`
           return new File([f], newName, { type: f.type })
         })
-      } else if (!isMaster) {
+      } else if (!isMasterSolo) {
         const numeroHbl = String(details.child_id || numeroHblCurrent || '').trim()
         const prefix = childUseAveria ? 'averia' : (numeroHbl ? ('hbl_' + numeroHbl) : 'hbl')
         const getNextIndex = (pref) => {
@@ -225,7 +227,7 @@ function BLEvidence() {
       setPendingFiles(prev => prev.concat(filesToUse))
       setPhotos(prev => prev.concat(staged))
       setStatus('Fotos preparadas: ' + staged.length)
-      if (isMaster && selectedPrefix) {
+      if (isMasterSolo && selectedPrefix) {
         const slug = selectedPrefix
         const inc = filesToUse.length
         setCounters(prev => ({ ...prev, [slug]: Math.max(1, Number(prev[slug] || 1)) + inc }))
@@ -278,7 +280,7 @@ function BLEvidence() {
 
       if (pendingFiles.length) {
         const fd = new FormData()
-        const isMasterLocal = isMaster
+        const isMasterLocal = isMasterSolo
         const masterIdVal = isMasterLocal ? String(masterId || targetId || '') : String(details.master_id || '')
         fd.append('master_id', masterIdVal)
         if (!isMasterLocal) {
@@ -292,7 +294,7 @@ function BLEvidence() {
         } else {
           fd.append('numero_DO_master', String(details.numero_DO_master || ''))
         }
-        if (isMaster && selectedPrefix) fd.append('prefix', selectedPrefix)
+        if (isMasterSolo && selectedPrefix) fd.append('prefix', selectedPrefix)
         if (cacheEntry) {
           fd.append('cliente_nit', String(cacheEntry.nitCliente || cacheEntry.clienteNit || cacheEntry.nit || ''))
           fd.append('descripcion_mercancia', String(cacheEntry.descripcionMercancia || cacheEntry.descripcion || ''))
@@ -306,7 +308,7 @@ function BLEvidence() {
       }
 
       let payload = {}
-      if (isMaster) {
+      if (isMasterSolo) {
         payload = { numero_DO_master: String(details.numero_DO_master || '') }
       } else {
         payload = {
@@ -333,8 +335,8 @@ function BLEvidence() {
     }
   }
 
-  function openFileDialog(){ if (isMaster && !selectedPrefix) { setStatus('Selecciona un prefijo para nombrar las fotos'); setPrefixError(true); setPrefixModalOpen(true); return } fileInputRef.current?.click() }
-  function onDrop(e){ e.preventDefault(); if (isMaster && !selectedPrefix) { setStatus('Selecciona un prefijo para nombrar las fotos'); setPrefixError(true); setPrefixModalOpen(true); return } const files = Array.from(e.dataTransfer?.files || []); if (!files.length) return; const synthetic = { target: { files } }; onUpload(synthetic) }
+  function openFileDialog(){ if (isMasterSolo && !selectedPrefix) { setStatus('Selecciona un prefijo para nombrar las fotos'); setPrefixError(true); setPrefixModalOpen(true); return } fileInputRef.current?.click() }
+  function onDrop(e){ e.preventDefault(); if (isMasterSolo && !selectedPrefix) { setStatus('Selecciona un prefijo para nombrar las fotos'); setPrefixError(true); setPrefixModalOpen(true); return } const files = Array.from(e.dataTransfer?.files || []); if (!files.length) return; const synthetic = { target: { files } }; onUpload(synthetic) }
   function onDragOver(e){ e.preventDefault() }
 
   return (
@@ -342,7 +344,7 @@ function BLEvidence() {
       <div className="page-header">
         <div>
           <h1 className="h1">Evidencia Fotográfica</h1>
-          <p className="muted">{isMaster ? 'MASTER ' : 'HBL '}{isMaster ? (masterId || targetId) : (hblId || targetId)}</p>
+          <p className="muted">{isMasterSolo ? 'MASTER ' : 'HBL '}{isMasterSolo ? (masterId || targetId) : (hblId || targetId)}</p>
         </div>
         <div className="actions-row">
           <button className="btn btn-outline" onClick={() => navigate(-1)}>← Volver</button>
@@ -350,7 +352,7 @@ function BLEvidence() {
       </div>
 
       <div className="card">
-        {isMaster && (
+        {isMasterSolo && (
           <div className="grid-2">
             <label className="label">Prefijo para nombrar
               <select className="input" value={selectedPrefix} onChange={(e) => { const v = e.target.value; setSelectedPrefix(v); if (v) { setPrefixError(false); setPrefixModalOpen(false) } }}>
@@ -360,7 +362,7 @@ function BLEvidence() {
             </label>
           </div>
         )}
-        {!isMaster && (
+        {!isMasterSolo && (
           <div style={{ border:'1px solid #e5e7eb', borderRadius:8, padding:12, background:'#fff', marginTop:8 }}>
             <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:12 }}>
               <div>
@@ -385,7 +387,7 @@ function BLEvidence() {
         </div>
 
         {status && <p className="muted" style={prefixError ? { color: '#e11' } : undefined}>{status}</p>}
-        {!isMaster && (
+        {!isMasterSolo && (
           <div className="muted" style={{ fontSize:12, marginTop:6 }}>
             master_id: {String(details.master_id||'-')} • child_id: {String(details.child_id||'-')} • cliente_nombre: {String(details.cliente_nombre||'-')} • numero_ie: {String(details.numero_ie||'-')} • DO master: {String(details.numero_DO_master||'-')} • DO hijo: {String(details.numero_DO_hijo||'-')} • pais_origen: {String(details.pais_de_origen||'-')} • puerto_origen: {String(details.puerto_de_origen||'-')}
           </div>
