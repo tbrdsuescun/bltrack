@@ -23,6 +23,7 @@ function BLEvidence() {
   const [saveModalOpen, setSaveModalOpen] = useState(false)
   const [saveError, setSaveError] = useState(false)
   const [pendingFiles, setPendingFiles] = useState([])
+  const [uploading, setUploading] = useState(false)
   const PREFIXES = [
     { label: 'Contenedor cerrado', slug: 'contenedor_cerrado' },
     { label: 'Contenedor abierto', slug: 'contenedor_abierto' },
@@ -177,6 +178,7 @@ function BLEvidence() {
     const files = Array.from(e.target.files || [])
     if (!files.length || !targetId) return
     if (isMasterSolo && !selectedPrefix) { setStatus('Selecciona un prefijo para nombrar las fotos'); setPrefixError(true); setPrefixModalOpen(true); return }
+    setUploading(true)
     setLoading(true)
     let filesToUse = files
     try {
@@ -236,6 +238,7 @@ function BLEvidence() {
       setStatus('Error al preparar fotos: ' + (err.response?.data?.error || err.message))
     } finally {
       setLoading(false)
+      setUploading(false)
     }
   }
 
@@ -279,6 +282,7 @@ function BLEvidence() {
       })()
 
       if (pendingFiles.length) {
+        setUploading(true)
         const fd = new FormData()
         const isMasterLocal = isMasterSolo
         const masterIdVal = isMasterLocal ? String(masterId || targetId || '') : String(details.master_id || '')
@@ -305,6 +309,7 @@ function BLEvidence() {
         const newPhotos = (upRes.data.photos || []).map(p => ({ ...p, url: p.id ? ('/uploads/' + p.id) : p.url }))
         setPhotos(prev => prev.filter(p => !String(p.id||'').endsWith('-local')).concat(newPhotos))
         setPendingFiles([])
+        setUploading(false)
       }
 
       let payload = {}
@@ -332,11 +337,12 @@ function BLEvidence() {
       setSaveError(true)
     } finally {
       setLoading(false)
+      setUploading(false)
     }
   }
 
-  function openFileDialog(){ if (isMasterSolo && !selectedPrefix) { setStatus('Selecciona un prefijo para nombrar las fotos'); setPrefixError(true); setPrefixModalOpen(true); return } fileInputRef.current?.click() }
-  function onDrop(e){ e.preventDefault(); if (isMasterSolo && !selectedPrefix) { setStatus('Selecciona un prefijo para nombrar las fotos'); setPrefixError(true); setPrefixModalOpen(true); return } const files = Array.from(e.dataTransfer?.files || []); if (!files.length) return; const synthetic = { target: { files } }; onUpload(synthetic) }
+  function openFileDialog(){ if (uploading) { return } if (isMasterSolo && !selectedPrefix) { setStatus('Selecciona un prefijo para nombrar las fotos'); setPrefixError(true); setPrefixModalOpen(true); return } fileInputRef.current?.click() }
+  function onDrop(e){ e.preventDefault(); if (uploading) { return } if (isMasterSolo && !selectedPrefix) { setStatus('Selecciona un prefijo para nombrar las fotos'); setPrefixError(true); setPrefixModalOpen(true); return } const files = Array.from(e.dataTransfer?.files || []); if (!files.length) return; const synthetic = { target: { files } }; onUpload(synthetic) }
   function onDragOver(e){ e.preventDefault() }
 
   return (
@@ -377,13 +383,33 @@ function BLEvidence() {
         )}
         
         <div style={{ marginTop:'12px' }}>
-          <h2 className="h2">Evidencia</h2>
-          <div className="dropzone" onClick={openFileDialog} onDrop={onDrop} onDragOver={onDragOver}>Arrastra y suelta archivos aquí<br/>o haz clic para buscar</div>
-          <div className="actions" style={{ justifyContent:'flex-start' }}>
-            <button className="btn btn-primary" onClick={openFileDialog}>Subir Archivo</button>
-            <button className="btn btn-outline" onClick={openFileDialog}>Tomar Foto</button>
+          <h2 className="h2" style={{ display:'flex', alignItems:'center', gap:8 }}>Evidencia {uploading ? (<svg width="16" height="16" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="#c0c4c9" strokeWidth="3" fill="none" opacity="0.25"/><path d="M12 2a10 10 0 0 1 0 20" stroke="var(--brand)" strokeWidth="3" fill="none"><animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="1s" repeatCount="indefinite"/></path></svg>) : null}</h2>
+          <div className="dropzone" onClick={openFileDialog} onDrop={onDrop} onDragOver={onDragOver}>
+            {uploading ? (
+              <div style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:8, flexDirection:'column' }}>
+                <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                  <svg width="24" height="24" viewBox="0 0 24 24">
+                    <circle cx="12" cy="12" r="10" stroke="#c0c4c9" strokeWidth="4" fill="none" opacity="0.25"/>
+                    <path d="M12 2a10 10 0 0 1 0 20" stroke="var(--brand)" strokeWidth="4" fill="none">
+                      <animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="1s" repeatCount="indefinite"/>
+                    </path>
+                  </svg>
+                  <span>Cargando imágenes...</span>
+                </div>
+                <div>Por favor espera</div>
+              </div>
+            ) : (
+              <>
+                Arrastra y suelta archivos aquí<br/>
+                o haz clic para buscar
+              </>
+            )}
           </div>
-          <input ref={fileInputRef} type="file" accept="image/*" multiple capture="environment" style={{ display:'none' }} onChange={onUpload} disabled={loading} />
+          <div className="actions" style={{ justifyContent:'flex-start' }}>
+            <button className="btn btn-primary" onClick={openFileDialog} disabled={uploading || loading}>Subir Archivo</button>
+            <button className="btn btn-outline" onClick={openFileDialog} disabled={uploading || loading}>Tomar Foto</button>
+          </div>
+          <input ref={fileInputRef} type="file" accept="image/*" multiple capture="environment" style={{ display:'none' }} onChange={onUpload} disabled={loading || uploading} />
         </div>
 
         {status && <p className="muted" style={prefixError ? { color: '#e11' } : undefined}>{status}</p>}
@@ -512,9 +538,19 @@ function BLEvidence() {
               <button type="button" className="btn btn-outline btn-small" style={{ fontSize: '1.5rem' }} onClick={() => setSaveModalOpen(false)}>×</button>
             </div>
             <div className="modal-body" style={{ textAlign:'center' }}>
-              {!saveError && !loading ? <div style={{ fontSize: '48px', color: '#19a45b' }}>✔</div> : null}
+              {uploading ? (
+                <div style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:8, flexDirection:'column' }}>
+                  <svg width="36" height="36" viewBox="0 0 24 24">
+                    <circle cx="12" cy="12" r="10" stroke="#c0c4c9" strokeWidth="4" fill="none" opacity="0.25"/>
+                    <path d="M12 2a10 10 0 0 1 0 20" stroke="var(--brand)" strokeWidth="4" fill="none">
+                      <animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="1s" repeatCount="indefinite"/>
+                    </path>
+                  </svg>
+                  <div className="muted">Cargando imágenes...</div>
+                </div>
+              ) : (!saveError && !loading ? <div style={{ fontSize: '48px', color: '#19a45b' }}>✔</div> : null)}
               <div className={saveError ? 'muted' : ''} style={saveError ? { color: '#e11' } : { marginTop: 8 }}>{status}</div>
-              {loading ? <div className="muted" style={{ marginTop: 8 }}>Procesando...</div> : null}
+              {loading && !uploading ? <div className="muted" style={{ marginTop: 8 }}>Procesando...</div> : null}
             </div>
             <div className="modal-footer">
               <button className="btn" onClick={() => setSaveModalOpen(false)} disabled={loading}>Cerrar</button>
@@ -527,7 +563,15 @@ function BLEvidence() {
         <div className="modal-backdrop" onClick={(e) => e.stopPropagation()}>
           <div className="modal" style={{ width: '280px' }} onClick={(e) => e.stopPropagation()}>
             <div className="modal-body" style={{ textAlign:'center' }}>
-              <div className="muted">Procesando...</div>
+              <div style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:8 }}>
+                <svg width="24" height="24" viewBox="0 0 24 24">
+                  <circle cx="12" cy="12" r="10" stroke="#c0c4c9" strokeWidth="4" fill="none" opacity="0.25"/>
+                  <path d="M12 2a10 10 0 0 1 0 20" stroke="var(--brand)" strokeWidth="4" fill="none">
+                    <animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="1s" repeatCount="indefinite"/>
+                  </path>
+                </svg>
+                <div className="muted">Procesando...</div>
+              </div>
             </div>
           </div>
         </div>
