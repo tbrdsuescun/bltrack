@@ -187,11 +187,11 @@ function Panel({ user }) {
                         <button className="btn btn-outline btn-small" onClick={() => {
                           const hasChildren = Number(row.childrenCount) > 0
                           navigate(hasChildren ? '/bl?master=' + encodeURIComponent(row.master) : '/evidence/' + row.master)
-                        }}>Ver detalle</button>
+                        }}>Ver HBLS</button>
                         {Number(row.childrenCount) > 0 && (
                           <button className="btn btn-outline btn-small" onClick={() => {
                             navigate('/evidence/' + row.master)
-                          }}>Ingresar imagenes</button>
+                          }}>Ver Master</button>
                         )}
                       </td>
                     </tr>
