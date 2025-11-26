@@ -4,7 +4,7 @@ import StatusBadge from '../components/StatusBadge.jsx'
 import API from '../lib/api.js'
 
 function BLList({ user }) {
-  const [mastersRaw, setMastersRaw] = useState([])
+
   const [childrenList, setChildrenList] = useState([])
   const [mineMap, setMineMap] = useState({})
   const [page, setPage] = useState(1)
@@ -18,41 +18,41 @@ function BLList({ user }) {
   }, [location.search])
 
   useEffect(() => {
-    try {
-      const v = JSON.parse(localStorage.getItem('tbMastersCache') || '{}')
-      const arr = Array.isArray(v.data) ? v.data : []
-      setMastersRaw(arr)
-    } catch {
-      setMastersRaw([])
-    }
     API.get('/bls/mine').then(res => {
       const list = Array.isArray(res.data?.items) ? res.data.items : []
       const map = {}
       list.forEach(it => { map[it.bl_id] = { photos_count: it.photos_count || 0, send_status: it.send_status || 'pending' } })
       setMineMap(map)
     }).catch(() => setMineMap({}))
-  }, [])
 
-  useEffect(() => {
-    if (!master) { setChildrenList([]); return }
-    const ids = mastersRaw.filter(x => String(x.numeroMaster||'') === String(master)).map(x => x.numeroDo).filter(Boolean)
-    setChildrenList(ids)
+    if (master) {
+      console.log(`Fetching children for master: ${master}`);
+      API.get(`/bls/master/${master}/children`).then(res => {
+        console.log('Backend response:', res.data);
+        const list = Array.isArray(res.data?.items) ? res.data.items : []
+        setChildrenList(list)
+      }).catch(err => {
+        console.error('Error fetching children:', err);
+        setChildrenList([])
+      })
+    } else {
+      setChildrenList([])
+    }
     setPage(1)
-  }, [master, mastersRaw])
+  }, [master])
 
   const childrenRows = useMemo(() => {
-    return childrenList.map((id) => {
-      const entry = mastersRaw.find(x => String(x.numeroDo||'') === String(id)) || {}
+    return childrenList.map((entry) => {
       return {
-        numeroBL: id,
-        clienteNombre: entry.nombreCliente || entry.clienteNombre || '',
-        clienteNit: entry.nitCliente || entry.clienteNit || '',
-        numeroIE: entry.numeroIE || '',
-        descripcionMercancia: entry.descripcionMercancia || '',
-        numeroPedido: entry.numeroPedido || ''
+        numeroHBL: entry.child_id || '',
+        clienteNombre: entry.cliente_nombre || '',
+        puertoOrigen: entry.puerto_origen || '',
+        numeroIE: entry.numero_ie || '',
+        numeroDO: entry.numero_do || '',
+        paisOrigen: entry.pais_origen || '',
       }
     })
-  }, [childrenList, mastersRaw])
+  }, [childrenList])
   const pageCount = Math.max(1, Math.ceil(childrenRows.length / pageSize))
   const start = (page - 1) * pageSize
   const end = start + pageSize
@@ -84,11 +84,12 @@ function BLList({ user }) {
               <table className="table">
                 <thead>
                   <tr>
-                    <th>Número BL</th>
-                    <th>Nombre Cliente - NIT</th>
+                    <th>Cliente</th>
+                    <th>Puerto Origen</th>
                     <th>Número IE</th>
-                    <th>Descripción de la mercancía</th>
-                    <th>Número de pedido</th>
+                    <th>Número DO</th>
+                    <th>País Origen</th>
+                    <th>Número HBL</th>
                     <th>Fotografías</th>
                     <th>Estado</th>
                     <th className="table-actions">Acciones</th>
@@ -96,16 +97,17 @@ function BLList({ user }) {
                 </thead>
                 <tbody>
                   {visible.map(row => (
-                    <tr key={row.numeroBL}>
-                      <td>{row.numeroBL}</td>
-                      <td>{row.clienteNombre ? (row.clienteNombre + ' - ' + (row.clienteNit || '-')) : '-'}</td>
+                    <tr key={row.numeroHBL}>
+                      <td>{row.clienteNombre || '-'}</td>
+                      <td>{row.puertoOrigen || '-'}</td>
                       <td>{row.numeroIE || '-'}</td>
-                      <td>{row.descripcionMercancia || '-'}</td>
-                      <td>{row.numeroPedido || '-'}</td>
-                      <td>{mineMap[row.numeroBL]?.photos_count || 0}</td>
-                      <td>{(mineMap[row.numeroBL]?.photos_count || 0) > 0 ? statusBadge(mineMap[row.numeroBL]?.send_status || '') : ''}</td>
+                      <td>{row.numeroDO || '-'}</td>
+                      <td>{row.paisOrigen || '-'}</td>
+                      <td>{row.numeroHBL}</td>
+                      <td>{mineMap[row.numeroHBL]?.photos_count || 0}</td>
+                      <td>{(mineMap[row.numeroHBL]?.photos_count || 0) > 0 ? statusBadge(mineMap[row.numeroHBL]?.send_status || '') : ''}</td>
                       <td className="table-actions">
-                        <button className="btn btn-outline btn-small" onClick={() => navigate('/evidence/' + row.numeroBL)}>Ver detalle</button>
+                        <button className="btn btn-outline btn-small" onClick={() => navigate(`/evidence/${master}/${row.numeroHBL}`)}>Ver detalle</button>
                       </td>
                     </tr>
                   ))}

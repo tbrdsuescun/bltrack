@@ -113,4 +113,16 @@ router.get('/:id', authRequired, async (req, res) => {
   res.json(item);
 });
 
+// Obtiene los HBLs de un master
+router.get('/master/:master/children', authRequired, async (req, res) => {
+  try {
+    const { master } = req.params;
+    const query = 'SELECT * FROM master_children WHERE master_id = ? AND child_id <> master_id';
+    const items = await sequelize.query(query, { replacements: [master], type: QueryTypes.SELECT });
+    res.json({ items });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: 'Fallo al obtener HBLs del master', detail: err.message });
+  }
+});
+
 module.exports = router;
