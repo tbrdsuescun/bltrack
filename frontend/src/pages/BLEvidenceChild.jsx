@@ -244,12 +244,11 @@ function BLEvidenceChild() {
         <div style={{ border:'1px solid #e5e7eb', borderRadius:8, padding:12, background:'#fff', marginTop:8 }}>
           <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:12 }}>
             <div>
-              <div style={{ fontWeight:600, color:'var(--brand)' }}>Nombrado de HBL</div>
+              <div style={{ fontWeight:600, color:'var(--brand)' }}>Nombrado de HBL - Usar 'averia'</div>
             </div>
-            <label className="label" style={{ flexDirection:'row', alignItems:'center', gap:10, margin:0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }} onClick={() => setChildUseAveria(!childUseAveria)}>
               <Toggle checked={childUseAveria} onChange={setChildUseAveria} />
-              <span>Usar 'averia'</span>
-            </label>
+            </div>
           </div>
         </div>
 
