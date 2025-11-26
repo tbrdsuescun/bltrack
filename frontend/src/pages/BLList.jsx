@@ -126,6 +126,12 @@ function BLList({ user }) {
           </>
         )}
       </div>
+
+      {isMobile && (
+        <button className="fab btn-primary" onClick={() => navigate('/bl/new')} aria-label="Nuevo registro">
+          <span className="icon">+</span>
+        </button>
+      )}
     </>
   )
 }

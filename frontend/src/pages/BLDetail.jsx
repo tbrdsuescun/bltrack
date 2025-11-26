@@ -20,6 +20,8 @@ function BLDetail({ user }) {
   const [childPhotos, setChildPhotos] = useState({})
   const [mineMap, setMineMap] = useState({})
   const [childrenList, setChildrenList] = useState([])
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768)
+  useEffect(() => { const onResize = () => setIsMobile(window.innerWidth <= 768); window.addEventListener('resize', onResize); return () => window.removeEventListener('resize', onResize) }, [])
   
   useEffect(() => {
     try {
@@ -180,40 +182,72 @@ function BLDetail({ user }) {
           childrenRows.length === 0 ? (
             <p className="muted" style={{ marginTop: '12px' }}>No hay hijos para este master.</p>
           ) : (
-            <div className="table-responsive" style={{ marginTop: '12px' }}>
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th>Cliente</th>
-                    <th>Puerto Origen</th>
-                    <th>Número IE</th>
-                    <th>Número DO</th>
-                    <th>País Origen</th>
-                    <th>Número HBL</th>
-                    <th>Fotografías</th>
-                    {/* <th>Estado</th> */}
-                    <th className="table-actions">Acciones</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {childrenRows.map(row => (
-                    <tr key={row.numeroHBL}>
-                      <td>{row.cliente}</td>
-                      <td>{row.puertoOrigen}</td>
-                      <td>{row.numeroIE}</td>
-                      <td>{row.numeroDo}</td>
-                      <td>{row.paisOrigen}</td>
-                      <td>{row.numeroHBL}</td>
-                      <td>{mineMap[row.numeroHBL]?.photos_count || 0}</td>
-                      {/* <td>{(mineMap[row.numeroHBL]?.photos_count || 0) > 0 ? <StatusBadge status={mineMap[row.numeroHBL]?.send_status || ''} /> : ''}</td> */}
-                      <td className="table-actions">
-                        <button className="btn btn-outline btn-small" onClick={() => navigate('/evidence/' + selectedMaster + '/' + row.numeroHBL)}>Ingresar imágenes</button>
-                      </td>
+            isMobile ? (
+              <div className="mobile-card-list" style={{ marginTop: '12px' }}>
+                {childrenRows.map(row => (
+                  <div key={row.numeroHBL} className="mobile-card">
+                    <div className="mobile-card-header">
+                      <div style={{ fontWeight: 600 }}>{row.numeroHBL}</div>
+                      <div className="muted">Fotos: {mineMap[row.numeroHBL]?.photos_count || 0}</div>
+                    </div>
+                    <div className="mobile-card-body">
+                      <div>
+                        <div className="muted">Cliente</div>
+                        <div>{row.cliente || '-'}</div>
+                      </div>
+                      <div>
+                        <div className="muted">N° DO</div>
+                        <div>{row.numeroDo || '-'}</div>
+                      </div>
+                      <div>
+                        <div className="muted">País</div>
+                        <div>{row.paisOrigen || '-'}</div>
+                      </div>
+                      <div>
+                        <div className="muted">Puerto</div>
+                        <div>{row.puertoOrigen || '-'}</div>
+                      </div>
+                    </div>
+                    <div className="actions" style={{ justifyContent: 'flex-end', marginTop: 8 }}>
+                      <button className="btn btn-outline btn-small" onClick={() => navigate('/evidence/' + selectedMaster + '/' + row.numeroHBL)}>Ingresar imágenes</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="table-responsive" style={{ marginTop: '12px' }}>
+                <table className="table">
+                  <thead>
+                    <tr>
+                      <th>Cliente</th>
+                      <th>Puerto Origen</th>
+                      <th>Número IE</th>
+                      <th>Número DO</th>
+                      <th>País Origen</th>
+                      <th>Número HBL</th>
+                      <th>Fotografías</th>
+                      <th className="table-actions">Acciones</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {childrenRows.map(row => (
+                      <tr key={row.numeroHBL}>
+                        <td>{row.cliente}</td>
+                        <td>{row.puertoOrigen}</td>
+                        <td>{row.numeroIE}</td>
+                        <td>{row.numeroDo}</td>
+                        <td>{row.paisOrigen}</td>
+                        <td>{row.numeroHBL}</td>
+                        <td>{mineMap[row.numeroHBL]?.photos_count || 0}</td>
+                        <td className="table-actions">
+                          <button className="btn btn-outline btn-small" onClick={() => navigate('/evidence/' + selectedMaster + '/' + row.numeroHBL)}>Ingresar imágenes</button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )
           )
         )}
       </div>

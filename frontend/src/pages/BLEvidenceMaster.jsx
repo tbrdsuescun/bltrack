@@ -22,6 +22,8 @@ function BLEvidenceMaster() {
   const [saveError, setSaveError] = useState(false)
   const [pendingFiles, setPendingFiles] = useState([])
   const [uploading, setUploading] = useState(false)
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768)
+  useEffect(() => { const onResize = () => setIsMobile(window.innerWidth <= 768); window.addEventListener('resize', onResize); return () => window.removeEventListener('resize', onResize) }, [])
 
   const PREFIXES = [
     { label: 'Contenedor cerrado', slug: 'contenedor_cerrado' },
@@ -249,50 +251,88 @@ function BLEvidenceMaster() {
         {orderedPhotos.length === 0 ? (
           <p className="muted">Aún no hay fotos para este MASTER.</p>
         ) : (
-          <div className="table-responsive" style={{ marginTop: '12px' }}>
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>Foto</th>
-                  <th>Fecha</th>
-                  <th>Usuario</th>
-                  <th>Nombre</th>
-                  <th className="table-actions">Acciones</th>
-                </tr>
-              </thead>
-              <tbody>
-                {orderedPhotos.map(p => {
-                  const ts = Number((String(p.id||'').split('-')[0]) || 0)
-                  const fecha = ts ? dayjs(ts).format('YYYY-MM-DD HH:mm') : '-'
-                  const user = (() => { try { return JSON.parse(localStorage.getItem('user')||'{}') } catch { return {} } })()
-                  const usuario = user?.nombre || user?.display_name || user?.email || '-'
-                  return (
-                    <tr key={p.id}>
-                      <td>
-                        {p.url ? (
-                          <img src={p.url} alt={p.filename || p.id} style={{ width: 80, height: 60, objectFit: 'cover', borderRadius: 6, cursor: 'zoom-in' }} onClick={() => setSelectedPhoto(p)} />
-                        ) : (
-                          <span className="muted">(sin vista previa)</span>
-                        )}
-                      </td>
-                      <td>{fecha}</td>
-                      <td>{usuario}</td>
-                      <td>{p.filename || p.id}</td>
-                      <td className="table-actions">
-                        <button className="btn btn-outline btn-small" onClick={() => setSelectedPhoto(p)}>Ver foto</button>
+          isMobile ? (
+            <div className="preview-grid">
+              {orderedPhotos.map(p => {
+                const ts = Number((String(p.id||'').split('-')[0]) || 0)
+                const fecha = ts ? dayjs(ts).format('YYYY-MM-DD HH:mm') : '-'
+                const user = (() => { try { return JSON.parse(localStorage.getItem('user')||'{}') } catch { return {} } })()
+                const usuario = user?.nombre || user?.display_name || user?.email || '-'
+                return (
+                  <div key={p.id} className="preview-card">
+                    {p.url ? (
+                      <img src={p.url} alt={p.filename || p.id} onClick={() => setSelectedPhoto(p)} />
+                    ) : (
+                      <div className="muted" style={{ padding: 12 }}>(sin vista previa)</div>
+                    )}
+                    <div style={{ padding: 8, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <div className="muted" style={{ fontSize: 12 }}>{fecha} • {usuario}</div>
+                      <div>
+                        <button className="btn btn-outline btn-small" onClick={() => setSelectedPhoto(p)}>Ver</button>
+                        {' '}
                         <button className="btn btn-danger btn-small" onClick={() => setConfirmPhoto(p)} disabled={loading}>Eliminar</button>
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          ) : (
+            <div className="table-responsive" style={{ marginTop: '12px' }}>
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Foto</th>
+                    <th>Fecha</th>
+                    <th>Usuario</th>
+                    <th>Nombre</th>
+                    <th className="table-actions">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {orderedPhotos.map(p => {
+                    const ts = Number((String(p.id||'').split('-')[0]) || 0)
+                    const fecha = ts ? dayjs(ts).format('YYYY-MM-DD HH:mm') : '-'
+                    const user = (() => { try { return JSON.parse(localStorage.getItem('user')||'{}') } catch { return {} } })()
+                    const usuario = user?.nombre || user?.display_name || user?.email || '-'
+                    return (
+                      <tr key={p.id}>
+                        <td>
+                          {p.url ? (
+                            <img src={p.url} alt={p.filename || p.id} style={{ width: 80, height: 60, objectFit: 'cover', borderRadius: 6, cursor: 'zoom-in' }} onClick={() => setSelectedPhoto(p)} />
+                          ) : (
+                            <span className="muted">(sin vista previa)</span>
+                          )}
+                        </td>
+                        <td>{fecha}</td>
+                        <td>{usuario}</td>
+                        <td>{p.filename || p.id}</td>
+                        <td className="table-actions">
+                          <button className="btn btn-outline btn-small" onClick={() => setSelectedPhoto(p)}>Ver foto</button>
+                          <button className="btn btn-danger btn-small" onClick={() => setConfirmPhoto(p)} disabled={loading}>Eliminar</button>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )
         )}
 
         <div className="actions" style={{ justifyContent:'flex-end' }}>
           <button className="btn btn-outline" onClick={onSave} disabled={loading}>Guardar</button>
         </div>
+
+        {isMobile && (pendingFiles.length > 0 || uploading) && (
+          <>
+            <div className="bottom-spacer" />
+            <div className="bottom-bar">
+              <button className="btn btn-outline" onClick={openFileDialog} disabled={uploading || loading}>Subir</button>
+              <button className="btn btn-primary" onClick={onSave} disabled={loading}>Guardar</button>
+            </div>
+          </>
+        )}
       </div>
 
       {selectedPhoto && (

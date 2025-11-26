@@ -14,6 +14,7 @@ function Panel({ user }) {
   const [page, setPage] = useState(1)
   const pageSize = 5
   const navigate = useNavigate()
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768)
   const abortRef = useRef(null)
   const typingTimerRef = useRef(null)
   const [mastersRaw, setMastersRaw] = useState([])
@@ -49,10 +50,8 @@ function Panel({ user }) {
     }
   }
 
-  useEffect(() => {
-    load()
-    return () => { abortRef.current?.abort() }
-  }, [])
+  useEffect(() => { load(); return () => { abortRef.current?.abort() } }, [])
+  useEffect(() => { const onResize = () => setIsMobile(window.innerWidth <= 768); window.addEventListener('resize', onResize); return () => window.removeEventListener('resize', onResize) }, [])
 
   useEffect(() => {
     try {
@@ -211,6 +210,12 @@ function Panel({ user }) {
           </>
         )}
       </div>
+
+      {isMobile && (() => { try { const u = JSON.parse(localStorage.getItem('user') || '{}'); return String(u.role || '') !== 'admin' } catch { return true } })() && (
+        <button className="fab btn-primary" onClick={() => navigate('/bl/new')} aria-label="Nuevo registro">
+          <span className="icon">+</span>
+        </button>
+      )}
     </>
   )
 }
