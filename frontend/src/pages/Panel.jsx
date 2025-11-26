@@ -151,7 +151,10 @@ function Panel({ user }) {
         {msg && <p className="muted">{msg}</p>}
 
         {mastersLoading ? (
-          <p className="muted">Cargando listado...</p>
+          <div className="loading-backdrop" aria-live="polite" aria-busy="true">
+            <div className="loading-spinner"></div>
+            <div className="loading-text">Cargando...</div>
+          </div>
         ) : mastersList.length === 0 ? (
           <p className="muted">No hay registros para mostrar.</p>
         ) : (

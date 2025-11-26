@@ -11,11 +11,19 @@ function BLList({ user }) {
   const pageSize = 5
   const navigate = useNavigate()
   const location = useLocation()
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768)
+  const [loading, setLoading] = useState(false)
 
   const master = useMemo(() => {
     const params = new URLSearchParams(location.search)
     return params.get('master') || ''
   }, [location.search])
+
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth <= 768)
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [])
 
   useEffect(() => {
     API.get('/bls/mine').then(res => {
@@ -26,17 +34,16 @@ function BLList({ user }) {
     }).catch(() => setMineMap({}))
 
     if (master) {
-      console.log(`Fetching children for master: ${master}`);
+      setLoading(true)
       API.get(`/bls/master/${master}/children`).then(res => {
-        console.log('Backend response:', res.data);
         const list = Array.isArray(res.data?.items) ? res.data.items : []
         setChildrenList(list)
-      }).catch(err => {
-        console.error('Error fetching children:', err);
+      }).catch(() => {
         setChildrenList([])
-      })
+      }).finally(() => setLoading(false))
     } else {
       setChildrenList([])
+      setLoading(false)
     }
     setPage(1)
   }, [master])
@@ -91,7 +98,6 @@ function BLList({ user }) {
                     <th>País Origen</th>
                     <th>Número HBL</th>
                     <th>Fotografías</th>
-                    <th>Estado</th>
                     <th className="table-actions">Acciones</th>
                   </tr>
                 </thead>
@@ -105,7 +111,6 @@ function BLList({ user }) {
                       <td>{row.paisOrigen || '-'}</td>
                       <td>{row.numeroHBL}</td>
                       <td>{mineMap[row.numeroHBL]?.photos_count || 0}</td>
-                      <td>{(mineMap[row.numeroHBL]?.photos_count || 0) > 0 ? statusBadge(mineMap[row.numeroHBL]?.send_status || '') : ''}</td>
                       <td className="table-actions">
                         <button className="btn btn-outline btn-small" onClick={() => navigate(`/evidence/${master}/${row.numeroHBL}`)}>Ver detalle</button>
                       </td>
@@ -126,6 +131,13 @@ function BLList({ user }) {
           </>
         )}
       </div>
+
+      {loading && (
+        <div className="loading-backdrop" aria-live="polite" aria-busy="true">
+          <div className="loading-spinner"></div>
+          <div className="loading-text">Cargando...</div>
+        </div>
+      )}
 
       {isMobile && (
         <button className="fab btn-primary" onClick={() => navigate('/bl/new')} aria-label="Nuevo registro">

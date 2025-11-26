@@ -55,11 +55,12 @@ function BLEvidenceMaster() {
     let mounted = true
     const tid = String(targetId || '')
     if (!tid) return () => { mounted = false }
+    setLoading(true)
     API.get('/bls/' + tid + '/photos').then(res => {
       if (!mounted) return
       const list = Array.isArray(res.data?.photos) ? res.data.photos : []
       setPhotos(list)
-    }).catch(() => setPhotos([]))
+    }).catch(() => setPhotos([])).finally(() => setLoading(false))
     try {
       const cache = JSON.parse(localStorage.getItem('tbMastersCache') || '{}')
       const arr = Array.isArray(cache.data) ? cache.data : []
@@ -427,20 +428,9 @@ function BLEvidenceMaster() {
       )}
 
       {loading && !saveModalOpen && (
-        <div className="modal-backdrop" onClick={(e) => e.stopPropagation()}>
-          <div className="modal" style={{ width: '280px' }} onClick={(e) => e.stopPropagation()}>
-            <div className="modal-body" style={{ textAlign:'center' }}>
-              <div style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:8 }}>
-                <svg width="24" height="24" viewBox="0 0 24 24">
-                  <circle cx="12" cy="12" r="10" stroke="#c0c4c9" strokeWidth="4" fill="none" opacity="0.25"/>
-                  <path d="M12 2a10 10 0 0 1 0 20" stroke="var(--brand)" strokeWidth="4" fill="none">
-                    <animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="1s" repeatCount="indefinite"/>
-                  </path>
-                </svg>
-                <div className="muted">Procesando...</div>
-              </div>
-            </div>
-          </div>
+        <div className="loading-backdrop" aria-live="polite" aria-busy="true">
+          <div className="loading-spinner"></div>
+          <div className="loading-text">Cargando...</div>
         </div>
       )}
     </>
