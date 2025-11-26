@@ -46,10 +46,10 @@ function BLList({ user }) {
       return {
         numeroHBL: entry.child_id || '',
         clienteNombre: entry.cliente_nombre || '',
-        puertoOrigen: entry.puerto_origen || '',
+        puertoOrigen: entry.puerto_de_origen || '',
         numeroIE: entry.numero_ie || '',
-        numeroDO: entry.numero_do || '',
-        paisOrigen: entry.pais_origen || '',
+        numeroDO: entry.numero_DO_hijo || '',
+        paisOrigen: entry.pais_de_origen || '',
       }
     })
   }, [childrenList])
