@@ -47,6 +47,12 @@ function App() {
   useEffect(() => {
     const key = 'tbMastersCache'
     let stale = true
+    let puertoParam = ''
+    try {
+      const u = JSON.parse(localStorage.getItem('user') || '{}')
+      const pr = String(u?.puerto || '').trim().toLowerCase()
+      puertoParam = pr
+    } catch {}
     try {
       const v = JSON.parse(localStorage.getItem(key) || 'null')
       const ts = Number(v?.ts || 0)
@@ -54,13 +60,14 @@ function App() {
       stale = !v || !Array.isArray(v.data) || (Date.now() - ts) > ttl
     } catch { stale = true }
     if (stale) {
-      API.get('/external/masters').then(res => {
+      const config = puertoParam ? { params: { puerto: puertoParam } } : {}
+      API.get('/external/masters', config).then(res => {
         const data = Array.isArray(res.data?.data) ? res.data.data : []
-        const payload = { data, ts: Date.now() }
-        try { localStorage.setItem(key, JSON.stringify(payload)) } catch {}
-      }).catch((err) => {
-        const payload = { data: [], ts: Date.now(), error: 'No se pudo obtener información del API' }
-        try { localStorage.setItem(key, JSON.stringify(payload)) } catch {}
+        if (data.length > 0) {
+          const payload = { data, ts: Date.now() }
+          try { localStorage.setItem(key, JSON.stringify(payload)) } catch {}
+        }
+      }).catch(() => {
         try { alert('No se obtuvo información o no se pudo conectar con el servidor') } catch {}
       })
     }

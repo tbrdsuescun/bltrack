@@ -20,7 +20,9 @@ function Login({ setUser }) {
         const puerto = puertoRaw ? puertoRaw.toLowerCase() : ''
         if (puerto) {
           const mastersRes = await API.get('/external/masters', { params: { puerto } })
-          try { localStorage.setItem('tbMastersCache', JSON.stringify(mastersRes.data)) } catch {}
+          const data = Array.isArray(mastersRes.data?.data) ? mastersRes.data.data : []
+          const payload = { data, ts: Date.now() }
+          try { localStorage.setItem('tbMastersCache', JSON.stringify(payload)) } catch {}
         }
       } catch {}
       setUser(res.data.user)

@@ -228,8 +228,11 @@ card .user {
 @media(max-width:768px) {
     .login-grid {
         grid-template-columns: 1fr;
-        min-height: auto
+        min-height: 100vh;
+        place-items: center;
+        padding: 16px;
     }
+    .login-image { display: none; }
 }
 
 .login-image {
@@ -299,7 +302,8 @@ card .user {
 
 /* Responsive: móvil/tablet */
 @media(max-width:768px){
-  .mobile-header { display:flex; align-items:center; justify-content:space-between; background:#0f2b54; color:#fff; padding:10px 12px; border-bottom:1px solid rgba(255,255,255,0.15); }
+  .app-shell { flex-direction: column; }
+  .mobile-header { display:flex; align-items:center; justify-content:space-between; background:#0f2b54; color:#fff; padding:10px 12px; border-bottom:1px solid rgba(255,255,255,0.15); width:100%; }
   .sidebar { position:fixed; left:0; top:0; height:100%; width:80%; max-width:280px; transform:translateX(-100%); transition:transform .25s ease; z-index:100; }
   .app-shell.sidebar-open .sidebar { transform:translateX(0); }
   .sidebar-backdrop { position:fixed; inset:0; background:rgba(0,0,0,0.35); opacity:0; pointer-events:none; transition:opacity .25s ease; z-index:90; }
@@ -355,6 +359,7 @@ card .user {
 .pagination { display:flex; gap:6px; align-items:center; justify-content:flex-end; margin-top:10px; }
 .page-btn { background:#fff; border:1px solid #e5e7eb; border-radius:6px; padding:6px 10px; cursor:pointer; }
 .page-btn.active { background:#0d2b54; color:#fff; border-color:#0d2b54; }
+@media(max-width:768px){ .page-btn { padding:10px 14px; font-size:14px } }
 
 /* --- Modal --- */
 .modal-backdrop { position:fixed; inset:0; background:rgba(10,14,23,0.45); display:flex; align-items:center; justify-content:center; z-index:50; }
@@ -362,12 +367,21 @@ card .user {
 .modal-header { padding:14px; border-bottom:1px solid #eef2f7; font-weight:600; }
 .modal-body { padding:20px; }
 .modal-footer { padding:12px 16px; border-top:1px solid #eef2f7; display:flex; justify-content:flex-end; gap:8px; }
+/* --- Floating Actions (mobile) --- */
+.fab { position:fixed; right:16px; bottom:16px; border-radius:50%; width:56px; height:56px; display:none; align-items:center; justify-content:center; box-shadow:0 8px 20px rgba(0,0,0,0.25); z-index:60; }
+.fab .icon { font-size:24px; line-height:1; }
+@media(max-width:768px){ .fab { display:flex; } }
+.bottom-bar { position:fixed; left:0; right:0; bottom:0; background:#fff; border-top:1px solid #e5e7eb; padding:10px 12px; display:none; align-items:center; justify-content:flex-end; gap:8px; z-index:55; }
+@media(max-width:768px){ .bottom-bar { display:flex; } }
+.bottom-spacer { height:56px; display:none; }
+@media(max-width:768px){ .bottom-spacer { display:block; } }
 
 /* --- Dropzone --- */
 .dropzone { border:2px dashed #d1d5db; border-radius:12px; background:#fbfdff; padding:18px; text-align:center; color:#6b7280; }
 .preview-grid { display:grid; grid-template-columns: repeat(3, 1fr); gap:10px; margin-top:12px; }
 .preview-card { border:1px solid #e5e7eb; border-radius:10px; overflow:hidden; background:#fff; }
 .preview-card img { width:100%; height:160px; object-fit:cover; }
+@media(max-width:768px){ .preview-grid { grid-template-columns: repeat(2, 1fr); } }
 
 .loading-backdrop { position:fixed; inset:0; background:rgba(10,14,23,0.35); display:flex; align-items:center; justify-content:center; z-index:1000; flex-direction:column; color:#fff; }
 .loading-spinner { width:42px; height:42px; border:4px solid rgba(255,255,255,0.3); border-top-color:#fff; border-radius:50%; animation:spin 1s linear infinite; margin-bottom:8px; }
