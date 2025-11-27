@@ -21,6 +21,9 @@ const router = express.Router();
 // Subir fotos: guarda en disco y persiste registro del BL + fotos por usuario
 router.post('/bls/:id/photos', authRequired, upload.array('photos', 12), async (req, res) => {
   const { id } = req.params;
+  const flagsRaw = req.body?.averia_flags;
+  let flags = {};
+  try { flags = typeof flagsRaw === 'string' ? JSON.parse(flagsRaw) : (flagsRaw || {}) } catch { flags = {} }
   const photos = (req.files || []).map((f) => ({
     id: path.basename(f.filename),
     filename: f.originalname,
@@ -28,6 +31,7 @@ router.post('/bls/:id/photos', authRequired, upload.array('photos', 12), async (
     size: f.size,
     mime: f.mimetype,
     status: 'kept',
+    averia: !!flags[f.originalname]
   }));
   try {
     const [rec, created] = await RegistroFotografico.findOrCreate({
@@ -91,10 +95,28 @@ router.get('/bls/:id/photos', authRequired, async (req, res) => {
       size: p.size,
       mime: p.mime,
       status: p.status || 'kept',
+      averia: !!p.averia,
     })) : [];
     res.json({ bl_id: id, count: photos.length, photos });
   } catch (err) {
     res.status(500).json({ ok: false, error: 'Fallo al obtener fotos', detail: err.message });
+  }
+});
+
+// Actualizar flags de avería para fotos existentes
+router.patch('/bls/:id/photos/averia', authRequired, async (req, res) => {
+  const { id } = req.params;
+  const flags = req.body?.flags || {};
+  try {
+    const rec = await RegistroFotografico.findOne({ where: { bl_id: id, user_id: req.user.id } });
+    if (!rec || !Array.isArray(rec.photos)) return res.status(404).json({ ok: false, error: 'Registro no encontrado' });
+    const photos = rec.photos.map(p => ({ ...p, averia: typeof flags[p.id] !== 'undefined' ? !!flags[p.id] : !!p.averia }));
+    rec.photos = photos;
+    await rec.save();
+    const response = photos.map(p => ({ id: p.id, filename: p.filename, url: p.path ? ('/uploads/' + p.id) : null, size: p.size, mime: p.mime, status: p.status || 'kept', averia: !!p.averia }));
+    res.json({ bl_id: id, count: response.length, photos: response });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: 'Fallo al actualizar avería', detail: err.message });
   }
 });
 

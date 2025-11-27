@@ -14,7 +14,7 @@ function BLEvidenceChild() {
   const [selectedPhoto, setSelectedPhoto] = useState(null)
   const [confirmPhoto, setConfirmPhoto] = useState(null)
   const [cacheEntry, setCacheEntry] = useState(null)
-  const [childUseAveria, setChildUseAveria] = useState(false)
+
   const [saveModalOpen, setSaveModalOpen] = useState(false)
   const [saveError, setSaveError] = useState(false)
   const [pendingFiles, setPendingFiles] = useState([])
@@ -83,7 +83,9 @@ function BLEvidenceChild() {
     API.get('/bls/' + tid + '/photos').then(res => {
       if (!mounted) return
       const list = Array.isArray(res.data?.photos) ? res.data.photos : []
-      setPhotos(list)
+      const avMap = (() => { try { return JSON.parse(localStorage.getItem('averia_flags_' + tid) || '{}') } catch { return {} } })()
+      const list2 = list.map(p => ({ ...p, averia: !!avMap[p.id] }))
+      setPhotos(list2)
     }).catch(() => setPhotos([])).finally(() => setLoading(false))
     try {
       const cache = JSON.parse(localStorage.getItem('tbMastersCache') || '{}')
@@ -115,41 +117,50 @@ function BLEvidenceChild() {
     setLoading(true)
     let filesToUse = files
     try {
-      const numeroHbl = String(details.child_id || numeroHblCurrent || '').trim()
-      const prefix = childUseAveria ? 'averia' : (numeroHbl ? ('hbl_' + numeroHbl) : 'hbl')
-      const getNextIndex = (pref) => {
-        let max = 0
-        const list = Array.isArray(photos) ? photos : []
-        list.forEach(p => {
-          const name = String(p.filename || '')
-          const target = pref + '_'
-          if (name.startsWith(target)) {
-            const rest = name.slice(target.length)
-            const num = Number((rest.split('.')[0]) || rest)
-            if (Number.isFinite(num)) { max = Math.max(max, num) }
-          }
-        })
-        return max + 1
+      filesToUse = files
+      const fd = new FormData()
+      const masterIdVal = String(details.master_id || '')
+      fd.append('master_id', masterIdVal)
+      fd.append('child_id', String(details.child_id || ''))
+      fd.append('numero_DO_master', String(details.numero_DO_master || ''))
+      fd.append('numero_DO_hijo', String(details.numero_DO_hijo || ''))
+      fd.append('cliente_nombre', String(details.cliente_nombre || ''))
+      fd.append('numero_ie', String(details.numero_ie || ''))
+      fd.append('pais_de_origen', String(details.pais_de_origen || ''))
+      fd.append('puerto_de_origen', String(details.puerto_de_origen || ''))
+      if (cacheEntry) {
+        fd.append('cliente_nit', String(cacheEntry.nitCliente || cacheEntry.clienteNit || cacheEntry.nit || ''))
+        fd.append('descripcion_mercancia', String(cacheEntry.descripcionMercancia || cacheEntry.descripcion || ''))
+        fd.append('numero_pedido', String(cacheEntry.numeroPedido || cacheEntry.pedido || cacheEntry.orderNumber || ''))
       }
-      const start = getNextIndex(prefix)
-      filesToUse = files.map((f, i) => {
-        const original = String(f.name || '')
-        const dot = original.lastIndexOf('.')
-        const ext = dot >= 0 ? original.slice(dot) : ''
-        const newName = `${prefix}_${start + i}${ext}`
-        return new File([f], newName, { type: f.type })
-      })
-      const now = Date.now()
-      const staged = filesToUse.map((f, i) => ({ id: `${now + i}-local`, filename: f.name, url: URL.createObjectURL(f) }))
-      setPendingFiles(prev => prev.concat(filesToUse))
-      setPhotos(prev => prev.concat(staged))
-      setStatus('Fotos preparadas: ' + staged.length)
+      const flags = {}
+      filesToUse.forEach(f => { flags[f.name] = false })
+      fd.append('averia_flags', JSON.stringify(flags))
+      filesToUse.forEach(f => fd.append('photos', f))
+      const upRes = await API.post('/bls/' + (hblId || targetId) + '/photos', fd)
+      const newPhotos = (upRes.data.photos || []).map(p => ({ ...p, url: p.id ? ('/uploads/' + p.id) : p.url }))
+      setPhotos(prev => prev.concat(newPhotos))
+      setStatus('Imágenes subidas: ' + newPhotos.length)
     } catch (err) {
       setStatus('Error al preparar fotos: ' + (err.response?.data?.error || err.message))
     } finally {
       setLoading(false)
       setUploading(false)
     }
+  }
+
+  function onToggleAveria(photoId, checked) {
+    setPhotos(prev => prev.map(p => (p.id === photoId ? { ...p, averia: !!checked } : p)))
+    try {
+      const tid = String(targetId || '')
+      if (tid) {
+        const raw = localStorage.getItem('averia_flags_' + tid) || '{}'
+        let map = {}
+        try { map = JSON.parse(raw) } catch {}
+        map[photoId] = !!checked
+        localStorage.setItem('averia_flags_' + tid, JSON.stringify(map))
+      }
+    } catch {}
   }
 
   async function onDeleteConfirmed() {
@@ -179,44 +190,10 @@ function BLEvidenceChild() {
     setSaveModalOpen(true)
     setLoading(true)
     try {
-      if (pendingFiles.length) {
-        setUploading(true)
-        const fd = new FormData()
-        const masterIdVal = String(details.master_id || '')
-        fd.append('master_id', masterIdVal)
-        fd.append('child_id', String(details.child_id || ''))
-        fd.append('numero_DO_master', String(details.numero_DO_master || ''))
-        fd.append('numero_DO_hijo', String(details.numero_DO_hijo || ''))
-        fd.append('cliente_nombre', String(details.cliente_nombre || ''))
-        fd.append('numero_ie', String(details.numero_ie || ''))
-        fd.append('pais_de_origen', String(details.pais_de_origen || ''))
-        fd.append('puerto_de_origen', String(details.puerto_de_origen || ''))
-        if (cacheEntry) {
-          fd.append('cliente_nit', String(cacheEntry.nitCliente || cacheEntry.clienteNit || cacheEntry.nit || ''))
-          fd.append('descripcion_mercancia', String(cacheEntry.descripcionMercancia || cacheEntry.descripcion || ''))
-          fd.append('numero_pedido', String(cacheEntry.numeroPedido || cacheEntry.pedido || cacheEntry.orderNumber || ''))
-        }
-        pendingFiles.forEach(f => fd.append('photos', f))
-        const upRes = await API.post('/bls/' + (hblId || targetId) + '/photos', fd)
-        const newPhotos = (upRes.data.photos || []).map(p => ({ ...p, url: p.id ? ('/uploads/' + p.id) : p.url }))
-        setPhotos(prev => prev.filter(p => !String(p.id||'').endsWith('-local')).concat(newPhotos))
-        setPendingFiles([])
-        setUploading(false)
-      }
+      const flagsExisting = {}
+      ;(photos || []).forEach(p => { if (!String(p.id||'').endsWith('-local')) flagsExisting[p.id] = !!p.averia })
+      await API.patch('/bls/' + (hblId || targetId) + '/photos/averia', { flags: flagsExisting })
 
-      const payload = {
-        master_id: String(details.master_id || ''),
-        child_id: String(details.child_id || ''),
-        cliente_nombre: String(details.cliente_nombre || ''),
-        numero_ie: String(details.numero_ie || ''),
-        numero_DO_master: String(details.numero_DO_master || ''),
-        numero_DO_hijo: String(details.numero_DO_hijo || ''),
-        pais_de_origen: String(details.pais_de_origen || ''),
-        puerto_de_origen: String(details.puerto_de_origen || '')
-      }
-      const syncItem = { ...payload }
-      await API.post('/masters/sync', { items: [syncItem] })
-      await API.post('/bls/' + (hblId || targetId) + '/send', payload)
       setStatus('Guardado correctamente')
     } catch (err) {
       setStatus('Error al guardar: ' + (err.response?.data?.error || err.message))
@@ -244,16 +221,6 @@ function BLEvidenceChild() {
       </div>
 
       <div className="card">
-        <div style={{ border:'1px solid #e5e7eb', borderRadius:8, padding:12, background:'#fff', marginTop:8 }}>
-          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:12 }}>
-            <div>
-              <div style={{ fontWeight:600, color:'var(--brand)' }}>Nombrado de HBL - Usar 'averia'</div>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }} onClick={() => setChildUseAveria(!childUseAveria)}>
-              <Toggle checked={childUseAveria} onChange={setChildUseAveria} />
-            </div>
-          </div>
-        </div>
 
         <div style={{ marginTop:'12px' }}>
           <h2 className="h2" style={{ display:'flex', alignItems:'center', gap:8 }}>Evidencia {uploading ? (<svg width="16" height="16" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="#c0c4c9" strokeWidth="3" fill="none" opacity="0.25"/><path d="M12 2a10 10 0 0 1 0 20" stroke="var(--brand)" strokeWidth="3" fill="none"><animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="1s" repeatCount="indefinite"/></path></svg>) : null}</h2>
@@ -285,11 +252,7 @@ function BLEvidenceChild() {
           <input ref={fileInputRef} type="file" accept="image/*" multiple capture="environment" style={{ display:'none' }} onChange={onUpload} disabled={loading || uploading} />
         </div>
 
-        {status && (
-          <div className="muted" style={{ fontSize:12, marginTop:6 }}>
-            master_id: {String(details.master_id||'-')} • child_id: {String(details.child_id||'-')} • cliente_nombre: {String(details.cliente_nombre||'-')} • numero_ie: {String(details.numero_ie||'-')} • DO master: {String(details.numero_DO_master||'-')} • DO hijo: {String(details.numero_DO_hijo||'-')} • pais_origen: {String(details.pais_de_origen||'-')} • puerto_origen: {String(details.puerto_de_origen||'-')}
-          </div>
-        )}
+        
 
         {orderedPhotos.length === 0 ? (
           <p className="muted">Aún no hay fotos para este HBL.</p>
@@ -325,6 +288,7 @@ function BLEvidenceChild() {
               <table className="table">
                 <thead>
                   <tr>
+                    <th>Avería</th>
                     <th>Foto</th>
                     <th>Fecha</th>
                     <th>Usuario</th>
@@ -340,6 +304,7 @@ function BLEvidenceChild() {
                     const usuario = user?.nombre || user?.display_name || user?.email || '-'
                     return (
                       <tr key={p.id}>
+                        <td><input type="checkbox" checked={!!p.averia} onChange={(e) => onToggleAveria(p.id, e.target.checked)} /></td>
                         <td>
                           {p.url ? (
                             <img src={p.url} alt={p.filename || p.id} style={{ width: 80, height: 60, objectFit: 'cover', borderRadius: 6, cursor: 'zoom-in' }} onClick={() => setSelectedPhoto(p)} />
