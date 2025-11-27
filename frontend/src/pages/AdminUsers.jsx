@@ -13,6 +13,8 @@ function AdminUsers({ user }) {
   const [query, setQuery] = useState('')
   const [showModal, setShowModal] = useState(false)
   const [showPass, setShowPass] = useState(false)
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768)
+  useEffect(() => { const onResize = () => setIsMobile(window.innerWidth <= 768); window.addEventListener('resize', onResize); return () => window.removeEventListener('resize', onResize) }, [])
 
   // Usar API compartida sin interceptores locales
 
@@ -134,52 +136,85 @@ function AdminUsers({ user }) {
         {filtered.length === 0 ? (
           <p className="muted">No hay usuarios para mostrar.</p>
         ) : (
-          <div className="table-responsive" style={{ marginTop: '10px' }}>
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>Nombre completo</th>
-                  <th>Rol</th>
-                  <th>Estado</th>
-                  <th>Puerto</th>
-                  <th className="table-actions">Acciones</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.slice((page - 1) * pageSize, (page - 1) * pageSize + pageSize).map(it => (
-                  <tr key={it.id}>
-                    <td>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: '#e5e7eb', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{(it.nombre || '?').slice(0, 1).toUpperCase()}</div>
-                        <div>
-                          <div>{it.nombre || '(sin nombre)'}</div>
-                          <div className="muted" style={{ fontSize: '12px' }}>{it.email}</div>
-                        </div>
+          isMobile ? (
+            <div className="mobile-card-list" style={{ marginTop: '10px' }}>
+              {filtered.slice((page - 1) * pageSize, (page - 1) * pageSize + pageSize).map(it => (
+                <div key={it.id} className="mobile-card">
+                  <div className="mobile-card-header">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: '#e5e7eb', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{(it.nombre || '?').slice(0, 1).toUpperCase()}</div>
+                      <div>
+                        <div style={{ fontWeight: 600 }}>{it.nombre || '(sin nombre)'}</div>
+                        <div className="muted" style={{ fontSize: '12px' }}>{it.email}</div>
                       </div>
-                    </td>
-                    <td>
-                      {(it.role === 'admin') ? <span className="badge badge-accent">Admin</span> : <span className="badge badge-accent">Operario</span>}
-                    </td>
-                    <td>
-                      {it.is_active ? (
-                        <span className="badge badge-green"><span className="badge-dot green" /> Activo</span>
-                      ) : (
-                        <span className="badge badge-red"><span className="badge-dot red" /> Inactivo</span>
-                      )}
-                    </td>
-                    <td>
-                      {it.puerto || '-'}
-                    </td>
-                    <td className="table-actions">
-                      <button className="btn btn-outline btn-small" onClick={() => startEdit(it)} disabled={loading}>Actualizar</button>
-                      {' '}
-                      <button className="btn btn-danger btn-small" onClick={() => setConfirmUser(it)} disabled={loading}>Eliminar</button>
-                    </td>
+                    </div>
+                    <div>{(it.role === 'admin') ? <span className="badge badge-accent">Admin</span> : <span className="badge badge-accent">Operario</span>}</div>
+                  </div>
+                  <div className="mobile-card-body">
+                    <div>
+                      <div className="muted">Estado</div>
+                      <div>{it.is_active ? 'Activo' : 'Inactivo'}</div>
+                    </div>
+                    <div>
+                      <div className="muted">Puerto</div>
+                      <div>{it.puerto || '-'}</div>
+                    </div>
+                  </div>
+                  <div className="mobile-card-actions" style={{ marginTop: 8 }}>
+                    <button className="btn btn-outline btn-small" onClick={() => startEdit(it)} disabled={loading}>Actualizar</button>
+                    <button className="btn btn-danger btn-small" onClick={() => setConfirmUser(it)} disabled={loading}>Eliminar</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="table-responsive" style={{ marginTop: '10px' }}>
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Nombre completo</th>
+                    <th>Rol</th>
+                    <th>Estado</th>
+                    <th>Puerto</th>
+                    <th className="table-actions">Acciones</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {filtered.slice((page - 1) * pageSize, (page - 1) * pageSize + pageSize).map(it => (
+                    <tr key={it.id}>
+                      <td>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: '#e5e7eb', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{(it.nombre || '?').slice(0, 1).toUpperCase()}</div>
+                          <div>
+                            <div>{it.nombre || '(sin nombre)'}</div>
+                            <div className="muted" style={{ fontSize: '12px' }}>{it.email}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td>
+                        {(it.role === 'admin') ? <span className="badge badge-accent">Admin</span> : <span className="badge badge-accent">Operario</span>}
+                      </td>
+                      <td>
+                        {it.is_active ? (
+                          <span className="badge badge-green"><span className="badge-dot green" /> Activo</span>
+                        ) : (
+                          <span className="badge badge-red"><span className="badge-dot red" /> Inactivo</span>
+                        )}
+                      </td>
+                      <td>
+                        {it.puerto || '-'}
+                      </td>
+                      <td className="table-actions">
+                        <button className="btn btn-outline btn-small" onClick={() => startEdit(it)} disabled={loading}>Actualizar</button>
+                        {' '}
+                        <button className="btn btn-danger btn-small" onClick={() => setConfirmUser(it)} disabled={loading}>Eliminar</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )
         )}
 
         <div className="pagination">

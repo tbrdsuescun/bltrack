@@ -159,48 +159,94 @@ function Panel({ user }) {
           <p className="muted">No hay registros para mostrar.</p>
         ) : (
           <>
-            <div className="table-responsive" style={{ marginTop: '8px' }}>
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th>Master</th>
-                    {(() => { try { const u = JSON.parse(localStorage.getItem('user') || '{}'); return String(u.role || '') === 'admin' } catch { return false } })() ? <th>Usuario</th> : null}
-                    {(() => { try { const u = JSON.parse(localStorage.getItem('user') || '{}'); return String(u.role || '') === 'admin' } catch { return false } })() ? <th>Puerto</th> : null}
-                    <th>Fotografías master</th>
-                    <th>Número DO master</th>
-                    <th>N° Hbls</th>
-                    <th className="table-actions">Acciones</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {mastersList.slice((page - 1) * pageSize, (page - 1) * pageSize + pageSize).map((row, idx) => (
-                    <tr key={idx}>
-                      <td style={{ cursor: 'pointer', color: '#06467c' }} onClick={() => { const hasChildren = Number(row.childrenCount) > 0; navigate(hasChildren ? '/bl?master=' + encodeURIComponent(row.master) : '/evidence/' + row.master) }}>{row.master}</td>
+            {isMobile ? (
+              <div className="mobile-card-list">
+                {mastersList.slice((page - 1) * pageSize, (page - 1) * pageSize + pageSize).map((row, idx) => (
+                  <div key={idx} className="mobile-card">
+                    <div className="mobile-card-header">
+                      <div style={{ fontWeight: 600 }}>{row.master}</div>
+                      <div className="muted">Fotos: {row.photosCount}</div>
+                    </div>
+                    <div className="mobile-card-body">
+                      <div>
+                        <div className="muted">N° DO master</div>
+                        <div>{row.doNumber || '-'}</div>
+                      </div>
+                      <div>
+                        <div className="muted">N° Hbls</div>
+                        <div>{row.childrenCount || 0}</div>
+                      </div>
                       {(() => { try { const u = JSON.parse(localStorage.getItem('user') || '{}'); return String(u.role || '') === 'admin' } catch { return false } })() ? (
-                        <td>{(() => { try { const u = JSON.parse(localStorage.getItem('user') || '{}'); return u.nombre || u.display_name || u.email || '-' } catch { return '-' } })()}</td>
+                        <div>
+                          <div className="muted">Usuario</div>
+                          <div>{(() => { try { const u = JSON.parse(localStorage.getItem('user') || '{}'); return u.nombre || u.display_name || u.email || '-' } catch { return '-' } })()}</div>
+                        </div>
                       ) : null}
                       {(() => { try { const u = JSON.parse(localStorage.getItem('user') || '{}'); return String(u.role || '') === 'admin' } catch { return false } })() ? (
-                        <td>{(() => { try { const u = JSON.parse(localStorage.getItem('user') || '{}'); return u.puerto } catch { return '-' } })()}</td>
+                        <div>
+                          <div className="muted">Puerto</div>
+                          <div>{(() => { try { const u = JSON.parse(localStorage.getItem('user') || '{}'); return u.puerto } catch { return '-' } })()}</div>
+                        </div>
                       ) : null}
-                      <td>{row.photosCount}</td>
-                      <td>{row.doNumber}</td>
-                      <td>{row.childrenCount}</td>
-                      <td className="table-actions">
+                    </div>
+                    <div className="mobile-card-actions" style={{ marginTop: 8 }}>
+                      <button className="btn btn-outline btn-small" onClick={() => {
+                        const hasChildren = Number(row.childrenCount) > 0
+                        navigate(hasChildren ? '/bl?master=' + encodeURIComponent(row.master) : '/evidence/' + row.master)
+                      }}>Ver HBLS</button>
+                      {Number(row.childrenCount) > 0 && (
                         <button className="btn btn-outline btn-small" onClick={() => {
-                          const hasChildren = Number(row.childrenCount) > 0
-                          navigate(hasChildren ? '/bl?master=' + encodeURIComponent(row.master) : '/evidence/' + row.master)
-                        }}>Ver HBLS</button>
-                        {Number(row.childrenCount) > 0 && (
-                          <button className="btn btn-outline btn-small" onClick={() => {
-                            navigate('/evidence/' + row.master)
-                          }}>Ver Master</button>
-                        )}
-                      </td>
+                          navigate('/evidence/' + row.master)
+                        }}>Ver Master</button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="table-responsive" style={{ marginTop: '8px' }}>
+                <table className="table">
+                  <thead>
+                    <tr>
+                      <th>Master</th>
+                      {(() => { try { const u = JSON.parse(localStorage.getItem('user') || '{}'); return String(u.role || '') === 'admin' } catch { return false } })() ? <th>Usuario</th> : null}
+                      {(() => { try { const u = JSON.parse(localStorage.getItem('user') || '{}'); return String(u.role || '') === 'admin' } catch { return false } })() ? <th>Puerto</th> : null}
+                      <th>Fotografías master</th>
+                      <th>Número DO master</th>
+                      <th>N° Hbls</th>
+                      <th className="table-actions">Acciones</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {mastersList.slice((page - 1) * pageSize, (page - 1) * pageSize + pageSize).map((row, idx) => (
+                      <tr key={idx}>
+                        <td style={{ cursor: 'pointer', color: '#06467c' }} onClick={() => { const hasChildren = Number(row.childrenCount) > 0; navigate(hasChildren ? '/bl?master=' + encodeURIComponent(row.master) : '/evidence/' + row.master) }}>{row.master}</td>
+                        {(() => { try { const u = JSON.parse(localStorage.getItem('user') || '{}'); return String(u.role || '') === 'admin' } catch { return false } })() ? (
+                          <td>{(() => { try { const u = JSON.parse(localStorage.getItem('user') || '{}'); return u.nombre || u.display_name || u.email || '-' } catch { return '-' } })()}</td>
+                        ) : null}
+                        {(() => { try { const u = JSON.parse(localStorage.getItem('user') || '{}'); return String(u.role || '') === 'admin' } catch { return false } })() ? (
+                          <td>{(() => { try { const u = JSON.parse(localStorage.getItem('user') || '{}'); return u.puerto } catch { return '-' } })()}</td>
+                        ) : null}
+                        <td>{row.photosCount}</td>
+                        <td>{row.doNumber}</td>
+                        <td>{row.childrenCount}</td>
+                        <td className="table-actions">
+                          <button className="btn btn-outline btn-small" onClick={() => {
+                            const hasChildren = Number(row.childrenCount) > 0
+                            navigate(hasChildren ? '/bl?master=' + encodeURIComponent(row.master) : '/evidence/' + row.master)
+                          }}>Ver HBLS</button>
+                          {Number(row.childrenCount) > 0 && (
+                            <button className="btn btn-outline btn-small" onClick={() => {
+                              navigate('/evidence/' + row.master)
+                            }}>Ver Master</button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
 
             <div className="pagination">
               <span className="muted">Mostrando {mastersList.length ? ((page - 1) * pageSize + 1) : 0}-{Math.min(page * pageSize, mastersList.length)} de {mastersList.length} resultados</span>
