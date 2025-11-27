@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import StatusBadge from '../components/StatusBadge.jsx'
 import API from '../lib/api.js'
+import SearchBar from '../components/SearchBar.jsx'
 
 function BLList({ user }) {
 
@@ -13,6 +14,7 @@ function BLList({ user }) {
   const location = useLocation()
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768)
   const [loading, setLoading] = useState(false)
+  const [query, setQuery] = useState('')
 
   const master = useMemo(() => {
     const params = new URLSearchParams(location.search)
@@ -60,10 +62,31 @@ function BLList({ user }) {
       }
     })
   }, [childrenList])
-  const pageCount = Math.max(1, Math.ceil(childrenRows.length / pageSize))
+  const filteredRows = useMemo(() => {
+    const q = String(query || '').toLowerCase()
+    if (!q) return childrenRows
+    return childrenRows.filter(row => (
+      String(row.numeroHBL || '').toLowerCase().includes(q) ||
+      String(row.numeroDO || '').toLowerCase().includes(q) ||
+      String(row.clienteNombre || '').toLowerCase().includes(q)
+    ))
+  }, [childrenRows, query])
+  const options = useMemo(() => {
+    const set = new Set()
+    const opts = []
+    childrenRows.forEach(row => {
+      const hbl = String(row.numeroHBL || '')
+      const cli = String(row.clienteNombre || '')
+      const doNum = String(row.numeroDO || '')
+      ;[hbl, cli, doNum].forEach(val => { const v = String(val || '').trim(); if (v && !set.has(v)) { set.add(v); opts.push({ label: v, value: v }) } })
+    })
+    return opts
+  }, [childrenRows])
+  const pageCount = Math.max(1, Math.ceil(filteredRows.length / pageSize))
   const start = (page - 1) * pageSize
   const end = start + pageSize
-  const visible = childrenRows.slice(start, end)
+  const visible = filteredRows.slice(start, end)
+  useEffect(() => { setPage(1) }, [query])
 
   function statusBadge(s){
     return <StatusBadge status={s} />
@@ -83,6 +106,9 @@ function BLList({ user }) {
       </div>
 
       <div className="card">
+        <div className="searchbar">
+          <SearchBar placeholder="Buscar por HBL, Cliente o DO" value={query} onChange={(e) => setQuery(e.target.value)} options={options} onSelect={(o) => setQuery(String(o.value ?? o.label ?? o))} fullWidth />
+        </div>
         {(!master || childrenRows.length === 0) ? (
           <p className="muted" style={{ marginTop: '12px' }}>No hay registros para mostrar.</p>
         ) : (
@@ -159,7 +185,7 @@ function BLList({ user }) {
             )}
 
             <div className="pagination">
-              <span className="muted">Mostrando {childrenRows.length ? (start+1) : 0}-{Math.min(end, childrenRows.length)} de {childrenRows.length} resultados</span>
+              <span className="muted">Mostrando {filteredRows.length ? (start+1) : 0}-{Math.min(end, filteredRows.length)} de {filteredRows.length} resultados</span>
               <button className="page-btn" disabled={page===1} onClick={() => setPage(p => Math.max(1, p-1))}>{'<'}</button>
               {Array.from({ length: pageCount }, (_, i) => (
                 <button key={i} className={'page-btn' + (page===i+1 ? ' active' : '')} onClick={() => setPage(i+1)}>{i+1}</button>
