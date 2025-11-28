@@ -179,10 +179,10 @@ function BLEvidenceMaster() {
       return
     }
     setLoading(true)
-    setPhotos(prev => prev.filter(p => p.id !== photoId))
     try {
       const res = await API.delete('/photos/' + photoId)
       if (res.data?.deleted) {
+        setPhotos(prev => prev.filter(p => p.id !== photoId))
         const tid = String(targetId || '')
         if (tid) {
           try { const ref = await API.get('/bls/' + tid + '/photos'); setPhotos(Array.isArray(ref.data?.photos) ? ref.data.photos : []); } catch {}
