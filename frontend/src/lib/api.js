@@ -25,4 +25,5 @@ API.interceptors.response.use(
   }
 )
 
+export const EVIDENCE_ENDPOINT = (import.meta.env?.VITE_EVIDENCE_ENDPOINT) || '/evidences/submit'
 export default API

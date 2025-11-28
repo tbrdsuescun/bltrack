@@ -11,14 +11,15 @@ const logsRouter = require('./routes/logs');
 const usersRouter = require('./routes/users');
 const mastersRouter = require('./routes/masters');
 const externalRouter = require('./routes/external');
+const evidencesRouter = require('./routes/evidences');
 
 const app = express();
 
 // Compresión Gzip/Brotli antes de static para reducir transfer
 app.use(compression());
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '1000mb' }));
+app.use(express.urlencoded({ extended: true, limit: '1000mb' }));
 
 // Static uploads
 app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
@@ -40,6 +41,7 @@ app.use(logsRouter);
 app.use('/users', usersRouter);
 app.use(mastersRouter);
 app.use(externalRouter);
+app.use(evidencesRouter);
 
 // Error handler last
 app.use(errorHandler);

@@ -39,6 +39,29 @@ async function runMigrations() {
   await ensureUsersPuerto();
   const qi = sequelize.getQueryInterface();
   try {
+    await qi.describeTable('evidence_submissions');
+  } catch (e) {
+    try {
+      await qi.createTable('evidence_submissions', {
+        id: { type: DataTypes.INTEGER, allowNull: false, autoIncrement: true, primaryKey: true },
+        user_id: { type: DataTypes.INTEGER, allowNull: false },
+        reference_number: { type: DataTypes.STRING(120), allowNull: false },
+        do_number: { type: DataTypes.STRING(120), allowNull: true },
+        type: { type: DataTypes.STRING(20), allowNull: false },
+        documents_count: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
+        total_bytes: { type: DataTypes.BIGINT, allowNull: false, defaultValue: 0 },
+        documents_meta: { type: DataTypes.JSON, allowNull: true },
+        status: { type: DataTypes.STRING(20), allowNull: false, defaultValue: 'received' },
+        error_message: { type: DataTypes.STRING(512), allowNull: true },
+        created_at: { type: DataTypes.DATE, allowNull: true },
+        updated_at: { type: DataTypes.DATE, allowNull: true },
+      });
+      await qi.addIndex('evidence_submissions', ['user_id', 'reference_number'], { name: 'es_user_ref_idx' });
+    } catch (err) {
+      throw err;
+    }
+  }
+  try {
     await qi.describeTable('master_children');
   } catch (e) {
     try {

@@ -1,7 +1,31 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import dayjs from 'dayjs'
-import API from '../lib/api.js'
+import API, { EVIDENCE_ENDPOINT } from '../lib/api.js'
+
+function blobToBase64(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onloadend = () => {
+      const res = String(reader.result || '')
+      const idx = res.indexOf(',')
+      resolve(idx >= 0 ? res.slice(idx + 1) : res)
+    }
+    reader.onerror = reject
+    reader.readAsDataURL(blob)
+  })
+}
+
+function extFor(p, mime) {
+  const name = String(p.filename || '')
+  const dot = name.lastIndexOf('.')
+  const e = dot >= 0 ? name.slice(dot + 1).toLowerCase() : ''
+  if (e) return '.' + e
+  if (mime === 'image/jpeg') return '.jpg'
+  if (mime === 'image/png') return '.png'
+  if (mime === 'application/pdf') return '.pdf'
+  return '.dat'
+}
 
 function BLEvidenceChild() {
   const { masterId, hblId, id } = useParams()
@@ -190,7 +214,25 @@ function BLEvidenceChild() {
       const flagsExisting = {}
       ;(photos || []).forEach(p => { if (!String(p.id||'').endsWith('-local')) flagsExisting[p.id] = !!p.averia })
       await API.patch('/bls/' + (hblId || targetId) + '/photos/averia', { flags: flagsExisting })
-
+      const list = Array.isArray(orderedPhotos) ? orderedPhotos : []
+      const docs = await Promise.all(list.map(async (p) => {
+        const ts = Number((String(p.id||'').split('-')[0]) || 0)
+        const fecha = ts ? dayjs(ts).format('DD/MM/YYYY') : dayjs().format('DD/MM/YYYY')
+        const resp = await fetch(String(p.url || ''))
+        const blob = await resp.blob()
+        const base64 = await blobToBase64(blob)
+        const ext = extFor(p, blob.type)
+        const cat = p.averia ? 'averia' : ''
+        const name = p.filename || 'Documento'
+        return { name, extension: ext, category: cat, date: fecha, contentBase64: base64 }
+      }))
+      const payload = {
+        referenceNumber: String(numeroHblCurrent || targetId || ''),
+        doNumber: String(details.numero_DO_hijo || details.numero_DO_master || ''),
+        type: 'hijo',
+        documents: docs
+      }
+      await API.post(EVIDENCE_ENDPOINT, payload)
       setStatus('Guardado correctamente')
     } catch (err) {
       setStatus('Error al guardar: ' + (err.response?.data?.error || err.message))

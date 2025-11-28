@@ -58,6 +58,20 @@ const MasterChild = sequelize.define('MasterChild', {
   ]
 });
 
+const EvidenceSubmission = sequelize.define('EvidenceSubmission', {
+  user_id: { type: DataTypes.INTEGER, allowNull: false },
+  reference_number: { type: DataTypes.STRING(120), allowNull: false },
+  do_number: { type: DataTypes.STRING(120), allowNull: true },
+  type: { type: DataTypes.ENUM('master', 'hijo'), allowNull: false },
+  documents_count: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
+  total_bytes: { type: DataTypes.BIGINT, allowNull: false, defaultValue: 0 },
+  documents_meta: { type: DataTypes.JSON, allowNull: true },
+  status: { type: DataTypes.ENUM('received', 'error'), allowNull: false, defaultValue: 'received' },
+  error_message: { type: DataTypes.STRING(512), allowNull: true },
+}, {
+  tableName: 'evidence_submissions',
+});
+
 async function initDb() {
   try {
     await sequelize.authenticate();
@@ -68,4 +82,4 @@ async function initDb() {
   }
 }
 
-module.exports = { sequelize, initDb, User, RegistroFotografico, MasterChild };
+module.exports = { sequelize, initDb, User, RegistroFotografico, MasterChild, EvidenceSubmission };
