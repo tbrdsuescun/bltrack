@@ -83,9 +83,7 @@ function BLEvidenceChild() {
     API.get('/bls/' + tid + '/photos').then(res => {
       if (!mounted) return
       const list = Array.isArray(res.data?.photos) ? res.data.photos : []
-      const avMap = (() => { try { return JSON.parse(localStorage.getItem('averia_flags_' + tid) || '{}') } catch { return {} } })()
-      const list2 = list.map(p => ({ ...p, averia: !!avMap[p.id] }))
-      setPhotos(list2)
+      setPhotos(list)
     }).catch(() => setPhotos([])).finally(() => setLoading(false))
     try {
       const cache = JSON.parse(localStorage.getItem('tbMastersCache') || '{}')
@@ -149,18 +147,17 @@ function BLEvidenceChild() {
     }
   }
 
-  function onToggleAveria(photoId, checked) {
+  async function onToggleAveria(photoId, checked) {
     setPhotos(prev => prev.map(p => (p.id === photoId ? { ...p, averia: !!checked } : p)))
     try {
-      const tid = String(targetId || '')
-      if (tid) {
-        const raw = localStorage.getItem('averia_flags_' + tid) || '{}'
-        let map = {}
-        try { map = JSON.parse(raw) } catch {}
-        map[photoId] = !!checked
-        localStorage.setItem('averia_flags_' + tid, JSON.stringify(map))
-      }
-    } catch {}
+      const tid = String(hblId || targetId || '')
+      if (!tid) return
+      await API.patch('/bls/' + tid + '/photos/averia', { flags: { [photoId]: !!checked } })
+      setStatus('Avería actualizada')
+    } catch (err) {
+      setStatus('Error al actualizar avería: ' + (err.response?.data?.error || err.message))
+      setPhotos(prev => prev.map(p => (p.id === photoId ? { ...p, averia: !checked } : p)))
+    }
   }
 
   async function onDeleteConfirmed() {
