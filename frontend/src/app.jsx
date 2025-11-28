@@ -37,7 +37,10 @@ function App() {
     localStorage.removeItem('token')
     localStorage.removeItem('user')
     setUser(null)
+    try { setConnIssue(null) } catch {}
   }, [])
+
+  const [connIssue, setConnIssue] = useState(null)
 
   // Make logout available globally for components
   useEffect(() => {
@@ -45,11 +48,14 @@ function App() {
   }, [handleLogout])
 
   useEffect(() => {
+    const token = localStorage.getItem('token')
+    const userStr = localStorage.getItem('user')
+    if (!token || !userStr) return
     const key = 'tbMastersCache'
     let stale = true
     let puertoParam = ''
     try {
-      const u = JSON.parse(localStorage.getItem('user') || '{}')
+      const u = JSON.parse(userStr || '{}')
       const pr = String(u?.puerto || '').trim().toLowerCase()
       puertoParam = pr
     } catch {}
@@ -59,23 +65,40 @@ function App() {
       const ttl = 24 * 60 * 60 * 1000
       stale = !v || !Array.isArray(v.data) || (Date.now() - ts) > ttl
     } catch { stale = true }
-    if (stale) {
-      const config = puertoParam ? { params: { puerto: puertoParam } } : {}
+    if (!stale) { setConnIssue(null); return }
+    const config = puertoParam ? { params: { puerto: puertoParam } } : {}
+    const doFetch = () => {
       API.get('/external/masters', config).then(res => {
         const data = Array.isArray(res.data?.data) ? res.data.data : []
         if (data.length > 0) {
           const payload = { data, ts: Date.now() }
           try { localStorage.setItem(key, JSON.stringify(payload)) } catch {}
+          setConnIssue(null)
+        } else {
+          throw new Error('Respuesta vacía')
         }
-      }).catch(() => {
-        try { alert('No se obtuvo información o no se pudo conectar con el servidor') } catch {}
+      }).catch(err => {
+        setConnIssue('Sin conexión con el servidor. Se cerrará la sesión para reintentar conexión')
+        try { window.AppLogout?.() } catch {}
       })
     }
+    doFetch()
+    return () => {}
   }, [])
 
   return (
-    <Router future={{ v7_relativeSplatPath: true, v7_startTransition: true }}>
-      <Routes>
+    <>
+      {connIssue && (
+        <div style={{ position:'fixed', top:0, left:0, right:0, background:'#fff4e5', color:'#8a5c00', borderBottom:'1px solid #e5e7eb', padding:'8px 12px', zIndex:1000, display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+          <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+            <span style={{ width:8, height:8, borderRadius:'50%', background:'#f1c40f' }} />
+            <span>{connIssue}</span>
+          </div>
+          <button type="button" onClick={() => setConnIssue(null)} className="btn btn-small" style={{ background:'transparent', color:'#8a5c00' }}>×</button>
+        </div>
+      )}
+      <Router future={{ v7_relativeSplatPath: true, v7_startTransition: true }}>
+        <Routes>
         <Route path="/" element={<Login setUser={setUser} />} />
         <Route 
           path="/panel" 
@@ -149,6 +172,7 @@ function App() {
         />
       </Routes>
     </Router>
+    </>
   )
 }
 

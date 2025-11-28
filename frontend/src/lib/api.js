@@ -14,4 +14,15 @@ API.interceptors.request.use((config) => {
   return config
 })
 
+// Interceptor de respuesta: si el servidor responde 401, cerrar sesión automáticamente
+API.interceptors.response.use(
+  (res) => res,
+  (err) => {
+    if (err?.response?.status === 401) {
+      try { window.AppLogout?.() } catch {}
+    }
+    return Promise.reject(err)
+  }
+)
+
 export default API
