@@ -157,13 +157,32 @@ function BLEvidenceMaster() {
   }
 
   async function onDeleteConfirmed() {
-    const photoId = confirmPhoto?.id
+    const ph = confirmPhoto
+    const photoId = ph?.id
     if (!photoId) { setConfirmPhoto(null); return }
+    if (String(photoId).endsWith('-local')) {
+      try {
+        setPhotos(prev => prev.filter(p => p.id !== photoId))
+        setPendingFiles(prev => {
+          const next = prev.slice()
+          const idx = next.findIndex(f => String(f.name || '') === String(ph?.filename || ''))
+          if (idx >= 0) next.splice(idx, 1)
+          return next
+        })
+        try { if (ph?.url) URL.revokeObjectURL(ph.url) } catch {}
+        setStatus('Vista previa eliminada')
+      } catch (err) {
+        setStatus('Error al eliminar: ' + (err.response?.data?.error || err.message))
+      } finally {
+        setConfirmPhoto(null)
+      }
+      return
+    }
     setLoading(true)
+    setPhotos(prev => prev.filter(p => p.id !== photoId))
     try {
       const res = await API.delete('/photos/' + photoId)
       if (res.data?.deleted) {
-        setPhotos(prev => prev.filter(p => p.id !== photoId))
         setStatus('Foto eliminada')
       } else {
         setStatus('No se pudo eliminar la foto')
@@ -223,6 +242,8 @@ function BLEvidenceMaster() {
   function openFileDialog(){ if (uploading) { return } if (!selectedPrefix) { setStatus('Selecciona un prefijo para nombrar las fotos'); setPrefixError(true); setPrefixModalOpen(true); return } fileInputRef.current?.click() }
   function onDrop(e){ e.preventDefault(); if (uploading) { return } if (!selectedPrefix) { setStatus('Selecciona un prefijo para nombrar las fotos'); setPrefixError(true); setPrefixModalOpen(true); return } const files = Array.from(e.dataTransfer?.files || []); if (!files.length) return; const synthetic = { target: { files } }; onUpload(synthetic) }
   function onDragOver(e){ e.preventDefault() }
+
+  function urlFor(u) { const s = String(u || ''); if (!s) return ''; if (/^(?:https?:\/\/|blob:|data:)/.test(s)) return s; const base = API.defaults?.baseURL || ''; return base ? (base + (s.startsWith('/') ? s : ('/' + s))) : s }
 
   return (
     <>
@@ -291,7 +312,7 @@ function BLEvidenceMaster() {
                 return (
                   <div key={p.id} className="preview-card">
                     {p.url ? (
-                      <img src={p.url} alt={p.filename || p.id} onClick={() => setSelectedPhoto(p)} />
+                      <img src={urlFor(p.url)} alt={p.filename || p.id} onClick={() => setSelectedPhoto(p)} />
                     ) : (
                       <div className="muted" style={{ padding: 12 }}>(sin vista previa)</div>
                     )}
@@ -329,7 +350,7 @@ function BLEvidenceMaster() {
                       <tr key={p.id}>
                         <td>
                           {p.url ? (
-                            <img src={p.url} alt={p.filename || p.id} style={{ width: 80, height: 60, objectFit: 'cover', borderRadius: 6, cursor: 'zoom-in' }} onClick={() => setSelectedPhoto(p)} />
+                            <img src={urlFor(p.url)} alt={p.filename || p.id} style={{ width: 80, height: 60, objectFit: 'cover', borderRadius: 6, cursor: 'zoom-in' }} onClick={() => setSelectedPhoto(p)} />
                           ) : (
                             <span className="muted">(sin vista previa)</span>
                           )}
@@ -374,7 +395,7 @@ function BLEvidenceMaster() {
             </div>
             <div className="modal-body">
               {selectedPhoto?.url ? (
-                <img src={selectedPhoto.url} alt={selectedPhoto.filename || selectedPhoto.id} style={{ width: '100%', maxHeight: '70vh', objectFit: 'contain' }} />
+                <img src={urlFor(selectedPhoto.url)} alt={selectedPhoto.filename || selectedPhoto.id} style={{ width: '100%', maxHeight: '70vh', objectFit: 'contain' }} />
               ) : (
                 <div className="muted">No disponible</div>
               )}
