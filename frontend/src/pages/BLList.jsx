@@ -8,6 +8,7 @@ function BLList({ user }) {
 
   const [childrenList, setChildrenList] = useState([])
   const [mineMap, setMineMap] = useState({})
+  const [photoCounts, setPhotoCounts] = useState({})
   const [page, setPage] = useState(1)
   const pageSize = 5
   const navigate = useNavigate()
@@ -88,6 +89,23 @@ function BLList({ user }) {
   const visible = filteredRows.slice(start, end)
   useEffect(() => { setPage(1) }, [query])
 
+  useEffect(() => {
+    const ids = visible.map(r => String(r.numeroHBL || '').trim()).filter(Boolean)
+    const toFetch = ids.filter(id => typeof photoCounts[id] === 'undefined')
+    if (!toFetch.length) return
+    let cancelled = false
+    Promise.all(toFetch.map(id => API.get('/bls/' + id + '/photos').then(res => ({ id, count: (res.data?.count ?? (Array.isArray(res.data?.photos) ? res.data.photos.length : 0)) })).catch(() => ({ id, count: 0 }))))
+      .then(list => {
+        if (cancelled) return
+        setPhotoCounts(prev => {
+          const next = { ...prev }
+          list.forEach(({ id, count }) => { next[id] = count })
+          return next
+        })
+      })
+    return () => { cancelled = true }
+  }, [visible])
+
   function statusBadge(s){
     return <StatusBadge status={s} />
   }
@@ -119,7 +137,7 @@ function BLList({ user }) {
                   <div key={row.numeroHBL} className="mobile-card">
                     <div className="mobile-card-header">
                       <div style={{ fontWeight: 600 }}>{row.numeroHBL}</div>
-                      <div className="muted">Fotos: {mineMap[row.numeroHBL]?.photos_count || 0}</div>
+                      <div className="muted">Fotos: {(photoCounts[row.numeroHBL] ?? mineMap[row.numeroHBL]?.photos_count ?? 0)}</div>
                     </div>
                     <div className="mobile-card-body">
                       <div>
@@ -173,7 +191,7 @@ function BLList({ user }) {
                         <td>{row.numeroDO || '-'}</td>
                         <td>{row.paisOrigen || '-'}</td>
                         <td>{row.numeroHBL}</td>
-                        <td>{mineMap[row.numeroHBL]?.photos_count || 0}</td>
+                        <td>{photoCounts[row.numeroHBL] ?? mineMap[row.numeroHBL]?.photos_count ?? 0}</td>
                         <td className="table-actions">
                           <button className="btn btn-outline btn-small" onClick={() => navigate(`/evidence/${master}/${row.numeroHBL}`)}>Ver detalle</button>
                         </td>
