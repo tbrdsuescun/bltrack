@@ -1,5 +1,5 @@
 /* Critical CSS – solo lo que se ve antes del primer paint */
-html,body{margin:0;padding:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:#fff;color:#111}
+html,body{margin:0;padding:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:#fff;color:#111}
 #root{min-height:100vh}
 .app-shell{display:flex;min-height:100vh}
 .content{flex:1;display:flex;flex-direction:column}
