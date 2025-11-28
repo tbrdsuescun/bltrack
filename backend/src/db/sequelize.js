@@ -66,7 +66,8 @@ const EvidenceSubmission = sequelize.define('EvidenceSubmission', {
   documents_count: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
   total_bytes: { type: DataTypes.BIGINT, allowNull: false, defaultValue: 0 },
   documents_meta: { type: DataTypes.JSON, allowNull: true },
-  status: { type: DataTypes.ENUM('received', 'error'), allowNull: false, defaultValue: 'received' },
+  payload: { type: DataTypes.JSON, allowNull: true },
+  status: { type: DataTypes.STRING(20), allowNull: false, defaultValue: 'received' },
   error_message: { type: DataTypes.STRING(512), allowNull: true },
 }, {
   tableName: 'evidence_submissions',

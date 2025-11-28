@@ -214,23 +214,12 @@ function BLEvidenceChild() {
       const flagsExisting = {}
       ;(photos || []).forEach(p => { if (!String(p.id||'').endsWith('-local')) flagsExisting[p.id] = !!p.averia })
       await API.patch('/bls/' + (hblId || targetId) + '/photos/averia', { flags: flagsExisting })
-      const list = Array.isArray(orderedPhotos) ? orderedPhotos : []
-      const docs = await Promise.all(list.map(async (p) => {
-        const ts = Number((String(p.id||'').split('-')[0]) || 0)
-        const fecha = ts ? dayjs(ts).format('DD/MM/YYYY') : dayjs().format('DD/MM/YYYY')
-        const resp = await fetch(String(p.url || ''))
-        const blob = await resp.blob()
-        const base64 = await blobToBase64(blob)
-        const ext = extFor(p, blob.type)
-        const cat = p.averia ? 'averia' : ''
-        const name = p.filename || 'Documento'
-        return { name, extension: ext, category: cat, date: fecha, contentBase64: base64 }
-      }))
       const payload = {
         referenceNumber: String(numeroHblCurrent || targetId || ''),
         doNumber: String(details.numero_DO_hijo || details.numero_DO_master || ''),
         type: 'hijo',
-        documents: docs
+        serverBuild: true,
+        blId: String(hblId || targetId || '')
       }
       await API.post(EVIDENCE_ENDPOINT, payload)
       setStatus('Guardado correctamente')
