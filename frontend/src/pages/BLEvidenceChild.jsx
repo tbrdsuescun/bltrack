@@ -27,6 +27,8 @@ function extFor(p, mime) {
   return '.dat'
 }
 
+function urlFor(u) { const s = String(u || ''); if (!s) return ''; if (/^(?:https?:\/\/|blob:|data:)/.test(s)) return s; const base = API.defaults?.baseURL || ''; return base ? (base + (s.startsWith('/') ? s : ('/' + s))) : s }
+
 function BLEvidenceChild() {
   const { masterId, hblId, id } = useParams()
   const navigate = useNavigate()
@@ -127,7 +129,7 @@ function BLEvidenceChild() {
       return Number.isFinite(n) ? n : 0
     }
     return (photos || [])
-      .filter(p => p && p.id)
+      .filter(p => p && p.id && p.url)
       .slice()
       .sort((a, b) => parseTs(a) - parseTs(b))
   }, [photos])
@@ -192,6 +194,10 @@ function BLEvidenceChild() {
       const res = await API.delete('/photos/' + photoId)
       if (res.data?.deleted) {
         setPhotos(prev => prev.filter(p => p.id !== photoId))
+        const tid = String(hblId || targetId || '')
+        if (tid) {
+          try { const ref = await API.get('/bls/' + tid + '/photos'); setPhotos(Array.isArray(ref.data?.photos) ? ref.data.photos : []); } catch {}
+        }
         setStatus('Foto eliminada')
       } else {
         setStatus('No se pudo eliminar la foto')
@@ -295,7 +301,7 @@ function BLEvidenceChild() {
                 return (
                   <div key={p.id} className="preview-card">
                     {p.url ? (
-                      <img src={p.url} alt={p.filename || p.id} onClick={() => setSelectedPhoto(p)} />
+                      <img src={urlFor(p.url)} alt={p.filename || p.id} onClick={() => setSelectedPhoto(p)} />
                     ) : (
                       <div className="muted" style={{ padding: 12 }}>(sin vista previa)</div>
                     )}
@@ -335,7 +341,7 @@ function BLEvidenceChild() {
                         <td><input type="checkbox" checked={!!p.averia} onChange={(e) => onToggleAveria(p.id, e.target.checked)} /></td>
                         <td>
                           {p.url ? (
-                            <img src={p.url} alt={p.filename || p.id} style={{ width: 80, height: 60, objectFit: 'cover', borderRadius: 6, cursor: 'zoom-in' }} onClick={() => setSelectedPhoto(p)} />
+                            <img src={urlFor(p.url)} alt={p.filename || p.id} style={{ width: 80, height: 60, objectFit: 'cover', borderRadius: 6, cursor: 'zoom-in' }} onClick={() => setSelectedPhoto(p)} />
                           ) : (
                             <span className="muted">(sin vista previa)</span>
                           )}
@@ -380,7 +386,7 @@ function BLEvidenceChild() {
             </div>
             <div className="modal-body">
               {selectedPhoto?.url ? (
-                <img src={selectedPhoto.url} alt={selectedPhoto.filename || selectedPhoto.id} style={{ width: '100%', maxHeight: '70vh', objectFit: 'contain' }} />
+                <img src={urlFor(selectedPhoto.url)} alt={selectedPhoto.filename || selectedPhoto.id} style={{ width: '100%', maxHeight: '70vh', objectFit: 'contain' }} />
               ) : (
                 <div className="muted">No disponible</div>
               )}
@@ -401,7 +407,7 @@ function BLEvidenceChild() {
             </div>
             <div className="modal-body">
               <div style={{ display:'flex', alignItems:'center', gap:12 }}>
-                {confirmPhoto?.url ? <img src={confirmPhoto.url} alt={confirmPhoto.filename || confirmPhoto.id} style={{ width: 80, height: 60, objectFit: 'cover', borderRadius: 6 }} /> : null}
+                {confirmPhoto?.url ? <img src={urlFor(confirmPhoto.url)} alt={confirmPhoto.filename || confirmPhoto.id} style={{ width: 80, height: 60, objectFit: 'cover', borderRadius: 6 }} /> : null}
                 <div>
                   <div>¿Eliminar la foto <strong>{confirmPhoto?.filename || confirmPhoto?.id}</strong>?</div>
                   <div className="muted" style={{ fontSize:12 }}>Esta acción no se puede deshacer.</div>

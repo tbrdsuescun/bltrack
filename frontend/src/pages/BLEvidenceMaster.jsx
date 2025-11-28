@@ -101,7 +101,7 @@ function BLEvidenceMaster() {
       return Number.isFinite(n) ? n : 0
     }
     return (photos || [])
-      .filter(p => p && p.id)
+      .filter(p => p && p.id && p.url)
       .slice()
       .sort((a, b) => parseTs(a) - parseTs(b))
   }, [photos])
@@ -183,6 +183,10 @@ function BLEvidenceMaster() {
     try {
       const res = await API.delete('/photos/' + photoId)
       if (res.data?.deleted) {
+        const tid = String(targetId || '')
+        if (tid) {
+          try { const ref = await API.get('/bls/' + tid + '/photos'); setPhotos(Array.isArray(ref.data?.photos) ? ref.data.photos : []); } catch {}
+        }
         setStatus('Foto eliminada')
       } else {
         setStatus('No se pudo eliminar la foto')
@@ -416,7 +420,7 @@ function BLEvidenceMaster() {
             </div>
             <div className="modal-body">
               <div style={{ display:'flex', alignItems:'center', gap:12 }}>
-                {confirmPhoto?.url ? <img src={confirmPhoto.url} alt={confirmPhoto.filename || confirmPhoto.id} style={{ width: 80, height: 60, objectFit: 'cover', borderRadius: 6 }} /> : null}
+                {confirmPhoto?.url ? <img src={urlFor(confirmPhoto.url)} alt={confirmPhoto.filename || confirmPhoto.id} style={{ width: 80, height: 60, objectFit: 'cover', borderRadius: 6 }} /> : null}
                 <div>
                   <div>¿Eliminar la foto <strong>{confirmPhoto?.filename || confirmPhoto?.id}</strong>?</div>
                   <div className="muted" style={{ fontSize:12 }}>Esta acción no se puede deshacer.</div>

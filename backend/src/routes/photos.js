@@ -4,6 +4,7 @@ const path = require('path');
 const { authRequired } = require('../middlewares/auth');
 const { ensureStorageDir, filePath, deleteFileSafe } = require('../services/storage');
 const { RegistroFotografico, sequelize } = require('../db/sequelize');
+const fs = require('fs');
 
 ensureStorageDir();
 
@@ -88,15 +89,18 @@ router.get('/bls/:id/photos', authRequired, async (req, res) => {
   const { id } = req.params;
   try {
     const rec = await RegistroFotografico.findOne({ where: { bl_id: id, user_id: req.user.id } });
-    const photos = Array.isArray(rec?.photos) ? rec.photos.map(p => ({
-      id: p.id,
-      filename: p.filename,
-      url: p.path ? ('/uploads/' + p.id) : null,
-      size: p.size,
-      mime: p.mime,
-      status: p.status || 'kept',
-      averia: !!p.averia,
-    })) : [];
+    const list = Array.isArray(rec?.photos) ? rec.photos : [];
+    const photos = list
+      .filter(p => p && p.id && fs.existsSync(filePath(p.id)))
+      .map(p => ({
+        id: p.id,
+        filename: p.filename,
+        url: '/uploads/' + p.id,
+        size: p.size,
+        mime: p.mime,
+        status: p.status || 'kept',
+        averia: !!p.averia,
+      }));
     res.json({ bl_id: id, count: photos.length, photos });
   } catch (err) {
     res.status(500).json({ ok: false, error: 'Fallo al obtener fotos', detail: err.message });
@@ -121,10 +125,23 @@ router.patch('/bls/:id/photos/averia', authRequired, async (req, res) => {
 });
 
 // Eliminar foto (disco) - no actualiza registro; podría hacerse si se requiere
-router.delete('/photos/:photoId', authRequired, (req, res) => {
+router.delete('/photos/:photoId', authRequired, async (req, res) => {
   const { photoId } = req.params;
   const ok = deleteFileSafe(filePath(photoId));
-  res.json({ photoId, deleted: ok });
+  let removed = 0;
+  try {
+    const recs = await RegistroFotografico.findAll({ where: { user_id: req.user.id } });
+    for (const rec of recs) {
+      const list = Array.isArray(rec.photos) ? rec.photos : [];
+      const next = list.filter(p => String(p.id) !== String(photoId));
+      if (next.length !== list.length) {
+        rec.photos = next;
+        await rec.save();
+        removed += 1;
+      }
+    }
+  } catch {}
+  res.json({ photoId, deleted: ok, dbUpdated: removed > 0, updatedRecords: removed });
 });
 
 module.exports = router;
