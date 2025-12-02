@@ -27,6 +27,44 @@ function extFor(p, mime) {
   return '.dat'
 }
 
+function parsePrefix(filename) {
+  const s = String(filename || '')
+  const dot = s.lastIndexOf('.')
+  const base = dot >= 0 ? s.slice(0, dot) : s
+  const idx = base.lastIndexOf('_')
+  if (idx <= 0) return null
+  const prefix = base.slice(0, idx)
+  const numStr = base.slice(idx + 1)
+  const num = Number(numStr)
+  if (!Number.isFinite(num)) return null
+  const ext = dot >= 0 ? s.slice(dot) : ''
+  return { prefix, num, ext }
+}
+
+function normalizeList(items) {
+  const arr = Array.isArray(items) ? items.slice() : []
+  const groups = {}
+  arr.forEach(p => {
+    const r = parsePrefix(p?.filename || '')
+    if (r && r.prefix) {
+      const key = r.prefix
+      if (!groups[key]) groups[key] = []
+      groups[key].push({ p, r })
+    }
+  })
+  Object.keys(groups).forEach(k => {
+    const g = groups[k]
+    g.sort((a,b) => {
+      const ta = Number((String(a.p.id||'').split('-')[0]) || 0)
+      const tb = Number((String(b.p.id||'').split('-')[0]) || 0)
+      if (ta !== tb) return ta - tb
+      return a.r.num - b.r.num
+    })
+    g.forEach((t,i) => { t.p.filename = `${k}_${i + 1}${t.r.ext}` })
+  })
+  return arr
+}
+
 function BLEvidenceMaster() {
   const { masterId, id } = useParams()
   const navigate = useNavigate()
@@ -80,10 +118,17 @@ function BLEvidenceMaster() {
     const tid = String(targetId || '')
     if (!tid) return () => { mounted = false }
     setLoading(true)
-    API.get('/bls/' + tid + '/photos').then(res => {
+    API.get('/bls/' + tid + '/photos').then(async (res) => {
       if (!mounted) return
-      const list = Array.isArray(res.data?.photos) ? res.data.photos : []
-      setPhotos(list)
+      let list = Array.isArray(res.data?.photos) ? res.data.photos : []
+      try {
+        const prefixes = Array.from(new Set(list.map(p => { const r = parsePrefix(p.filename || ''); return r ? r.prefix : null }).filter(Boolean)))
+        for (const pr of prefixes) {
+          const norm = await API.post('/bls/' + tid + '/photos/normalize', { prefix: pr })
+          list = Array.isArray(norm.data?.photos) ? norm.data.photos : list
+        }
+      } catch {}
+      setPhotos(normalizeList(list))
     }).catch(() => setPhotos([])).finally(() => setLoading(false))
     try {
       const cache = JSON.parse(localStorage.getItem('tbMastersCache') || '{}')
@@ -124,6 +169,14 @@ function BLEvidenceMaster() {
     setCounters(next)
   }, [photos])
 
+  useEffect(() => {
+    const list = Array.isArray(photos) ? photos.slice() : []
+    const normalized = normalizeList(list)
+    const a = list.map(p => String(p.filename || ''))
+    const b = normalized.map(p => String(p.filename || ''))
+    if (JSON.stringify(a) !== JSON.stringify(b)) setPhotos(normalized)
+  }, [photos])
+
   async function onUpload(e) {
     const files = Array.from(e.target.files || [])
     if (!files.length || !targetId) return
@@ -133,7 +186,10 @@ function BLEvidenceMaster() {
     let filesToUse = files
     try {
       const slug = selectedPrefix
-      const start = Math.max(1, Number(counters[slug] || 1))
+      const used = []
+      ;(Array.isArray(photos) ? photos : []).forEach(p => { const r = parsePrefix(p?.filename || ''); if (r && r.prefix === slug) used.push(r.num) })
+      ;(Array.isArray(pendingFiles) ? pendingFiles : []).forEach(f => { const r = parsePrefix(String(f.name || '')); if (r && r.prefix === slug) used.push(r.num) })
+      const start = used.length ? Math.max(...used) + 1 : 1
       filesToUse = files.map((f, i) => {
         const original = String(f.name || '')
         const dot = original.lastIndexOf('.')
@@ -144,10 +200,10 @@ function BLEvidenceMaster() {
       const now = Date.now()
       const staged = filesToUse.map((f, i) => ({ id: `${now + i}-local`, filename: f.name, url: URL.createObjectURL(f) }))
       setPendingFiles(prev => prev.concat(filesToUse))
-      setPhotos(prev => prev.concat(staged))
+      setPhotos(prev => normalizeList(prev.concat(staged)))
       setStatus('Fotos preparadas: ' + staged.length)
       const inc = filesToUse.length
-      setCounters(prev => ({ ...prev, [slug]: Math.max(1, Number(prev[slug] || 1)) + inc }))
+      setCounters(prev => ({ ...prev, [slug]: start + inc }))
     } catch (err) {
       setStatus('Error al preparar fotos: ' + (err.response?.data?.error || err.message))
     } finally {
@@ -159,18 +215,44 @@ function BLEvidenceMaster() {
   async function onDeleteConfirmed() {
     const ph = confirmPhoto
     const photoId = ph?.id
+    const victim = parsePrefix(ph?.filename || '')
     if (!photoId) { setConfirmPhoto(null); return }
     if (String(photoId).endsWith('-local')) {
       try {
-        setPhotos(prev => prev.filter(p => p.id !== photoId))
+        setPhotos(prev => {
+          const next = prev.filter(p => p.id !== photoId)
+          if (victim?.prefix) {
+            const locals = next
+              .filter(p => String(p.id).endsWith('-local') && String(p.filename || '').startsWith(victim.prefix + '_'))
+              .map(p => { const r = parsePrefix(p.filename || ''); return r ? { p, num: r.num, ext: r.ext } : null })
+              .filter(Boolean)
+              .sort((a,b) => a.num - b.num)
+            locals.forEach((t,i) => { t.p.filename = `${victim.prefix}_${i + 1}${t.ext}` })
+          }
+          return next
+        })
         setPendingFiles(prev => {
           const next = prev.slice()
           const idx = next.findIndex(f => String(f.name || '') === String(ph?.filename || ''))
           if (idx >= 0) next.splice(idx, 1)
+          if (victim?.prefix) {
+            const locals = next
+              .map(f => { const nm = String(f.name || ''); const r = parsePrefix(nm); return (r && nm.startsWith(victim.prefix + '_')) ? { file: f, num: r.num, ext: r.ext } : null })
+              .filter(Boolean)
+              .sort((a,b) => a.num - b.num)
+            const renameMap = new Map()
+            locals.forEach((t,i) => { renameMap.set(t.file.name, `${victim.prefix}_${i + 1}${t.ext}`) })
+            for (let i = 0; i < next.length; i++) {
+              const f = next[i]
+              const nm = String(f.name || '')
+              const newName = renameMap.get(nm)
+              if (newName && newName !== nm) next[i] = new File([f], newName, { type: f.type })
+            }
+          }
           return next
         })
         try { if (ph?.url) URL.revokeObjectURL(ph.url) } catch {}
-        setStatus('Vista previa eliminada')
+        setStatus(victim?.prefix ? 'Vista previa eliminada y nombres normalizados' : 'Vista previa eliminada')
       } catch (err) {
         setStatus('Error al eliminar: ' + (err.response?.data?.error || err.message))
       } finally {
@@ -182,12 +264,28 @@ function BLEvidenceMaster() {
     try {
       const res = await API.delete('/photos/' + photoId)
       if (res.data?.deleted) {
-        setPhotos(prev => prev.filter(p => p.id !== photoId))
         const tid = String(targetId || '')
         if (tid) {
-          try { const ref = await API.get('/bls/' + tid + '/photos'); setPhotos(Array.isArray(ref.data?.photos) ? ref.data.photos : []); } catch {}
+          try {
+            const ref = await API.get('/bls/' + tid + '/photos')
+            let list = Array.isArray(ref.data?.photos) ? ref.data.photos : []
+            try {
+              const prefixes = Array.from(new Set(list.map(p => { const r = parsePrefix(p.filename || ''); return r ? r.prefix : null }).filter(Boolean)))
+              for (const pr of prefixes) {
+                const norm = await API.post('/bls/' + tid + '/photos/normalize', { prefix: pr })
+                list = Array.isArray(norm.data?.photos) ? norm.data.photos : list
+              }
+              setStatus('Foto eliminada y nombres normalizados')
+            } catch {
+              setStatus('Foto eliminada')
+            }
+            setPhotos(normalizeList(list))
+          } catch {
+            setStatus('Foto eliminada')
+          }
+        } else {
+          setStatus('Foto eliminada')
         }
-        setStatus('Foto eliminada')
       } else {
         setStatus('No se pudo eliminar la foto')
       }
@@ -220,8 +318,15 @@ function BLEvidenceMaster() {
         }
         pendingFiles.forEach(f => fd.append('photos', f))
         const upRes = await API.post('/bls/' + (targetId) + '/photos', fd)
-        const newPhotos = (upRes.data.photos || []).map(p => ({ ...p, url: p.id ? ('/uploads/' + p.id) : p.url }))
-        setPhotos(prev => prev.filter(p => !String(p.id||'').endsWith('-local')).concat(newPhotos))
+        let newPhotos = (upRes.data.photos || []).map(p => ({ ...p, url: p.id ? ('/uploads/' + p.id) : p.url }))
+        try {
+          const prefixes = Array.from(new Set(newPhotos.map(p => { const r = parsePrefix(p.filename || ''); return r ? r.prefix : null }).filter(Boolean)))
+          for (const pr of prefixes) {
+            const norm = await API.post('/bls/' + targetId + '/photos/normalize', { prefix: pr })
+            newPhotos = Array.isArray(norm.data?.photos) ? norm.data.photos : newPhotos
+          }
+        } catch {}
+        setPhotos(prev => normalizeList(prev.filter(p => !String(p.id||'').endsWith('-local')).concat(newPhotos)))
         setPendingFiles([])
         setUploading(false)
       }

@@ -15,12 +15,20 @@ const storage = multer.diskStorage({
     cb(null, safe);
   },
 });
-const upload = multer({ storage, limits: { fileSize: 5 * 1024 * 1024 } });
+const upload = multer({ storage, limits: { fileSize: 20 * 1024 * 1024 } });
 
 const router = express.Router();
 
 // Subir fotos: guarda en disco y persiste registro del BL + fotos por usuario
-router.post('/bls/:id/photos', authRequired, upload.array('photos', 12), async (req, res) => {
+router.post('/bls/:id/photos', authRequired, (req, res, next) => {
+  upload.array('photos', 12)(req, res, (err) => {
+    if (err) {
+      if (err.code === 'LIMIT_FILE_SIZE') return res.status(413).json({ ok: false, error: 'Archivo demasiado grande (máx 20 MB por imagen)' })
+      return res.status(400).json({ ok: false, error: err.message })
+    }
+    next()
+  })
+}, async (req, res) => {
   const { id } = req.params;
   const flagsRaw = req.body?.averia_flags;
   let flags = {};
@@ -121,6 +129,38 @@ router.patch('/bls/:id/photos/averia', authRequired, async (req, res) => {
     res.json({ bl_id: id, count: response.length, photos: response });
   } catch (err) {
     res.status(500).json({ ok: false, error: 'Fallo al actualizar avería', detail: err.message });
+  }
+});
+
+// Normalizar consecutivos por prefijo: renombra p.filename a prefix_1, prefix_2, ...
+router.post('/bls/:id/photos/normalize', authRequired, async (req, res) => {
+  const { id } = req.params;
+  const prefix = String(req.body?.prefix || '').trim();
+  if (!prefix) return res.status(400).json({ ok: false, error: 'prefix requerido' });
+  try {
+    const rec = await RegistroFotografico.findOne({ where: { bl_id: id, user_id: req.user.id } });
+    if (!rec || !Array.isArray(rec.photos)) return res.status(404).json({ ok: false, error: 'Registro no encontrado' });
+    const photos = rec.photos.slice();
+    const target = photos
+      .map(p => {
+        const name = String(p.filename || '');
+        if (!name.startsWith(prefix + '_')) return null;
+        const dot = name.lastIndexOf('.');
+        const base = dot >= 0 ? name.slice(0, dot) : name;
+        const rest = base.slice(prefix.length + 1);
+        const num = Number(rest);
+        const ext = dot >= 0 ? name.slice(dot) : '';
+        return Number.isFinite(num) ? { p, num, ext } : null;
+      })
+      .filter(Boolean)
+      .sort((a,b) => a.num - b.num);
+    target.forEach((t, i) => { t.p.filename = `${prefix}_${i + 1}${t.ext}` });
+    rec.photos = photos;
+    await rec.save();
+    const response = photos.map(p => ({ id: p.id, filename: p.filename, url: '/uploads/' + p.id, size: p.size, mime: p.mime, status: p.status || 'kept', averia: !!p.averia }));
+    res.json({ bl_id: id, count: response.length, photos: response, normalizedPrefix: prefix });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: 'Fallo al normalizar nombres', detail: err.message });
   }
 });
 
