@@ -1,6 +1,7 @@
 const express = require('express');
 const path = require('path');
 const compression = require('compression');
+const cors = require('cors');
 const { errorHandler } = require('./middlewares/errorHandler');
 
 const authRouter = require('./routes/auth');
@@ -17,6 +18,12 @@ const app = express();
 
 // Compresión Gzip/Brotli antes de static para reducir transfer
 app.use(compression());
+
+app.use(cors({
+  origin: ['http://localhost:3000'],
+  methods: ['GET','POST','PATCH','DELETE','OPTIONS'],
+  allowedHeaders: ['Content-Type','Authorization'],
+}));
 
 app.use(express.json({ limit: '1000mb' }));
 app.use(express.urlencoded({ extended: true, limit: '1000mb' }));

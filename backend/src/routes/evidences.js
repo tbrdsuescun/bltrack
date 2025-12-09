@@ -1,10 +1,44 @@
 const express = require('express')
+const axios = require('axios')
+const path = require('path')
 const { authRequired } = require('../middlewares/auth')
 const { EvidenceSubmission, RegistroFotografico } = require('../db/sequelize')
 const fs = require('fs').promises
 const { filePath } = require('../services/storage')
+const { EVIDENCE_URL, EVIDENCE_USER, EVIDENCE_PASS, EXTERNAL_RETRY_COUNT, EXTERNAL_TIMEOUT_MS, STORAGE_PATH } = require('../config')
 
 const router = express.Router()
+
+async function sendToExternal(payload) {
+  let attempt = 0
+  let lastErr
+  const max = Number(EXTERNAL_RETRY_COUNT || 0)
+  while (attempt <= max) {
+    try {
+      const res = await axios.post(EVIDENCE_URL, payload, {
+        timeout: EXTERNAL_TIMEOUT_MS,
+        auth: (EVIDENCE_USER && EVIDENCE_PASS) ? { username: EVIDENCE_USER, password: EVIDENCE_PASS } : undefined,
+        headers: { 'Content-Type': 'application/json' }
+      })
+      return { status: res.status, data: res.data }
+    } catch (err) {
+      lastErr = err
+      attempt++
+      if (attempt > max) throw err
+      await new Promise(r => setTimeout(r, 500 * attempt))
+    }
+  }
+  throw lastErr
+}
+
+async function writeEvidenceLog(id, entry) {
+  try {
+    const dir = path.join(STORAGE_PATH, 'evidence-logs')
+    await fs.mkdir(dir, { recursive: true })
+    const file = path.join(dir, `${String(id)}-${Date.now()}.json`)
+    await fs.writeFile(file, JSON.stringify(entry))
+  } catch {}
+}
 
 
 router.post('/evidences/submit', authRequired, async (req, res) => {
@@ -18,7 +52,12 @@ router.post('/evidences/submit', authRequired, async (req, res) => {
       const type = String(body.type || '')
       if (!blId || !referenceNumber || !type) return res.status(400).json({ ok: false, error: 'blId, referenceNumber y type requeridos' })
       const rec = await RegistroFotografico.findOne({ where: { bl_id: blId, user_id: req.user.id } })
-      if (!rec || !Array.isArray(rec.photos) || rec.photos.length === 0) return res.status(404).json({ ok: false, error: 'No hay fotos para el BL' })
+      if (!rec || !Array.isArray(rec.photos) || rec.photos.length === 0) {
+        try {
+          await writeEvidenceLog('no-photos', { ts: new Date().toISOString(), endpoint: EVIDENCE_URL, user_id: req.user.id, type, referenceNumber, doNumber, error: { message: 'No hay fotos para el BL' } })
+        } catch {}
+        return res.status(404).json({ ok: false, error: 'No hay fotos para el BL' })
+      }
       function formatDate(ts) { const d = new Date(ts); const dd = String(d.getDate()).padStart(2,'0'); const mm = String(d.getMonth()+1).padStart(2,'0'); const yyyy = d.getFullYear(); return `${dd}/${mm}/${yyyy}` }
       function extFor(name) { const dot = String(name||'').lastIndexOf('.'); return dot>=0 ? String(name).slice(dot).toLowerCase() : '.dat' }
       function mapLimit(items, limit, fn) {
@@ -34,7 +73,7 @@ router.post('/evidences/submit', authRequired, async (req, res) => {
         return Promise.all(workers).then(() => out)
       }
       const initial = await EvidenceSubmission.create({ user_id: req.user.id, reference_number: referenceNumber, do_number: doNumber, type, documents_count: rec.photos.length, total_bytes: 0, documents_meta: [], payload: null, status: 'queued', error_message: null })
-      res.json({ ok: true, queued: true, id: initial.id, received: { referenceNumber, doNumber, type, documentsCount: rec.photos.length } })
+      res.json({ ok: true, queued: true, id: initial.id, endpoint: EVIDENCE_URL, received: { referenceNumber, doNumber, type, documentsCount: rec.photos.length } })
       setImmediate(async () => {
         try {
           async function readBase64(p) { const abs = p.path || filePath(p.id); const buf = await fs.readFile(abs); return buf.toString('base64') }
@@ -57,6 +96,37 @@ router.post('/evidences/submit', authRequired, async (req, res) => {
           const docsMeta = docs.map(d => ({ name: d.name, extension: d.extension, category: d.category || '', date: d.date, bytes: Buffer.byteLength(d.contentBase64, 'base64') }))
           const payload = { referenceNumber, doNumber, type, documents: docs }
           await initial.update({ documents_count: documentsCount, total_bytes: totalBytes, documents_meta: docsMeta, payload, status: 'received', error_message: null })
+          try {
+            await writeEvidenceLog(initial.id, { ts: new Date().toISOString(), endpoint: EVIDENCE_URL, user_id: req.user.id, type, referenceNumber, doNumber, documents_count: documentsCount, documents_meta: docsMeta, action: 'prepare' })
+            const out = await sendToExternal(payload)
+            await writeEvidenceLog(initial.id, {
+              ts: new Date().toISOString(),
+              endpoint: EVIDENCE_URL,
+              user_id: req.user.id,
+              type,
+              referenceNumber,
+              doNumber,
+              documents_count: documentsCount,
+              documents_meta: docsMeta,
+              response: { status: out?.status || null, body: out?.data }
+            })
+            await initial.update({ status: 'sent', error_message: null })
+          } catch (err) {
+            try {
+              await writeEvidenceLog(initial.id, {
+                ts: new Date().toISOString(),
+                endpoint: EVIDENCE_URL,
+                user_id: req.user.id,
+                type,
+                referenceNumber,
+                doNumber,
+                documents_count: documentsCount,
+                documents_meta: docsMeta,
+                error: { message: err.message, status: err?.response?.status || null, body: err?.response?.data }
+              })
+            } catch {}
+            try { await initial.update({ status: 'failed', error_message: err.message }) } catch {}
+          }
         } catch (e) {
           try { await initial.update({ status: 'error', error_message: e.message }) } catch {}
         }
@@ -70,8 +140,43 @@ router.post('/evidences/submit', authRequired, async (req, res) => {
     const totalBytes = list.reduce((acc, d) => acc + (typeof d.contentBase64 === 'string' ? Buffer.byteLength(d.contentBase64, 'base64') : 0), 0)
     const docsMeta = list.map(d => ({ name: d.name, extension: d.extension, category: d.category || '', date: d.date, bytes: (typeof d.contentBase64 === 'string' ? Buffer.byteLength(d.contentBase64, 'base64') : 0) }))
     const payload = { referenceNumber: String(referenceNumber), doNumber: doNumber ? String(doNumber) : null, type: String(type), documents: list }
-    try { await EvidenceSubmission.create({ user_id: req.user.id, reference_number: String(referenceNumber), do_number: doNumber ? String(doNumber) : null, type: String(type), documents_count: documentsCount, total_bytes: totalBytes, documents_meta: docsMeta, payload, status: 'received', error_message: null }) } catch {}
-    res.json({ ok: true, received: { referenceNumber, doNumber, type, documentsCount }, meta: { totalBytes } })
+    let rec = null
+    try { rec = await EvidenceSubmission.create({ user_id: req.user.id, reference_number: String(referenceNumber), do_number: doNumber ? String(doNumber) : null, type: String(type), documents_count: documentsCount, total_bytes: totalBytes, documents_meta: docsMeta, payload, status: 'received', error_message: null }) } catch {}
+    res.json({ ok: true, queued: true, endpoint: EVIDENCE_URL, received: { referenceNumber, doNumber, type, documentsCount }, meta: { totalBytes } })
+    setImmediate(async () => {
+      if (!rec) return
+      try {
+        await writeEvidenceLog(rec.id, { ts: new Date().toISOString(), endpoint: EVIDENCE_URL, user_id: req.user.id, type, referenceNumber, doNumber, documents_count: documentsCount, documents_meta: docsMeta, action: 'prepare' })
+        const out = await sendToExternal(payload)
+        await writeEvidenceLog(rec.id, {
+          ts: new Date().toISOString(),
+          endpoint: EVIDENCE_URL,
+          user_id: req.user.id,
+          type,
+          referenceNumber,
+          doNumber,
+          documents_count: documentsCount,
+          documents_meta: docsMeta,
+          response: { status: out?.status || null, body: out?.data }
+        })
+        await rec.update({ status: 'sent', error_message: null })
+      } catch (err) {
+        try {
+          await writeEvidenceLog(rec.id, {
+            ts: new Date().toISOString(),
+            endpoint: EVIDENCE_URL,
+            user_id: req.user.id,
+            type,
+            referenceNumber,
+            doNumber,
+            documents_count: documentsCount,
+            documents_meta: docsMeta,
+            error: { message: err.message, status: err?.response?.status || null, body: err?.response?.data }
+          })
+        } catch {}
+        try { await rec.update({ status: 'failed', error_message: err.message }) } catch {}
+      }
+    })
   } catch (err) {
     try {
       const b = req.body || {}

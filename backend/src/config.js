@@ -9,5 +9,8 @@ module.exports = {
   EXTERNAL_RETRY_COUNT: parseInt(process.env.EXTERNAL_RETRY_COUNT || '2', 10),
   MASTERS_URL: process.env.MASTERS_URL || 'https://tracking.transborder.com.co/Development/ApisNotes-Cotiz/DevRestApiNotesCotiz.nsf/api.xsp/operaciones/masters',
   MASTERS_USER: process.env.MASTERS_USER || '',
-  MASTERS_PASS: process.env.MASTERS_PASS || ''
+  MASTERS_PASS: process.env.MASTERS_PASS || '',
+  EVIDENCE_URL: process.env.EVIDENCE_URL || 'https://tracking.transborder.com.co/TbrApis/WebHookRestApis.nsf/api.xsp/Receive/ReporteFotograficoImpo',
+  EVIDENCE_USER: process.env.EVIDENCE_USER || '',
+  EVIDENCE_PASS: process.env.EVIDENCE_PASS || ''
 };
