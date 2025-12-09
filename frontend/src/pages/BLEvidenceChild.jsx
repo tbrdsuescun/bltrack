@@ -27,6 +27,44 @@ function extFor(p, mime) {
   return '.dat'
 }
 
+function parsePrefix(filename) {
+  const s = String(filename || '')
+  const dot = s.lastIndexOf('.')
+  const base = dot >= 0 ? s.slice(0, dot) : s
+  const idx = base.lastIndexOf('_')
+  if (idx <= 0) return null
+  const prefix = base.slice(0, idx)
+  const numStr = base.slice(idx + 1)
+  const num = Number(numStr)
+  if (!Number.isFinite(num)) return null
+  const ext = dot >= 0 ? s.slice(dot) : ''
+  return { prefix, num, ext }
+}
+
+function normalizeList(items) {
+  const arr = Array.isArray(items) ? items.slice() : []
+  const groups = {}
+  arr.forEach(p => {
+    const r = parsePrefix(p?.filename || '')
+    if (r && r.prefix) {
+      const key = r.prefix
+      if (!groups[key]) groups[key] = []
+      groups[key].push({ p, r })
+    }
+  })
+  Object.keys(groups).forEach(k => {
+    const g = groups[k]
+    g.sort((a,b) => {
+      const ta = Number((String(a.p.id||'').split('-')[0]) || 0)
+      const tb = Number((String(b.p.id||'').split('-')[0]) || 0)
+      if (ta !== tb) return ta - tb
+      return a.r.num - b.r.num
+    })
+    g.forEach((t,i) => { t.p.filename = `${k}_${i + 1}${t.r.ext}` })
+  })
+  return arr
+}
+
 function urlFor(u) { const s = String(u || ''); if (!s) return ''; if (/^(?:https?:\/\/|blob:|data:)/.test(s)) return s; const base = API.defaults?.baseURL || ''; return base ? (base + (s.startsWith('/') ? s : ('/' + s))) : s }
 
 function BLEvidenceChild() {
@@ -40,7 +78,6 @@ function BLEvidenceChild() {
   const [selectedPhoto, setSelectedPhoto] = useState(null)
   const [confirmPhoto, setConfirmPhoto] = useState(null)
   const [cacheEntry, setCacheEntry] = useState(null)
-
   const [saveModalOpen, setSaveModalOpen] = useState(false)
   const [saveError, setSaveError] = useState(false)
   const [pendingFiles, setPendingFiles] = useState([])
@@ -106,10 +143,17 @@ function BLEvidenceChild() {
     const tid = String(targetId || '')
     if (!tid) return () => { mounted = false }
     setLoading(true)
-    API.get('/bls/' + tid + '/photos').then(res => {
+    API.get('/bls/' + tid + '/photos').then(async (res) => {
       if (!mounted) return
-      const list = Array.isArray(res.data?.photos) ? res.data.photos : []
-      setPhotos(list)
+      let list = Array.isArray(res.data?.photos) ? res.data.photos : []
+      try {
+        const pr = String(numeroHblCurrent || '')
+        if (pr) {
+          const norm = await API.post('/bls/' + tid + '/photos/normalize', { prefix: pr })
+          list = Array.isArray(norm.data?.photos) ? norm.data.photos : list
+        }
+      } catch {}
+      setPhotos(normalizeList(list))
     }).catch(() => setPhotos([])).finally(() => setLoading(false))
     try {
       const cache = JSON.parse(localStorage.getItem('tbMastersCache') || '{}')
@@ -141,7 +185,17 @@ function BLEvidenceChild() {
     setLoading(true)
     let filesToUse = files
     try {
-      filesToUse = files
+      const slug = String(numeroHblCurrent || details.child_id || '')
+      const used = []
+      ;(Array.isArray(photos) ? photos : []).forEach(p => { const r = parsePrefix(p?.filename || ''); if (r && r.prefix === slug) used.push(r.num) })
+      const start = used.length ? Math.max(...used) + 1 : 1
+      filesToUse = files.map((f, i) => {
+        const original = String(f.name || '')
+        const dot = original.lastIndexOf('.')
+        const ext = dot >= 0 ? original.slice(dot) : ''
+        const newName = `${slug}_${start + i}${ext}`
+        return new File([f], newName, { type: f.type })
+      })
       const fd = new FormData()
       const masterIdVal = String(details.master_id || '')
       fd.append('master_id', masterIdVal)
@@ -162,9 +216,44 @@ function BLEvidenceChild() {
       fd.append('averia_flags', JSON.stringify(flags))
       filesToUse.forEach(f => fd.append('photos', f))
       const upRes = await API.post('/bls/' + (hblId || targetId) + '/photos', fd)
-      const newPhotos = (upRes.data.photos || []).map(p => ({ ...p, url: p.id ? ('/uploads/' + p.id) : p.url }))
-      setPhotos(prev => prev.concat(newPhotos))
-      setStatus('Imágenes subidas: ' + newPhotos.length)
+      let newPhotos = (upRes.data.photos || []).map(p => ({ ...p, url: p.id ? ('/uploads/' + p.id) : p.url }))
+      try {
+        if (slug) {
+          const norm = await API.post('/bls/' + (hblId || targetId) + '/photos/normalize', { prefix: slug })
+          newPhotos = Array.isArray(norm.data?.photos) ? norm.data.photos : newPhotos
+        }
+      } catch {}
+      try {
+        const tid = String(hblId || targetId || '')
+        if (tid) {
+          const ref = await API.get('/bls/' + tid + '/photos')
+          let list = Array.isArray(ref.data?.photos) ? ref.data.photos : newPhotos
+          try {
+            if (slug) {
+              const norm2 = await API.post('/bls/' + tid + '/photos/normalize', { prefix: slug })
+              list = Array.isArray(norm2.data?.photos) ? norm2.data.photos : list
+            }
+          } catch {}
+          setPhotos(normalizeList(list))
+        } else {
+          const acc = []
+          const seen = new Set()
+          ;(Array.isArray(photos) ? photos : []).concat(newPhotos).forEach(p => {
+            const key = String(p.id || p.filename || '')
+            if (!seen.has(key)) { seen.add(key); acc.push(p) }
+          })
+          setPhotos(normalizeList(acc))
+        }
+      } catch {
+        const acc = []
+        const seen = new Set()
+        ;(Array.isArray(photos) ? photos : []).concat(newPhotos).forEach(p => {
+          const key = String(p.id || p.filename || '')
+          if (!seen.has(key)) { seen.add(key); acc.push(p) }
+        })
+        setPhotos(normalizeList(acc))
+      }
+      setStatus('Imágenes subidas: ' + (newPhotos.length || filesToUse.length))
     } catch (err) {
       setStatus('Error al preparar fotos: ' + (err.response?.data?.error || err.message))
     } finally {
@@ -196,7 +285,19 @@ function BLEvidenceChild() {
         setPhotos(prev => prev.filter(p => p.id !== photoId))
         const tid = String(hblId || targetId || '')
         if (tid) {
-          try { const ref = await API.get('/bls/' + tid + '/photos'); setPhotos(Array.isArray(ref.data?.photos) ? ref.data.photos : []); } catch {}
+          try {
+            const ref = await API.get('/bls/' + tid + '/photos')
+            let list = Array.isArray(ref.data?.photos) ? ref.data.photos : []
+            try {
+              const pr = String(numeroHblCurrent || '')
+              if (pr) {
+                const norm = await API.post('/bls/' + tid + '/photos/normalize', { prefix: pr })
+                list = Array.isArray(norm.data?.photos) ? norm.data.photos : list
+                setStatus('Foto eliminada y nombres normalizados')
+              }
+            } catch {}
+            setPhotos(normalizeList(list))
+          } catch {}
         }
         setStatus('Foto eliminada')
       } else {
