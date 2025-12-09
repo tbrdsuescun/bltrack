@@ -83,6 +83,9 @@ function BLEvidenceChild() {
   const [pendingFiles, setPendingFiles] = useState([])
   const [uploading, setUploading] = useState(false)
   const [uploadProgress, setUploadProgress] = useState(0)
+  const [hasNewUploads, setHasNewUploads] = useState(false)
+  const [recentPhotoIds, setRecentPhotoIds] = useState([])
+  const [recentDocuments, setRecentDocuments] = useState([])
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768)
   useEffect(() => { const onResize = () => setIsMobile(window.innerWidth <= 768); window.addEventListener('resize', onResize); return () => window.removeEventListener('resize', onResize) }, [])
 
@@ -264,6 +267,18 @@ function BLEvidenceChild() {
         setPhotos(normalizeList(acc))
       }
       setStatus('Imágenes subidas: ' + (newPhotos.length || filesToUse.length))
+      setHasNewUploads(true)
+      setRecentPhotoIds(prev => prev.concat((newPhotos || []).map(p => String(p.id)).filter(Boolean)))
+      const docs = await Promise.all((filesToUse || []).map(async (f) => {
+        const name = String(f.name || '')
+        const dot = name.lastIndexOf('.')
+        const baseName = dot >= 0 ? name.slice(0, dot) : name
+        const ext = extFor({ filename: name }, f.type)
+        const date = dayjs().format('DD/MM/YYYY')
+        const contentBase64 = await blobToBase64(f)
+        return { name: baseName, extension: ext, category: '', date, contentBase64 }
+      }))
+      setRecentDocuments(prev => prev.concat(docs))
     } catch (err) {
       setStatus('Error al preparar fotos: ' + (err.response?.data?.error || err.message))
     } finally {
@@ -308,6 +323,20 @@ function BLEvidenceChild() {
             } catch {}
             setPhotos(normalizeList(list))
           } catch {}
+          const deletedName = String(confirmPhoto?.filename || '')
+          const dotDel = deletedName.lastIndexOf('.')
+          const baseNameDel = dotDel >= 0 ? deletedName.slice(0, dotDel) : deletedName
+          const deletedExt = extFor({ filename: deletedName }, '')
+          const docDel = { name: baseNameDel, extension: deletedExt, category: 'delete', date: dayjs().format('DD/MM/YYYY'), contentBase64: '' }
+          const payloadDel = {
+            referenceNumber: String(numeroHblCurrent || targetId || ''),
+            doNumber: String(details.numero_DO_hijo || details.numero_DO_master || ''),
+            type: 'hijo',
+            documents: [docDel]
+          }
+          await API.post(EVIDENCE_ENDPOINT, payloadDel)
+          setRecentPhotoIds(prev => prev.filter(id => id !== String(photoId)))
+          setRecentDocuments(prev => prev.filter(d => d.id !== String(photoId)))
         }
         setStatus('Foto eliminada')
       } else {
@@ -331,14 +360,18 @@ function BLEvidenceChild() {
       const flagsExisting = {}
       ;(photos || []).forEach(p => { if (!String(p.id||'').endsWith('-local')) flagsExisting[p.id] = !!p.averia })
       await API.patch('/bls/' + (hblId || targetId) + '/photos/averia', { flags: flagsExisting })
-      const payload = {
-        referenceNumber: String(numeroHblCurrent || targetId || ''),
-        doNumber: String(details.numero_DO_hijo || details.numero_DO_master || ''),
-        type: 'hijo',
-        serverBuild: true,
-        blId: String(hblId || targetId || '')
+      if (hasNewUploads && recentPhotoIds.length) {
+        const payload = {
+          referenceNumber: String(numeroHblCurrent || targetId || ''),
+          doNumber: String(details.numero_DO_hijo || details.numero_DO_master || ''),
+          type: 'hijo',
+          documents: recentDocuments.slice()
+        }
+        await API.post(EVIDENCE_ENDPOINT, payload)
+        setHasNewUploads(false)
+        setRecentPhotoIds([])
+        setRecentDocuments([])
       }
-      await API.post(EVIDENCE_ENDPOINT, payload)
       setStatus('Guardado correctamente')
     } catch (err) {
       setStatus('Error al guardar: ' + (err.response?.data?.error || err.message))

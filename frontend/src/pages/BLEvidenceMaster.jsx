@@ -281,6 +281,18 @@ function BLEvidenceMaster() {
               setStatus('Foto eliminada')
             }
             setPhotos(normalizeList(list))
+            const deletedName = String(ph?.filename || '')
+            const deletedExt = extFor({ filename: deletedName }, '')
+            const dotDel = deletedName.lastIndexOf('.')
+            const baseNameDel = dotDel >= 0 ? deletedName.slice(0, dotDel) : deletedName
+            const docDel = { name: baseNameDel, extension: deletedExt, category: 'delete', date: dayjs().format('DD/MM/YYYY'), contentBase64: '' }
+            const payloadDel = {
+              referenceNumber: String(details.master_id || ''),
+              doNumber: String(details.numero_DO_master || ''),
+              type: 'master',
+              documents: [docDel]
+            }
+            await API.post(EVIDENCE_ENDPOINT, payloadDel)
           } catch {
             setStatus('Foto eliminada')
           }
@@ -330,6 +342,17 @@ function BLEvidenceMaster() {
           setUploadProgress(Math.round((uploaded / total) * 100))
           setStatus('Guardando imagen ' + uploaded + ' de ' + total)
         }
+        const docs = await Promise.all((pendingFiles || []).map(async (f) => {
+          const name = String(f.name || '')
+          const dot = name.lastIndexOf('.')
+          const baseName = dot >= 0 ? name.slice(0, dot) : name
+          const ext = extFor({ filename: name }, f.type)
+          const date = dayjs().format('DD/MM/YYYY')
+          const r = parsePrefix(name)
+          const category = (r?.prefix === 'averia') ? 'averia' : ''
+          const contentBase64 = await blobToBase64(f)
+          return { name: baseName, extension: ext, category, date, contentBase64 }
+        }))
         try {
           const prefixes = Array.from(new Set(newPhotos.map(p => { const r = parsePrefix(p.filename || ''); return r ? r.prefix : null }).filter(Boolean)))
           for (const pr of prefixes) {
@@ -337,18 +360,17 @@ function BLEvidenceMaster() {
             newPhotos = Array.isArray(norm.data?.photos) ? norm.data.photos : newPhotos
           }
         } catch {}
-        setPhotos(prev => normalizeList(prev.filter(p => !String(p.id||'').endsWith('-local')).concat(newPhotos)))
+        setPhotos(normalizeList(newPhotos))
         setPendingFiles([])
         setUploading(false)
+        const payload = {
+          referenceNumber: String(details.master_id || ''),
+          doNumber: String(details.numero_DO_master || ''),
+          type: 'master',
+          documents: docs
+        }
+        await API.post(EVIDENCE_ENDPOINT, payload)
       }
-      const payload = {
-        referenceNumber: String(details.master_id || ''),
-        doNumber: String(details.numero_DO_master || ''),
-        type: 'master',
-        serverBuild: true,
-        blId: String(targetId || '')
-      }
-      await API.post(EVIDENCE_ENDPOINT, payload)
       setStatus('Guardado correctamente')
     } catch (err) {
       setStatus('Error al guardar: ' + (err.response?.data?.error || err.message))
