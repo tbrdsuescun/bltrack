@@ -84,6 +84,7 @@ function BLEvidenceMaster() {
   const [saveError, setSaveError] = useState(false)
   const [pendingFiles, setPendingFiles] = useState([])
   const [uploading, setUploading] = useState(false)
+  const [uploadProgress, setUploadProgress] = useState(0)
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768)
   useEffect(() => { const onResize = () => setIsMobile(window.innerWidth <= 768); window.addEventListener('resize', onResize); return () => window.removeEventListener('resize', onResize) }, [])
 
@@ -306,19 +307,29 @@ function BLEvidenceMaster() {
     try {
       if (pendingFiles.length) {
         setUploading(true)
-        const fd = new FormData()
-        const masterIdVal = String(masterId || targetId || '')
-        fd.append('master_id', masterIdVal)
-        fd.append('numero_DO_master', String(details.numero_DO_master || ''))
-        if (selectedPrefix) fd.append('prefix', selectedPrefix)
-        if (cacheEntry) {
-          fd.append('cliente_nit', String(cacheEntry.nitCliente || cacheEntry.clienteNit || cacheEntry.nit || ''))
-          fd.append('descripcion_mercancia', String(cacheEntry.descripcionMercancia || cacheEntry.descripcion || ''))
-          fd.append('numero_pedido', String(cacheEntry.numeroPedido || cacheEntry.pedido || cacheEntry.orderNumber || ''))
+        setUploadProgress(0)
+        const total = pendingFiles.length
+        let uploaded = 0
+        let newPhotos = []
+        for (const f of pendingFiles) {
+          const fd = new FormData()
+          const masterIdVal = String(masterId || targetId || '')
+          fd.append('master_id', masterIdVal)
+          fd.append('numero_DO_master', String(details.numero_DO_master || ''))
+          if (selectedPrefix) fd.append('prefix', selectedPrefix)
+          if (cacheEntry) {
+            fd.append('cliente_nit', String(cacheEntry.nitCliente || cacheEntry.clienteNit || cacheEntry.nit || ''))
+            fd.append('descripcion_mercancia', String(cacheEntry.descripcionMercancia || cacheEntry.descripcion || ''))
+            fd.append('numero_pedido', String(cacheEntry.numeroPedido || cacheEntry.pedido || cacheEntry.orderNumber || ''))
+          }
+          fd.append('photos', f)
+          const upRes = await API.post('/bls/' + (targetId) + '/photos', fd)
+          const batch = (upRes.data.photos || []).map(p => ({ ...p, url: p.id ? ('/uploads/' + p.id) : p.url }))
+          newPhotos = newPhotos.concat(batch)
+          uploaded += 1
+          setUploadProgress(Math.round((uploaded / total) * 100))
+          setStatus('Guardando imagen ' + uploaded + ' de ' + total)
         }
-        pendingFiles.forEach(f => fd.append('photos', f))
-        const upRes = await API.post('/bls/' + (targetId) + '/photos', fd)
-        let newPhotos = (upRes.data.photos || []).map(p => ({ ...p, url: p.id ? ('/uploads/' + p.id) : p.url }))
         try {
           const prefixes = Array.from(new Set(newPhotos.map(p => { const r = parsePrefix(p.filename || ''); return r ? r.prefix : null }).filter(Boolean)))
           for (const pr of prefixes) {
@@ -567,13 +578,10 @@ function BLEvidenceMaster() {
             <div className="modal-body" style={{ textAlign:'center' }}>
               {uploading ? (
                 <div style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:8, flexDirection:'column' }}>
-                  <svg width="36" height="36" viewBox="0 0 24 24">
-                    <circle cx="12" cy="12" r="10" stroke="#c0c4c9" strokeWidth="4" fill="none" opacity="0.25"/>
-                    <path d="M12 2a10 10 0 0 1 0 20" stroke="var(--brand)" strokeWidth="4" fill="none">
-                      <animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="1s" repeatCount="indefinite"/>
-                    </path>
-                  </svg>
-                  <div className="muted">Cargando imágenes...</div>
+                  <div style={{ width:'100%', maxWidth:320, height:12, background:'#e5e7eb', borderRadius:6, overflow:'hidden' }}>
+                    <div style={{ width: uploadProgress + '%', height:'100%', background:'var(--brand)', transition:'width .2s' }} />
+                  </div>
+                  <div className="muted">{uploadProgress}%</div>
                 </div>
               ) : (!saveError && !loading ? <div style={{ fontSize: '48px', color: '#19a45b' }}>✔</div> : null)}
               <div className={saveError ? 'muted' : ''} style={saveError ? { color: '#e11' } : { marginTop: 8 }}>{status}</div>

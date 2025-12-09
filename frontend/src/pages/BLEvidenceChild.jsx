@@ -82,6 +82,7 @@ function BLEvidenceChild() {
   const [saveError, setSaveError] = useState(false)
   const [pendingFiles, setPendingFiles] = useState([])
   const [uploading, setUploading] = useState(false)
+  const [uploadProgress, setUploadProgress] = useState(0)
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768)
   useEffect(() => { const onResize = () => setIsMobile(window.innerWidth <= 768); window.addEventListener('resize', onResize); return () => window.removeEventListener('resize', onResize) }, [])
 
@@ -196,27 +197,36 @@ function BLEvidenceChild() {
         const newName = `${slug}_${start + i}${ext}`
         return new File([f], newName, { type: f.type })
       })
-      const fd = new FormData()
-      const masterIdVal = String(details.master_id || '')
-      fd.append('master_id', masterIdVal)
-      fd.append('child_id', String(details.child_id || ''))
-      fd.append('numero_DO_master', String(details.numero_DO_master || ''))
-      fd.append('numero_DO_hijo', String(details.numero_DO_hijo || ''))
-      fd.append('cliente_nombre', String(details.cliente_nombre || ''))
-      fd.append('numero_ie', String(details.numero_ie || ''))
-      fd.append('pais_de_origen', String(details.pais_de_origen || ''))
-      fd.append('puerto_de_origen', String(details.puerto_de_origen || ''))
-      if (cacheEntry) {
-        fd.append('cliente_nit', String(cacheEntry.nitCliente || cacheEntry.clienteNit || cacheEntry.nit || ''))
-        fd.append('descripcion_mercancia', String(cacheEntry.descripcionMercancia || cacheEntry.descripcion || ''))
-        fd.append('numero_pedido', String(cacheEntry.numeroPedido || cacheEntry.pedido || cacheEntry.orderNumber || ''))
+      setUploadProgress(0)
+      const total = filesToUse.length
+      let uploaded = 0
+      let newPhotos = []
+      for (const f of filesToUse) {
+        const fd = new FormData()
+        const masterIdVal = String(details.master_id || '')
+        fd.append('master_id', masterIdVal)
+        fd.append('child_id', String(details.child_id || ''))
+        fd.append('numero_DO_master', String(details.numero_DO_master || ''))
+        fd.append('numero_DO_hijo', String(details.numero_DO_hijo || ''))
+        fd.append('cliente_nombre', String(details.cliente_nombre || ''))
+        fd.append('numero_ie', String(details.numero_ie || ''))
+        fd.append('pais_de_origen', String(details.pais_de_origen || ''))
+        fd.append('puerto_de_origen', String(details.puerto_de_origen || ''))
+        if (cacheEntry) {
+          fd.append('cliente_nit', String(cacheEntry.nitCliente || cacheEntry.clienteNit || cacheEntry.nit || ''))
+          fd.append('descripcion_mercancia', String(cacheEntry.descripcionMercancia || cacheEntry.descripcion || ''))
+          fd.append('numero_pedido', String(cacheEntry.numeroPedido || cacheEntry.pedido || cacheEntry.orderNumber || ''))
+        }
+        const flags = { [f.name]: false }
+        fd.append('averia_flags', JSON.stringify(flags))
+        fd.append('photos', f)
+        const upRes = await API.post('/bls/' + (hblId || targetId) + '/photos', fd)
+        const batch = (upRes.data.photos || []).map(p => ({ ...p, url: p.id ? ('/uploads/' + p.id) : p.url }))
+        newPhotos = newPhotos.concat(batch)
+        uploaded += 1
+        setUploadProgress(Math.round((uploaded / total) * 100))
+        setStatus('Guardando imagen ' + uploaded + ' de ' + total)
       }
-      const flags = {}
-      filesToUse.forEach(f => { flags[f.name] = false })
-      fd.append('averia_flags', JSON.stringify(flags))
-      filesToUse.forEach(f => fd.append('photos', f))
-      const upRes = await API.post('/bls/' + (hblId || targetId) + '/photos', fd)
-      let newPhotos = (upRes.data.photos || []).map(p => ({ ...p, url: p.id ? ('/uploads/' + p.id) : p.url }))
       try {
         if (slug) {
           const norm = await API.post('/bls/' + (hblId || targetId) + '/photos/normalize', { prefix: slug })
@@ -362,16 +372,10 @@ function BLEvidenceChild() {
           <div className="dropzone" onClick={openFileDialog} onDrop={onDrop} onDragOver={onDragOver}>
             {uploading ? (
               <div style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:8, flexDirection:'column' }}>
-                <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-                  <svg width="24" height="24" viewBox="0 0 24 24">
-                    <circle cx="12" cy="12" r="10" stroke="#c0c4c9" strokeWidth="4" fill="none" opacity="0.25"/>
-                    <path d="M12 2a10 10 0 0 1 0 20" stroke="var(--brand)" strokeWidth="4" fill="none">
-                      <animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="1s" repeatCount="indefinite"/>
-                    </path>
-                  </svg>
-                  <span>Cargando imágenes...</span>
+                <div style={{ width:'100%', maxWidth:320, height:12, background:'#e5e7eb', borderRadius:6, overflow:'hidden' }}>
+                  <div style={{ width: uploadProgress + '%', height:'100%', background:'var(--brand)', transition:'width .2s' }} />
                 </div>
-                <div>Por favor espera</div>
+                <div className="muted">{uploadProgress}%</div>
               </div>
             ) : (
               <>
