@@ -313,15 +313,7 @@ function BLEvidenceChild() {
           try {
             const ref = await API.get('/bls/' + tid + '/photos')
             let list = Array.isArray(ref.data?.photos) ? ref.data.photos : []
-            try {
-              const pr = String(numeroHblCurrent || '')
-              if (pr) {
-                const norm = await API.post('/bls/' + tid + '/photos/normalize', { prefix: pr })
-                list = Array.isArray(norm.data?.photos) ? norm.data.photos : list
-                setStatus('Foto eliminada y nombres normalizados')
-              }
-            } catch {}
-            setPhotos(normalizeList(list))
+            setPhotos(list)
           } catch {}
           const deletedName = String(confirmPhoto?.filename || '')
           const dotDel = deletedName.lastIndexOf('.')

@@ -171,11 +171,6 @@ function BLEvidenceMaster() {
   }, [photos])
 
   useEffect(() => {
-    const list = Array.isArray(photos) ? photos.slice() : []
-    const normalized = normalizeList(list)
-    const a = list.map(p => String(p.filename || ''))
-    const b = normalized.map(p => String(p.filename || ''))
-    if (JSON.stringify(a) !== JSON.stringify(b)) setPhotos(normalized)
   }, [photos])
 
   async function onUpload(e) {
@@ -220,40 +215,15 @@ function BLEvidenceMaster() {
     if (!photoId) { setConfirmPhoto(null); return }
     if (String(photoId).endsWith('-local')) {
       try {
-        setPhotos(prev => {
-          const next = prev.filter(p => p.id !== photoId)
-          if (victim?.prefix) {
-            const locals = next
-              .filter(p => String(p.id).endsWith('-local') && String(p.filename || '').startsWith(victim.prefix + '_'))
-              .map(p => { const r = parsePrefix(p.filename || ''); return r ? { p, num: r.num, ext: r.ext } : null })
-              .filter(Boolean)
-              .sort((a,b) => a.num - b.num)
-            locals.forEach((t,i) => { t.p.filename = `${victim.prefix}_${i + 1}${t.ext}` })
-          }
-          return next
-        })
+        setPhotos(prev => prev.filter(p => p.id !== photoId))
         setPendingFiles(prev => {
           const next = prev.slice()
           const idx = next.findIndex(f => String(f.name || '') === String(ph?.filename || ''))
           if (idx >= 0) next.splice(idx, 1)
-          if (victim?.prefix) {
-            const locals = next
-              .map(f => { const nm = String(f.name || ''); const r = parsePrefix(nm); return (r && nm.startsWith(victim.prefix + '_')) ? { file: f, num: r.num, ext: r.ext } : null })
-              .filter(Boolean)
-              .sort((a,b) => a.num - b.num)
-            const renameMap = new Map()
-            locals.forEach((t,i) => { renameMap.set(t.file.name, `${victim.prefix}_${i + 1}${t.ext}`) })
-            for (let i = 0; i < next.length; i++) {
-              const f = next[i]
-              const nm = String(f.name || '')
-              const newName = renameMap.get(nm)
-              if (newName && newName !== nm) next[i] = new File([f], newName, { type: f.type })
-            }
-          }
           return next
         })
         try { if (ph?.url) URL.revokeObjectURL(ph.url) } catch {}
-        setStatus(victim?.prefix ? 'Vista previa eliminada y nombres normalizados' : 'Vista previa eliminada')
+        setStatus('Vista previa eliminada')
       } catch (err) {
         setStatus('Error al eliminar: ' + (err.response?.data?.error || err.message))
       } finally {
@@ -270,17 +240,7 @@ function BLEvidenceMaster() {
           try {
             const ref = await API.get('/bls/' + tid + '/photos')
             let list = Array.isArray(ref.data?.photos) ? ref.data.photos : []
-            try {
-              const prefixes = Array.from(new Set(list.map(p => { const r = parsePrefix(p.filename || ''); return r ? r.prefix : null }).filter(Boolean)))
-              for (const pr of prefixes) {
-                const norm = await API.post('/bls/' + tid + '/photos/normalize', { prefix: pr })
-                list = Array.isArray(norm.data?.photos) ? norm.data.photos : list
-              }
-              setStatus('Foto eliminada y nombres normalizados')
-            } catch {
-              setStatus('Foto eliminada')
-            }
-            setPhotos(normalizeList(list))
+            setPhotos(list)
             const deletedName = String(ph?.filename || '')
             const deletedExt = extFor({ filename: deletedName }, '')
             const dotDel = deletedName.lastIndexOf('.')
