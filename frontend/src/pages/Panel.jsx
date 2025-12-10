@@ -23,6 +23,8 @@ function Panel({ user }) {
 
   const API_local = API
 
+  const isAdmin = (() => { try { const u = JSON.parse(localStorage.getItem('user') || '{}'); return String(u.role || '') === 'admin' } catch { return false } })()
+
   async function load() {
     setLoading(true)
     setMsg(null)
@@ -129,7 +131,7 @@ function Panel({ user }) {
           <p className="muted">Gestiona y visualiza todos los registros fotográficos.</p>
         </div>
         <div className="actions-row">
-          {(() => { try { const u = JSON.parse(localStorage.getItem('user') || '{}'); return String(u.role || '') !== 'admin' } catch { return true } })() && (
+          {!isAdmin && (
             <button className="btn btn-primary" onClick={() => navigate('/bl/new')}>+ Nuevo Registro</button>
           )}
         </div>
@@ -260,7 +262,7 @@ function Panel({ user }) {
         )}
       </div>
 
-      {isMobile && (() => { try { const u = JSON.parse(localStorage.getItem('user') || '{}'); return String(u.role || '') !== 'admin' } catch { return true } })() && (
+      {isMobile && !isAdmin && (
         <button className="fab btn-primary" onClick={() => navigate('/bl/new')} aria-label="Nuevo registro">
           <span className="icon">+</span>
         </button>

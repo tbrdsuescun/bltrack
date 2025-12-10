@@ -101,6 +101,7 @@ function BLEvidenceMaster() {
   const [uploadProgress, setUploadProgress] = useState(0)
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768)
   useEffect(() => { const onResize = () => setIsMobile(window.innerWidth <= 768); window.addEventListener('resize', onResize); return () => window.removeEventListener('resize', onResize) }, [])
+  const isAdmin = (() => { try { const u = JSON.parse(localStorage.getItem('user') || '{}'); return String(u.role || '') === 'admin' } catch { return false } })()
 
   const PREFIXES = [
     { label: 'Contenedor cerrado', slug: 'contenedor_cerrado' },
@@ -340,11 +341,12 @@ function BLEvidenceMaster() {
     }
   }
 
-  function openFileDialog(){ if (uploading) { return } if (containers.length && !selectedContainer) { setStatus('Selecciona un contenedor'); setContainerError(true); setContainerModalOpen(true); return } if (!selectedPrefix) { setStatus('Selecciona un prefijo para nombrar las fotos'); setPrefixError(true); setPrefixModalOpen(true); return } fileInputRef.current?.click() }
-  function onDrop(e){ e.preventDefault(); if (uploading) { return } if (containers.length && !selectedContainer) { setStatus('Selecciona un contenedor'); setContainerError(true); setContainerModalOpen(true); return } if (!selectedPrefix) { setStatus('Selecciona un prefijo para nombrar las fotos'); setPrefixError(true); setPrefixModalOpen(true); return } const files = Array.from(e.dataTransfer?.files || []); if (!files.length) return; const synthetic = { target: { files } }; onUpload(synthetic) }
+  function openFileDialog(){ if (uploading || isAdmin) { return } if (containers.length && !selectedContainer) { setStatus('Selecciona un contenedor'); setContainerError(true); setContainerModalOpen(true); return } if (!selectedPrefix) { setStatus('Selecciona un prefijo para nombrar las fotos'); setPrefixError(true); setPrefixModalOpen(true); return } fileInputRef.current?.click() }
+  function onDrop(e){ e.preventDefault(); if (uploading || isAdmin) { return } if (containers.length && !selectedContainer) { setStatus('Selecciona un contenedor'); setContainerError(true); setContainerModalOpen(true); return } if (!selectedPrefix) { setStatus('Selecciona un prefijo para nombrar las fotos'); setPrefixError(true); setPrefixModalOpen(true); return } const files = Array.from(e.dataTransfer?.files || []); if (!files.length) return; const synthetic = { target: { files } }; onUpload(synthetic) }
   function onDragOver(e){ e.preventDefault() }
 
   function urlFor(u) { const s = String(u || ''); if (!s) return ''; if (/^(?:https?:\/\/|blob:|data:)/.test(s)) return s; const base = API.defaults?.baseURL || ''; return base ? (base + (s.startsWith('/') ? s : ('/' + s))) : s }
+  function onDownloadPhoto(photo){ if (!photo || !photo.url) return; const a = document.createElement('a'); a.href = urlFor(photo.url); a.download = String(photo.filename || photo.id || 'foto'); a.target = '_blank'; document.body.appendChild(a); a.click(); document.body.removeChild(a) }
 
   return (
     <>
@@ -378,7 +380,7 @@ function BLEvidenceMaster() {
 
         <div style={{ marginTop:'12px' }}>
           <h2 className="h2" style={{ display:'flex', alignItems:'center', gap:8 }}>Evidencia {uploading ? (<svg width="16" height="16" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="#c0c4c9" strokeWidth="3" fill="none" opacity="0.25"/><path d="M12 2a10 10 0 0 1 0 20" stroke="var(--brand)" strokeWidth="3" fill="none"><animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="1s" repeatCount="indefinite"/></path></svg>) : null}</h2>
-          <div className="dropzone" onClick={openFileDialog} onDrop={onDrop} onDragOver={onDragOver}>
+          <div className="dropzone" onClick={isAdmin ? undefined : openFileDialog} onDrop={onDrop} onDragOver={onDragOver}>
             {uploading ? (
               <div style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:8, flexDirection:'column' }}>
                 <div style={{ display:'flex', alignItems:'center', gap:8 }}>
@@ -400,10 +402,14 @@ function BLEvidenceMaster() {
             )}
           </div>
           <div className="actions" style={{ justifyContent:'flex-start' }}>
-            <button className="btn btn-primary" onClick={openFileDialog} disabled={uploading || loading}>Subir Archivo</button>
-            <button className="btn btn-outline" onClick={openFileDialog} disabled={uploading || loading}>Tomar Foto</button>
+            {!isAdmin && (
+              <>
+                <button className="btn btn-primary" onClick={openFileDialog} disabled={uploading || loading}>Subir Archivo</button>
+                <button className="btn btn-outline" onClick={openFileDialog} disabled={uploading || loading}>Tomar Foto</button>
+              </>
+            )}
           </div>
-          <input ref={fileInputRef} type="file" accept="image/*" multiple capture="environment" style={{ display:'none' }} onChange={onUpload} disabled={loading || uploading} />
+          {!isAdmin && (<input ref={fileInputRef} type="file" accept="image/*" multiple capture="environment" style={{ display:'none' }} onChange={onUpload} disabled={loading || uploading} />)}
         </div>
 
         {status && <p className="muted" style={(prefixError || containerError) ? { color: '#e11' } : undefined}>{status}</p>}
@@ -430,7 +436,9 @@ function BLEvidenceMaster() {
                       <div>
                         <button className="btn btn-outline btn-small" onClick={() => setSelectedPhoto(p)}>Ver</button>
                         {' '}
-                        <button className="btn btn-danger btn-small" onClick={() => setConfirmPhoto(p)} disabled={loading}>Eliminar</button>
+                        <button className="btn btn-outline btn-small" onClick={() => onDownloadPhoto(p)} disabled={!p.url}>Descargar</button>
+                        {' '}
+                        {!isAdmin && <button className="btn btn-danger btn-small" onClick={() => setConfirmPhoto(p)} disabled={loading}>Eliminar</button>}
                       </div>
                     </div>
                   </div>
@@ -469,7 +477,8 @@ function BLEvidenceMaster() {
                         <td>{p.filename || p.id}</td>
                         <td className="table-actions">
                           <button className="btn btn-outline btn-small" onClick={() => setSelectedPhoto(p)}>Ver foto</button>
-                          <button className="btn btn-danger btn-small" onClick={() => setConfirmPhoto(p)} disabled={loading}>Eliminar</button>
+                          <button className="btn btn-outline btn-small" onClick={() => onDownloadPhoto(p)} disabled={!p.url}>Descargar</button>
+                          {!isAdmin && <button className="btn btn-danger btn-small" onClick={() => setConfirmPhoto(p)} disabled={loading}>Eliminar</button>}
                         </td>
                       </tr>
                     )
@@ -481,10 +490,10 @@ function BLEvidenceMaster() {
         )}
 
         <div className="actions" style={{ justifyContent:'flex-end' }}>
-          <button className="btn btn-outline" onClick={onSave} disabled={loading}>Guardar</button>
+          {!isAdmin && <button className="btn btn-outline" onClick={onSave} disabled={loading}>Guardar</button>}
         </div>
 
-        {isMobile && (pendingFiles.length > 0 || uploading) && (
+        {isMobile && !isAdmin && (pendingFiles.length > 0 || uploading) && (
           <>
             <div className="bottom-spacer" />
             <div className="bottom-bar">
@@ -510,6 +519,7 @@ function BLEvidenceMaster() {
               )}
             </div>
             <div className="modal-footer">
+              {selectedPhoto?.url ? <button className="btn btn-outline" onClick={() => onDownloadPhoto(selectedPhoto)}>Descargar</button> : null}
               <button className="btn" onClick={() => setSelectedPhoto(null)}>Cerrar</button>
             </div>
           </div>

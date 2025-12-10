@@ -16,6 +16,7 @@ function BLList({ user }) {
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768)
   const [loading, setLoading] = useState(false)
   const [query, setQuery] = useState('')
+  const isAdmin = (() => { try { const u = JSON.parse(localStorage.getItem('user') || '{}'); return String(u.role || '') === 'admin' } catch { return false } })()
 
   const master = useMemo(() => {
     const params = new URLSearchParams(location.search)
@@ -119,7 +120,7 @@ function BLList({ user }) {
         </div>
         <div className="actions-row">
           <button className="btn btn-outline" onClick={() => navigate(-1)}>← Volver</button>
-          <button className="btn btn-primary" onClick={() => navigate('/bl/new')}>+ Nuevo Registro</button>
+          {!isAdmin && (<button className="btn btn-primary" onClick={() => navigate('/bl/new')}>+ Nuevo Registro</button>)}
         </div>
       </div>
 
@@ -221,7 +222,7 @@ function BLList({ user }) {
         </div>
       )}
 
-      {isMobile && (
+      {isMobile && !isAdmin && (
         <button className="fab btn-primary" onClick={() => navigate('/bl/new')} aria-label="Nuevo registro">
           <span className="icon">+</span>
         </button>

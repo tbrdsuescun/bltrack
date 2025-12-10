@@ -88,6 +88,7 @@ function BLEvidenceChild() {
   const [recentDocuments, setRecentDocuments] = useState([])
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768)
   useEffect(() => { const onResize = () => setIsMobile(window.innerWidth <= 768); window.addEventListener('resize', onResize); return () => window.removeEventListener('resize', onResize) }, [])
+  const isAdmin = (() => { try { const u = JSON.parse(localStorage.getItem('user') || '{}'); return String(u.role || '') === 'admin' } catch { return false } })()
 
   function Toggle({ checked, onChange }) {
     return (
@@ -382,9 +383,10 @@ function BLEvidenceChild() {
     }
   }
 
-  function openFileDialog(){ if (uploading) { return } fileInputRef.current?.click() }
-  function onDrop(e){ e.preventDefault(); if (uploading) { return } const files = Array.from(e.dataTransfer?.files || []); if (!files.length) return; const synthetic = { target: { files } }; onUpload(synthetic) }
+  function openFileDialog(){ if (uploading || isAdmin) { return } fileInputRef.current?.click() }
+  function onDrop(e){ e.preventDefault(); if (uploading || isAdmin) { return } const files = Array.from(e.dataTransfer?.files || []); if (!files.length) return; const synthetic = { target: { files } }; onUpload(synthetic) }
   function onDragOver(e){ e.preventDefault() }
+  function onDownloadPhoto(photo){ if (!photo || !photo.url) return; const a = document.createElement('a'); a.href = urlFor(photo.url); a.download = String(photo.filename || photo.id || 'foto'); a.target = '_blank'; document.body.appendChild(a); a.click(); document.body.removeChild(a) }
 
   return (
     <>
@@ -402,7 +404,7 @@ function BLEvidenceChild() {
 
         <div style={{ marginTop:'12px' }}>
           <h2 className="h2" style={{ display:'flex', alignItems:'center', gap:8 }}>Evidencia {uploading ? (<svg width="16" height="16" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="#c0c4c9" strokeWidth="3" fill="none" opacity="0.25"/><path d="M12 2a10 10 0 0 1 0 20" stroke="var(--brand)" strokeWidth="3" fill="none"><animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="1s" repeatCount="indefinite"/></path></svg>) : null}</h2>
-          <div className="dropzone" onClick={openFileDialog} onDrop={onDrop} onDragOver={onDragOver}>
+          <div className="dropzone" onClick={isAdmin ? undefined : openFileDialog} onDrop={onDrop} onDragOver={onDragOver}>
             {uploading ? (
               <div style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:8, flexDirection:'column' }}>
                 <div style={{ width:'100%', maxWidth:320, height:12, background:'#e5e7eb', borderRadius:6, overflow:'hidden' }}>
@@ -418,10 +420,14 @@ function BLEvidenceChild() {
             )}
           </div>
           <div className="actions" style={{ justifyContent:'flex-start' }}>
-            <button className="btn btn-primary" onClick={openFileDialog} disabled={uploading || loading}>Subir Archivo</button>
-            <button className="btn btn-outline" onClick={openFileDialog} disabled={uploading || loading}>Tomar Foto</button>
+            {!isAdmin && (
+              <>
+                <button className="btn btn-primary" onClick={openFileDialog} disabled={uploading || loading}>Subir Archivo</button>
+                <button className="btn btn-outline" onClick={openFileDialog} disabled={uploading || loading}>Tomar Foto</button>
+              </>
+            )}
           </div>
-          <input ref={fileInputRef} type="file" accept="image/*" multiple capture="environment" style={{ display:'none' }} onChange={onUpload} disabled={loading || uploading} />
+          {!isAdmin && (<input ref={fileInputRef} type="file" accept="image/*" multiple capture="environment" style={{ display:'none' }} onChange={onUpload} disabled={loading || uploading} />)}
         </div>
 
         
@@ -448,7 +454,9 @@ function BLEvidenceChild() {
                       <div>
                         <button className="btn btn-outline btn-small" onClick={() => setSelectedPhoto(p)}>Ver</button>
                         {' '}
-                        <button className="btn btn-danger btn-small" onClick={() => setConfirmPhoto(p)} disabled={loading}>Eliminar</button>
+                        <button className="btn btn-outline btn-small" onClick={() => onDownloadPhoto(p)} disabled={!p.url}>Descargar</button>
+                        {' '}
+                        {!isAdmin && <button className="btn btn-danger btn-small" onClick={() => setConfirmPhoto(p)} disabled={loading}>Eliminar</button>}
                       </div>
                     </div>
                   </div>
@@ -476,7 +484,7 @@ function BLEvidenceChild() {
                     const usuario = user?.nombre || user?.display_name || user?.email || '-'
                     return (
                       <tr key={p.id}>
-                        <td><input type="checkbox" checked={!!p.averia} onChange={(e) => onToggleAveria(p.id, e.target.checked)} /></td>
+                        <td><input type="checkbox" checked={!!p.averia} onChange={(e) => onToggleAveria(p.id, e.target.checked)} disabled={isAdmin} /></td>
                         <td>
                           {p.url ? (
                             <img src={urlFor(p.url)} alt={p.filename || p.id} style={{ width: 80, height: 60, objectFit: 'cover', borderRadius: 6, cursor: 'zoom-in' }} onClick={() => setSelectedPhoto(p)} />
@@ -489,7 +497,8 @@ function BLEvidenceChild() {
                         <td>{p.filename || p.id}</td>
                         <td className="table-actions">
                           <button className="btn btn-outline btn-small" onClick={() => setSelectedPhoto(p)}>Ver foto</button>
-                          <button className="btn btn-danger btn-small" onClick={() => setConfirmPhoto(p)} disabled={loading}>Eliminar</button>
+                          <button className="btn btn-outline btn-small" onClick={() => onDownloadPhoto(p)} disabled={!p.url}>Descargar</button>
+                          {!isAdmin && <button className="btn btn-danger btn-small" onClick={() => setConfirmPhoto(p)} disabled={loading}>Eliminar</button>}
                         </td>
                       </tr>
                     )
@@ -501,10 +510,10 @@ function BLEvidenceChild() {
         )}
 
         <div className="actions" style={{ justifyContent:'flex-end' }}>
-          <button className="btn btn-outline" onClick={onSave} disabled={loading}>Guardar</button>
+          {!isAdmin && <button className="btn btn-outline" onClick={onSave} disabled={loading}>Guardar</button>}
         </div>
 
-        {isMobile && (pendingFiles.length > 0 || uploading) && (
+        {isMobile && !isAdmin && (pendingFiles.length > 0 || uploading) && (
           <>
             <div className="bottom-spacer" />
             <div className="bottom-bar">
@@ -530,6 +539,7 @@ function BLEvidenceChild() {
               )}
             </div>
             <div className="modal-footer">
+              {selectedPhoto?.url ? <button className="btn btn-outline" onClick={() => onDownloadPhoto(selectedPhoto)}>Descargar</button> : null}
               <button className="btn" onClick={() => setSelectedPhoto(null)}>Cerrar</button>
             </div>
           </div>
