@@ -440,8 +440,7 @@ function BLEvidenceChild() {
               {orderedPhotos.map(p => {
                 const ts = Number((String(p.id||'').split('-')[0]) || 0)
                 const fecha = ts ? dayjs(ts).format('YYYY-MM-DD HH:mm') : '-'
-                const user = (() => { try { return JSON.parse(localStorage.getItem('user')||'{}') } catch { return {} } })()
-                const usuario = user?.nombre || user?.display_name || user?.email || '-'
+                const usuario = p.user_nombre || p.user_display_name || p.user_email || '-'
                 return (
                   <div key={p.id} className="preview-card">
                     {p.url ? (
@@ -480,8 +479,7 @@ function BLEvidenceChild() {
                   {orderedPhotos.map(p => {
                     const ts = Number((String(p.id||'').split('-')[0]) || 0)
                     const fecha = ts ? dayjs(ts).format('YYYY-MM-DD HH:mm') : '-'
-                    const user = (() => { try { return JSON.parse(localStorage.getItem('user')||'{}') } catch { return {} } })()
-                    const usuario = user?.nombre || user?.display_name || user?.email || '-'
+                    const usuario = p.user_nombre || p.user_display_name || p.user_email || '-'
                     return (
                       <tr key={p.id}>
                         <td><input type="checkbox" checked={!!p.averia} onChange={(e) => onToggleAveria(p.id, e.target.checked)} disabled={isAdmin} /></td>

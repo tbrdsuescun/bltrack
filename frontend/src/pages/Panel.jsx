@@ -63,11 +63,6 @@ function Panel({ user }) {
     } catch {
       setMastersRaw([])
     }
-    let isAdmin = false
-    try {
-      const u = JSON.parse(localStorage.getItem('user') || '{}')
-      isAdmin = String(u.role || '') === 'admin'
-    } catch { }
     const endpoint = isAdmin ? '/masters' : '/masters/with-photos'
     setMastersLoading(true)
     API_local.get(endpoint).then(res => {
@@ -100,9 +95,11 @@ function Panel({ user }) {
       if (!term) return true
       const masterStr = String(row.master || '').toLowerCase()
       const doStr = String(row.numero_DO_master || '').toLowerCase()
-      return masterStr.includes(term) || doStr.includes(term)
+      const usersStr = Array.isArray(row.users) ? row.users.map(u => String(u.nombre || u.display_name || u.email || '').toLowerCase()).join(' ') : ''
+      const puertosStr = Array.isArray(row.users) ? row.users.map(u => String(u.puerto || '').toLowerCase()).join(' ') : ''
+      return masterStr.includes(term) || doStr.includes(term) || usersStr.includes(term) || puertosStr.includes(term)
     })
-    return filtered.map(row => ({ master: row.master, doNumber: String(row.numero_DO_master || ''), childrenCount: Number(row.children_count || 0), photosCount: Number(row.photos_count_master || 0) }))
+    return filtered.map(row => ({ master: row.master, doNumber: String(row.numero_DO_master || ''), childrenCount: Number(row.children_count || 0), photosCount: Number(row.photos_count_master || 0), users: Array.isArray(row.users) ? row.users : [] }))
   }, [mastersListRaw, filters.bl_id])
 
   useEffect(() => {
@@ -178,16 +175,16 @@ function Panel({ user }) {
                         <div className="muted">N° Hbls</div>
                         <div>{row.childrenCount || 0}</div>
                       </div>
-                      {(() => { try { const u = JSON.parse(localStorage.getItem('user') || '{}'); return String(u.role || '') === 'admin' } catch { return false } })() ? (
+                      {isAdmin ? (
                         <div>
-                          <div className="muted">Usuario</div>
-                          <div>{(() => { try { const u = JSON.parse(localStorage.getItem('user') || '{}'); return u.nombre || u.display_name || u.email || '-' } catch { return '-' } })()}</div>
+                          <div className="muted">Usuarios</div>
+                          <div>{(row.users || []).map(u => u.nombre || u.display_name || u.email).filter(Boolean).join(', ') || '-'}</div>
                         </div>
                       ) : null}
-                      {(() => { try { const u = JSON.parse(localStorage.getItem('user') || '{}'); return String(u.role || '') === 'admin' } catch { return false } })() ? (
+                      {isAdmin ? (
                         <div>
-                          <div className="muted">Puerto</div>
-                          <div>{(() => { try { const u = JSON.parse(localStorage.getItem('user') || '{}'); return u.puerto } catch { return '-' } })()}</div>
+                          <div className="muted">Puertos</div>
+                          <div>{Array.from(new Set((row.users || []).map(u => u.puerto).filter(Boolean))).join(', ') || '-'}</div>
                         </div>
                       ) : null}
                     </div>
@@ -211,8 +208,8 @@ function Panel({ user }) {
                   <thead>
                     <tr>
                       <th>Master</th>
-                      {(() => { try { const u = JSON.parse(localStorage.getItem('user') || '{}'); return String(u.role || '') === 'admin' } catch { return false } })() ? <th>Usuario</th> : null}
-                      {(() => { try { const u = JSON.parse(localStorage.getItem('user') || '{}'); return String(u.role || '') === 'admin' } catch { return false } })() ? <th>Puerto</th> : null}
+                      {isAdmin ? <th>Usuarios</th> : null}
+                      {isAdmin ? <th>Puertos</th> : null}
                       <th>Fotografías master</th>
                       <th>Número DO master</th>
                       <th>N° Hbls</th>
@@ -223,11 +220,11 @@ function Panel({ user }) {
                     {mastersList.slice((page - 1) * pageSize, (page - 1) * pageSize + pageSize).map((row, idx) => (
                       <tr key={idx}>
                         <td style={{ cursor: 'pointer', color: '#06467c' }} onClick={() => { const hasChildren = Number(row.childrenCount) > 0; navigate(hasChildren ? '/bl?master=' + encodeURIComponent(row.master) : '/evidence/' + row.master) }}>{row.master}</td>
-                        {(() => { try { const u = JSON.parse(localStorage.getItem('user') || '{}'); return String(u.role || '') === 'admin' } catch { return false } })() ? (
-                          <td>{(() => { try { const u = JSON.parse(localStorage.getItem('user') || '{}'); return u.nombre || u.display_name || u.email || '-' } catch { return '-' } })()}</td>
+                        {isAdmin ? (
+                          <td>{(row.users || []).map(u => u.nombre || u.display_name || u.email).filter(Boolean).join(', ') || '-'}</td>
                         ) : null}
-                        {(() => { try { const u = JSON.parse(localStorage.getItem('user') || '{}'); return String(u.role || '') === 'admin' } catch { return false } })() ? (
-                          <td>{(() => { try { const u = JSON.parse(localStorage.getItem('user') || '{}'); return u.puerto } catch { return '-' } })()}</td>
+                        {isAdmin ? (
+                          <td>{Array.from(new Set((row.users || []).map(u => u.puerto).filter(Boolean))).join(', ') || '-'}</td>
                         ) : null}
                         <td>{row.photosCount}</td>
                         <td>{row.doNumber}</td>

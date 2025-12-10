@@ -23,7 +23,9 @@ router.get('/options', authRequired, async (req, res) => {
 router.get('/mine', authRequired, async (req, res) => {
   try {
     const userId = req.user.id;
-    const rows = await RegistroFotografico.findAll({ where: { user_id: userId }, order: [['updated_at', 'DESC']] });
+    const isAdmin = req.user.role === 'admin';
+    const where = isAdmin ? {} : { user_id: userId };
+    const rows = await RegistroFotografico.findAll({ where, order: [['updated_at', 'DESC']] });
     const blIds = [...new Set(rows.map(r => r.bl_id))];
     let detailsMap = {};
     if (blIds.length) {
@@ -36,7 +38,16 @@ router.get('/mine', authRequired, async (req, res) => {
         detailsMap = {};
       }
     }
-    const items = rows.map(r => {
+    const agg = {};
+    rows.forEach(r => {
+      const k = String(r.bl_id);
+      const prev = agg[k] || { bl_id: k, photos_count: 0, send_status: r.send_status, sent_at: r.sent_at };
+      prev.photos_count += Array.isArray(r.photos) ? r.photos.length : 0;
+      prev.send_status = prev.send_status || r.send_status;
+      prev.sent_at = prev.sent_at || r.sent_at;
+      agg[k] = prev;
+    });
+    const items = Object.values(agg).map(r => {
       const d = detailsMap[String(r.bl_id)] || {};
       const nombreCliente = d.cliente_nombre || d.nombre_cliente || d.client_name || d.nombre || '';
       const nitCliente = d.cliente_nit || d.nit || d.client_nit || '';
@@ -46,7 +57,7 @@ router.get('/mine', authRequired, async (req, res) => {
       const pedidoNumero = d.numero_pedido || d.pedido || d.order_number || d.orden || '';
       return {
         bl_id: r.bl_id,
-        photos_count: Array.isArray(r.photos) ? r.photos.length : 0,
+        photos_count: r.photos_count,
         send_status: r.send_status,
         sent_at: r.sent_at,
         cliente_nit: clienteNit || null,

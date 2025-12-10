@@ -22,6 +22,7 @@ function BLDetail({ user }) {
   const [childrenList, setChildrenList] = useState([])
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768)
   useEffect(() => { const onResize = () => setIsMobile(window.innerWidth <= 768); window.addEventListener('resize', onResize); return () => window.removeEventListener('resize', onResize) }, [])
+  const isAdmin = (() => { try { const u = JSON.parse(localStorage.getItem('user') || '{}'); return String(u.role || '') === 'admin' } catch { return false } })()
   
   useEffect(() => {
     try {
@@ -173,7 +174,7 @@ function BLDetail({ user }) {
             </label>
           )}
         </div>
-        {selectedMaster && (
+        {selectedMaster && !isAdmin && (
           <div className="actions-row">
             <button className="btn btn-primary" onClick={() => navigate('/evidence/' + selectedMaster)}>Ingresar imágenes al master</button>
           </div>
@@ -209,7 +210,7 @@ function BLDetail({ user }) {
                       </div>
                     </div>
                     <div className="actions" style={{ justifyContent: 'flex-end', marginTop: 8 }}>
-                      <button className="btn btn-outline btn-small" onClick={() => navigate('/evidence/' + selectedMaster + '/' + row.numeroHBL)}>Ingresar imágenes</button>
+                      {!isAdmin && (<button className="btn btn-outline btn-small" onClick={() => navigate('/evidence/' + selectedMaster + '/' + row.numeroHBL)}>Ingresar imágenes</button>)}
                     </div>
                   </div>
                 ))}
@@ -240,7 +241,7 @@ function BLDetail({ user }) {
                         <td>{row.numeroHBL}</td>
                         <td>{mineMap[row.numeroHBL]?.photos_count || 0}</td>
                         <td className="table-actions">
-                          <button className="btn btn-outline btn-small" onClick={() => navigate('/evidence/' + selectedMaster + '/' + row.numeroHBL)}>Ingresar imágenes</button>
+                          {!isAdmin && <button className="btn btn-outline btn-small" onClick={() => navigate('/evidence/' + selectedMaster + '/' + row.numeroHBL)}>Ingresar imágenes</button>}
                         </td>
                       </tr>
                     ))}

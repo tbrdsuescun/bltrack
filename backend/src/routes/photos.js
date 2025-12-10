@@ -4,6 +4,7 @@ const path = require('path');
 const { authRequired } = require('../middlewares/auth');
 const { ensureStorageDir, filePath, deleteFileSafe } = require('../services/storage');
 const { RegistroFotografico, sequelize } = require('../db/sequelize');
+const { QueryTypes } = require('sequelize');
 const fs = require('fs');
 
 ensureStorageDir();
@@ -92,14 +93,27 @@ router.post('/bls/:id/photos', authRequired, (req, res, next) => {
   }
 });
 
-// Obtener fotos existentes para un BL del usuario autenticado
+// Obtener fotos existentes para un BL (si admin: de todos los usuarios, si no: solo propias)
 router.get('/bls/:id/photos', authRequired, async (req, res) => {
   const { id } = req.params;
   try {
-    const rec = await RegistroFotografico.findOne({ where: { bl_id: id, user_id: req.user.id } });
-    const list = Array.isArray(rec?.photos) ? rec.photos : [];
-    const photos = list
-      .filter(p => p && p.id && fs.existsSync(filePath(p.id)))
+    const isAdmin = req.user.role === 'admin';
+    const where = isAdmin ? { bl_id: id } : { bl_id: id, user_id: req.user.id };
+    const rows = await RegistroFotografico.findAll({ where });
+    const userIds = Array.from(new Set(rows.map(r => r.user_id).filter(Boolean)));
+    let usersMap = {};
+    if (userIds.length) {
+      const users = await sequelize.query('SELECT id, nombre, display_name, email FROM users WHERE id IN (:userIds)', { replacements: { userIds }, type: QueryTypes.SELECT });
+      users.forEach(u => { usersMap[String(u.id)] = { nombre: u.nombre, display_name: u.display_name, email: u.email } });
+    }
+    const acc = [];
+    rows.forEach(rec => {
+      const u = usersMap[String(rec.user_id)] || {};
+      (Array.isArray(rec.photos) ? rec.photos : []).forEach(p => acc.push({ ...p, user_id: rec.user_id, user_nombre: u.nombre, user_display_name: u.display_name, user_email: u.email }));
+    });
+    const seen = new Set();
+    const photos = acc
+      .filter(p => p && p.id && !seen.has(p.id) && fs.existsSync(filePath(p.id)) && seen.add(p.id))
       .map(p => ({
         id: p.id,
         filename: p.filename,
@@ -108,6 +122,10 @@ router.get('/bls/:id/photos', authRequired, async (req, res) => {
         mime: p.mime,
         status: p.status || 'kept',
         averia: !!p.averia,
+        user_id: p.user_id,
+        user_nombre: p.user_nombre,
+        user_display_name: p.user_display_name,
+        user_email: p.user_email,
       }));
     res.json({ bl_id: id, count: photos.length, photos });
   } catch (err) {

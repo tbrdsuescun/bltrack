@@ -22,11 +22,40 @@ router.get('/masters', authRequired, async (req, res) => {
       'SELECT bl_id AS master_id, COALESCE(SUM(JSON_LENGTH(photos)), 0) AS photos_count_master FROM registro_fotografico WHERE bl_id IN (:masterIds) GROUP BY bl_id',
       { replacements: { masterIds }, type: QueryTypes.SELECT }
     );
+    const doRows = await sequelize.query(
+      'SELECT master_id, MAX(numero_DO_master) AS numero_DO_master FROM master_children WHERE master_id IN (:masterIds) GROUP BY master_id',
+      { replacements: { masterIds }, type: QueryTypes.SELECT }
+    );
+    const childRows = await sequelize.query(
+      'SELECT master_id, child_id FROM master_children WHERE master_id IN (:masterIds)',
+      { replacements: { masterIds }, type: QueryTypes.SELECT }
+    );
+    const blIdsAll = Array.from(new Set(masterIds.concat(childRows.map(r => r.child_id))));
+    const rfUserRows = await sequelize.query(
+      'SELECT rf.bl_id, u.id AS user_id, u.nombre, u.display_name, u.email, u.puerto FROM registro_fotografico rf JOIN users u ON u.id = rf.user_id WHERE rf.bl_id IN (:blIdsAll)',
+      { replacements: { blIdsAll }, type: QueryTypes.SELECT }
+    );
     const countMap = {};
     counts.forEach(r => { countMap[String(r.master_id)] = Number(r.children_count) });
     const photosMap = {};
     photosCounts.forEach(r => { photosMap[String(r.master_id)] = Number(r.photos_count_master) });
-    const items = masterIds.map(id => ({ master: id, children_count: countMap[id] || 0, photos_count_master: photosMap[id] || 0 }));
+    const doMap = {};
+    doRows.forEach(r => { doMap[String(r.master_id)] = r.numero_DO_master ?? null });
+    const childMap = {};
+    childRows.forEach(r => { const c = String(r.child_id); const m = String(r.master_id); if (!childMap[c]) childMap[c] = []; childMap[c].push(m) });
+    const usersMap = {};
+    rfUserRows.forEach(r => {
+      const bl = String(r.bl_id);
+      const masters = masterIds.includes(bl) ? [bl] : (childMap[bl] || []);
+      masters.forEach(m => {
+        const k = String(m);
+        if (!usersMap[k]) usersMap[k] = [];
+        if (!usersMap[k].some(u => u.id === r.user_id)) {
+          usersMap[k].push({ id: r.user_id, nombre: r.nombre, display_name: r.display_name, email: r.email, puerto: r.puerto });
+        }
+      });
+    });
+    const items = masterIds.map(id => ({ master: id, children_count: countMap[id] || 0, photos_count_master: photosMap[id] || 0, numero_DO_master: doMap[id] ?? null, users: usersMap[id] || [] }));
     res.json({ items });
   } catch (err) {
     res.status(500).json({ ok: false, error: 'Fallo al obtener masters', detail: err.message });
