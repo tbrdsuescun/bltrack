@@ -20,7 +20,7 @@ const app = express();
 app.use(compression());
 
 app.use(cors({
-  origin: ['http://localhost:3000'],
+  origin: ['http://localhost:4002','http://Bltrack.transborder.com.co:4000'],
   methods: ['GET','POST','PATCH','DELETE','OPTIONS'],
   allowedHeaders: ['Content-Type','Authorization'],
 }));
@@ -32,9 +32,8 @@ app.use(express.urlencoded({ extended: true, limit: '1000mb' }));
 app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 
 // Serve frontend static
-const FRONTEND_DIR = path.join(__dirname, '..', '..', 'frontend');
+const FRONTEND_DIR = path.join(__dirname, '..', '..', 'frontend', 'dist');
 app.use(express.static(FRONTEND_DIR));
-app.get('/', (req, res) => res.sendFile(path.join(FRONTEND_DIR, 'index.html')));
 
 // Healthcheck
 app.get('/health', (req, res) => res.json({ ok: true }));
@@ -49,8 +48,7 @@ app.use('/users', usersRouter);
 app.use(mastersRouter);
 app.use(externalRouter);
 app.use(evidencesRouter);
-
-// Error handler last
+app.get('*', (req, res) => res.sendFile(path.join(FRONTEND_DIR, 'index.html')));
 app.use(errorHandler);
 
 module.exports = app;
