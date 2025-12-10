@@ -404,21 +404,23 @@ function BLEvidenceChild() {
 
         <div style={{ marginTop:'12px' }}>
           <h2 className="h2" style={{ display:'flex', alignItems:'center', gap:8 }}>Evidencia {uploading ? (<svg width="16" height="16" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="#c0c4c9" strokeWidth="3" fill="none" opacity="0.25"/><path d="M12 2a10 10 0 0 1 0 20" stroke="var(--brand)" strokeWidth="3" fill="none"><animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="1s" repeatCount="indefinite"/></path></svg>) : null}</h2>
-          <div className="dropzone" onClick={isAdmin ? undefined : openFileDialog} onDrop={onDrop} onDragOver={onDragOver}>
-            {uploading ? (
-              <div style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:8, flexDirection:'column' }}>
-                <div style={{ width:'100%', maxWidth:320, height:12, background:'#e5e7eb', borderRadius:6, overflow:'hidden' }}>
-                  <div style={{ width: uploadProgress + '%', height:'100%', background:'var(--brand)', transition:'width .2s' }} />
+          {!isAdmin && (
+            <div className="dropzone" onClick={isAdmin ? undefined : openFileDialog} onDrop={onDrop} onDragOver={onDragOver}>
+              {uploading ? (
+                <div style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:8, flexDirection:'column' }}>
+                  <div style={{ width:'100%', maxWidth:320, height:12, background:'#e5e7eb', borderRadius:6, overflow:'hidden' }}>
+                    <div style={{ width: uploadProgress + '%', height:'100%', background:'var(--brand)', transition:'width .2s' }} />
+                  </div>
+                  <div className="muted">{uploadProgress}%</div>
                 </div>
-                <div className="muted">{uploadProgress}%</div>
-              </div>
-            ) : (
-              <>
-                Arrastra y suelta archivos aquí<br/>
-                o haz clic para buscar
-              </>
-            )}
-          </div>
+              ) : (
+                <>
+                  Arrastra y suelta archivos aquí<br/>
+                  o haz clic para buscar
+                </>
+              )}
+            </div>
+          )}
           <div className="actions" style={{ justifyContent:'flex-start' }}>
             {!isAdmin && (
               <>

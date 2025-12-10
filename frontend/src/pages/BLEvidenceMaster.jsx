@@ -362,7 +362,7 @@ function BLEvidenceMaster() {
 
       <div className="card">
         <div className="grid-2">
-          {containers.length > 0 ? (
+          {!isAdmin && containers.length > 0 ? (
             <label className="label">Contenedor
               <select className="input" value={selectedContainer} onChange={(e) => { const v = e.target.value; setSelectedContainer(v); if (v) { setContainerError(false); setContainerModalOpen(false) } }}>
                 <option value="">Selecciona contenedor</option>
@@ -370,37 +370,41 @@ function BLEvidenceMaster() {
               </select>
             </label>
           ) : null}
-          <label className="label">Prefijo para nombrar
-            <select className="input" value={selectedPrefix} onChange={(e) => { const v = e.target.value; setSelectedPrefix(v); if (v) { setPrefixError(false); setPrefixModalOpen(false) } }}>
-              <option value="">Selecciona prefijo</option>
-              {PREFIXES.map(o => <option key={o.slug} value={o.slug}>{o.label}</option>)}
-            </select>
-          </label>
+          {!isAdmin && (
+            <label className="label">Prefijo para nombrar
+              <select className="input" value={selectedPrefix} onChange={(e) => { const v = e.target.value; setSelectedPrefix(v); if (v) { setPrefixError(false); setPrefixModalOpen(false) } }}>
+                <option value="">Selecciona prefijo</option>
+                {PREFIXES.map(o => <option key={o.slug} value={o.slug}>{o.label}</option>)}
+              </select>
+            </label>
+          )}
         </div>
 
         <div style={{ marginTop:'12px' }}>
           <h2 className="h2" style={{ display:'flex', alignItems:'center', gap:8 }}>Evidencia {uploading ? (<svg width="16" height="16" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="#c0c4c9" strokeWidth="3" fill="none" opacity="0.25"/><path d="M12 2a10 10 0 0 1 0 20" stroke="var(--brand)" strokeWidth="3" fill="none"><animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="1s" repeatCount="indefinite"/></path></svg>) : null}</h2>
-          <div className="dropzone" onClick={isAdmin ? undefined : openFileDialog} onDrop={onDrop} onDragOver={onDragOver}>
-            {uploading ? (
-              <div style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:8, flexDirection:'column' }}>
-                <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-                  <svg width="24" height="24" viewBox="0 0 24 24">
-                    <circle cx="12" cy="12" r="10" stroke="#c0c4c9" strokeWidth="4" fill="none" opacity="0.25"/>
-                    <path d="M12 2a10 10 0 0 1 0 20" stroke="var(--brand)" strokeWidth="4" fill="none">
-                      <animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="1s" repeatCount="indefinite"/>
-                    </path>
-                  </svg>
-                  <span>Cargando imágenes...</span>
+          {!isAdmin && (
+            <div className="dropzone" onClick={isAdmin ? undefined : openFileDialog} onDrop={onDrop} onDragOver={onDragOver}>
+              {uploading ? (
+                <div style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:8, flexDirection:'column' }}>
+                  <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                    <svg width="24" height="24" viewBox="0 0 24 24">
+                      <circle cx="12" cy="12" r="10" stroke="#c0c4c9" strokeWidth="4" fill="none" opacity="0.25"/>
+                      <path d="M12 2a10 10 0 0 1 0 20" stroke="var(--brand)" strokeWidth="4" fill="none">
+                        <animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="1s" repeatCount="indefinite"/>
+                      </path>
+                    </svg>
+                    <span>Cargando imágenes...</span>
+                  </div>
+                  <div>Por favor espera</div>
                 </div>
-                <div>Por favor espera</div>
-              </div>
-            ) : (
-              <>
-                Arrastra y suelta archivos aquí<br/>
-                o haz clic para buscar
-              </>
-            )}
-          </div>
+              ) : (
+                <>
+                  Arrastra y suelta archivos aquí<br/>
+                  o haz clic para buscar
+                </>
+              )}
+            </div>
+          )}
           <div className="actions" style={{ justifyContent:'flex-start' }}>
             {!isAdmin && (
               <>
