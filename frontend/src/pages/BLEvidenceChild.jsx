@@ -150,14 +150,7 @@ function BLEvidenceChild() {
     API.get('/bls/' + tid + '/photos').then(async (res) => {
       if (!mounted) return
       let list = Array.isArray(res.data?.photos) ? res.data.photos : []
-      try {
-        const pr = String(numeroHblCurrent || '')
-        if (pr) {
-          const norm = await API.post('/bls/' + tid + '/photos/normalize', { prefix: pr })
-          list = Array.isArray(norm.data?.photos) ? norm.data.photos : list
-        }
-      } catch {}
-      setPhotos(normalizeList(list))
+      setPhotos(list)
     }).catch(() => setPhotos([])).finally(() => setLoading(false))
     try {
       const cache = JSON.parse(localStorage.getItem('tbMastersCache') || '{}')
@@ -230,24 +223,13 @@ function BLEvidenceChild() {
         setUploadProgress(Math.round((uploaded / total) * 100))
         setStatus('Guardando imagen ' + uploaded + ' de ' + total)
       }
-      try {
-        if (slug) {
-          const norm = await API.post('/bls/' + (hblId || targetId) + '/photos/normalize', { prefix: slug })
-          newPhotos = Array.isArray(norm.data?.photos) ? norm.data.photos : newPhotos
-        }
-      } catch {}
+
       try {
         const tid = String(hblId || targetId || '')
         if (tid) {
           const ref = await API.get('/bls/' + tid + '/photos')
           let list = Array.isArray(ref.data?.photos) ? ref.data.photos : newPhotos
-          try {
-            if (slug) {
-              const norm2 = await API.post('/bls/' + tid + '/photos/normalize', { prefix: slug })
-              list = Array.isArray(norm2.data?.photos) ? norm2.data.photos : list
-            }
-          } catch {}
-          setPhotos(normalizeList(list))
+          setPhotos(list)
         } else {
           const acc = []
           const seen = new Set()
@@ -255,7 +237,7 @@ function BLEvidenceChild() {
             const key = String(p.id || p.filename || '')
             if (!seen.has(key)) { seen.add(key); acc.push(p) }
           })
-          setPhotos(normalizeList(acc))
+          setPhotos(acc)
         }
       } catch {
         const acc = []
@@ -264,7 +246,7 @@ function BLEvidenceChild() {
           const key = String(p.id || p.filename || '')
           if (!seen.has(key)) { seen.add(key); acc.push(p) }
         })
-        setPhotos(normalizeList(acc))
+        setPhotos(acc)
       }
       setStatus('Imágenes subidas: ' + (newPhotos.length || filesToUse.length))
       setHasNewUploads(true)
@@ -288,11 +270,25 @@ function BLEvidenceChild() {
   }
 
   async function onToggleAveria(photoId, checked) {
+    const currentPhoto = (photos || []).find(p => p.id === photoId) || null
     setPhotos(prev => prev.map(p => (p.id === photoId ? { ...p, averia: !!checked } : p)))
     try {
       const tid = String(hblId || targetId || '')
       if (!tid) return
       await API.patch('/bls/' + tid + '/photos/averia', { flags: { [photoId]: !!checked } })
+      if (currentPhoto && currentPhoto.url) {
+        const res = await fetch(urlFor(currentPhoto.url))
+        const blob = await res.blob()
+        const contentBase64 = await blobToBase64(blob)
+        const name = String(currentPhoto.filename || '')
+        const dot = name.lastIndexOf('.')
+        const baseName = dot >= 0 ? name.slice(0, dot) : name
+        const ext = extFor(currentPhoto, blob.type)
+        const category = checked ? 'averia' : ''
+        const doc = { name: baseName, extension: ext, category, date: dayjs().format('DD/MM/YYYY'), contentBase64 }
+        const payload = { referenceNumber: String(numeroHblCurrent || targetId || ''), doNumber: String(details.numero_DO_hijo || details.numero_DO_master || ''), type: 'hijo', documents: [doc] }
+        await API.post(EVIDENCE_ENDPOINT, payload)
+      }
       setStatus('Avería actualizada')
     } catch (err) {
       setStatus('Error al actualizar avería: ' + (err.response?.data?.error || err.message))
@@ -353,11 +349,23 @@ function BLEvidenceChild() {
       ;(photos || []).forEach(p => { if (!String(p.id||'').endsWith('-local')) flagsExisting[p.id] = !!p.averia })
       await API.patch('/bls/' + (hblId || targetId) + '/photos/averia', { flags: flagsExisting })
       if (hasNewUploads && recentPhotoIds.length) {
+        const docs = recentDocuments.map(d => {
+          const dn = String(d.name || '')
+          let cat = String(d.category || '')
+          const match = (photos || []).find(p => {
+            const fn = String(p.filename || '')
+            const dot = fn.lastIndexOf('.')
+            const bn = dot >= 0 ? fn.slice(0, dot) : fn
+            return bn === dn
+          })
+          if (match && !!match.averia) cat = 'averia'
+          return { ...d, category: cat }
+        })
         const payload = {
           referenceNumber: String(numeroHblCurrent || targetId || ''),
           doNumber: String(details.numero_DO_hijo || details.numero_DO_master || ''),
           type: 'hijo',
-          documents: recentDocuments.slice()
+          documents: docs
         }
         await API.post(EVIDENCE_ENDPOINT, payload)
         setHasNewUploads(false)

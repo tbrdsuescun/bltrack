@@ -122,14 +122,7 @@ function BLEvidenceMaster() {
     API.get('/bls/' + tid + '/photos').then(async (res) => {
       if (!mounted) return
       let list = Array.isArray(res.data?.photos) ? res.data.photos : []
-      try {
-        const prefixes = Array.from(new Set(list.map(p => { const r = parsePrefix(p.filename || ''); return r ? r.prefix : null }).filter(Boolean)))
-        for (const pr of prefixes) {
-          const norm = await API.post('/bls/' + tid + '/photos/normalize', { prefix: pr })
-          list = Array.isArray(norm.data?.photos) ? norm.data.photos : list
-        }
-      } catch {}
-      setPhotos(normalizeList(list))
+      setPhotos(list)
     }).catch(() => setPhotos([])).finally(() => setLoading(false))
     try {
       const cache = JSON.parse(localStorage.getItem('tbMastersCache') || '{}')
@@ -196,7 +189,7 @@ function BLEvidenceMaster() {
       const now = Date.now()
       const staged = filesToUse.map((f, i) => ({ id: `${now + i}-local`, filename: f.name, url: URL.createObjectURL(f) }))
       setPendingFiles(prev => prev.concat(filesToUse))
-      setPhotos(prev => normalizeList(prev.concat(staged)))
+      setPhotos(prev => prev.concat(staged))
       setStatus('Fotos preparadas: ' + staged.length)
       const inc = filesToUse.length
       setCounters(prev => ({ ...prev, [slug]: start + inc }))
@@ -313,14 +306,7 @@ function BLEvidenceMaster() {
           const contentBase64 = await blobToBase64(f)
           return { name: baseName, extension: ext, category, date, contentBase64 }
         }))
-        try {
-          const prefixes = Array.from(new Set(newPhotos.map(p => { const r = parsePrefix(p.filename || ''); return r ? r.prefix : null }).filter(Boolean)))
-          for (const pr of prefixes) {
-            const norm = await API.post('/bls/' + targetId + '/photos/normalize', { prefix: pr })
-            newPhotos = Array.isArray(norm.data?.photos) ? norm.data.photos : newPhotos
-          }
-        } catch {}
-        setPhotos(normalizeList(newPhotos))
+        setPhotos(newPhotos)
         setPendingFiles([])
         setUploading(false)
         const payload = {
