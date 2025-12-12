@@ -22,9 +22,6 @@ router.get('/external/masters', authRequired, async (req, res) => {
     if (Array.isArray(payload)) data = payload
     else if (Array.isArray(payload?.data)) data = payload.data
     else if (Array.isArray(payload?.items)) data = payload.items
-    res.set('X-External-Status', String(response.status || ''))
-    res.set('X-External-Count', String(data.length))
-    res.set('X-External-Auth', username && password ? 'basic' : 'none')
     if (/text\/html/i.test(ct) && data.length === 0) {
       return res.status(502).json({ ok: false, error: 'External service returned HTML (likely auth required). Check MASTERS_USER/MASTERS_PASS.' })
     }
