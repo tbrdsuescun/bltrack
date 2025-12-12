@@ -11,10 +11,10 @@ function withLevel(level, args) {
 }
 
 const logger = {
-  // info: (...args) => console.log(withLevel('info', args.length === 1 ? args[0] : args)),
-  // error: (...args) => console.error(withLevel('error', args.length === 1 ? args[0] : args)),
-  // warn: (...args) => console.warn(withLevel('warn', args.length === 1 ? args[0] : args)),
-  // debug: (...args) => console.debug(withLevel('debug', args.length === 1 ? args[0] : args)),
+  info: (...args) => console.log(withLevel('info', args)),
+  error: (...args) => console.error(withLevel('error', args)),
+  warn: (...args) => console.warn(withLevel('warn', args)),
+  debug: (...args) => console.debug(withLevel('debug', args)),
 };
 
 module.exports = { logger };

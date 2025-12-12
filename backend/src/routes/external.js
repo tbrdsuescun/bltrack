@@ -10,6 +10,7 @@ router.get('/external/masters', authRequired, async (req, res) => {
     const puerto = String(req.query?.puerto || '').trim().toLowerCase()
     const base = MASTERS_URL
     const url = puerto ? `${base}?puerto=${encodeURIComponent(puerto)}` : base
+    res.set('X-External-URL', url)
     const username = process.env.MASTERS_USER || ''
     const password = process.env.MASTERS_PASS || ''
     const opts = { timeout: EXTERNAL_TIMEOUT_MS }
