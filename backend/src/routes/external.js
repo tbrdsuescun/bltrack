@@ -13,7 +13,7 @@ router.get('/external/masters', authRequired, async (req, res) => {
     res.set('X-External-URL', url)
     const username = MASTERS_USER || ''
     const password = MASTERS_PASS || ''
-    const opts = { timeout: EXTERNAL_TIMEOUT_MS }
+    const opts = { timeout: EXTERNAL_TIMEOUT_MS, headers: { Accept: 'application/json' } }
     if (username && password) opts.auth = { username, password }
     const response = await axios.get(url, opts)
     const ct = String(response.headers?.['content-type'] || '')
