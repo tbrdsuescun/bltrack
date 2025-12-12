@@ -2,12 +2,14 @@ import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import API from '../lib/api.js'
+import bannerLogin from '../assets/banner-login.png'
+import logoTB from '../assets/Logo-TB.png'
 
 
 function Login({ setUser }) {
   const navigate = useNavigate()
   const { register, handleSubmit, formState: { isSubmitting } } = useForm()
-  const imageUrl = '/src/assets/banner-login.png'
+  const imageUrl = bannerLogin
   const [error, setError] = useState(null)
 
   const onSubmit = async (data) => {
@@ -51,7 +53,7 @@ function Login({ setUser }) {
       <LoginHero imageUrl={imageUrl} />
       <div className="card login-card">
         <div className="login-card-content">
-          <img className="login-logo" src="/src/assets/Logo-TB.png" alt="Logística ágil" />
+          <img className="login-logo" src={logoTB} alt="Logística ágil" />
         </div>
         <h1 className="h1">Bienvenido</h1>
         <p className="muted">Introduce tu email y contraseña para acceder.</p>

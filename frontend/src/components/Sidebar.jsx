@@ -1,5 +1,6 @@
 import React from 'react'
 import { useNavigate } from 'react-router-dom'
+import logoSecondary from '../assets/Logo-TB_Secundario_blanco.png'
 
 function Sidebar({ user, onLogout, onNavigate }) {
   const navigate = useNavigate()
@@ -41,7 +42,7 @@ function Sidebar({ user, onLogout, onNavigate }) {
   return (
     <aside className="sidebar">
       <div className="side-header">
-        <img src="/src/assets/Logo-TB_Secundario_blanco.png" alt="BL tracker" width={100} />
+        <img src={logoSecondary} alt="BL tracker" width={100} />
         
       </div>
       <nav className="side-nav">
