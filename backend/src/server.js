@@ -1,5 +1,8 @@
 const path = require('path');
-require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
+const fs = require('fs');
+const envLocal = path.join(__dirname, '..', '.env');
+const envCwd = path.join(process.cwd(), '.env');
+require('dotenv').config({ path: fs.existsSync(envLocal) ? envLocal : envCwd });
 const http = require('http');
 const app = require('./app');
 const { logger } = require('./utils/logger');
