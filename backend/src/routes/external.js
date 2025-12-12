@@ -32,6 +32,6 @@ router.get('/external/masters', authRequired, async (req, res) => {
   } catch (err) {
     res.status(502).json({ ok: false, error: err.message })
   }
-})
+}) 
 
 module.exports = router
