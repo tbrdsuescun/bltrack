@@ -15,6 +15,7 @@ const externalRouter = require('./routes/external');
 const evidencesRouter = require('./routes/evidences');
 
 const app = express();
+app.set('etag', false);
 
 // Compresión Gzip/Brotli antes de static para reducir transfer
 app.use(compression());

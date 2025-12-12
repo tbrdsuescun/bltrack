@@ -69,15 +69,29 @@ function App() {
     const config = puertoParam ? { params: { puerto: puertoParam } } : {}
     const doFetch = () => {
       API.get('/external/masters', config).then(res => {
-        const data = Array.isArray(res.data?.data) ? res.data.data : []
+        let data = Array.isArray(res.data?.data) ? res.data.data : []
+        if (res.status === 304) {
+          try {
+            const v = JSON.parse(localStorage.getItem(key) || 'null')
+            data = Array.isArray(v?.data) ? v.data : []
+          } catch {}
+        }
         if (data.length > 0) {
           const payload = { data, ts: Date.now() }
           try { localStorage.setItem(key, JSON.stringify(payload)) } catch {}
           setConnIssue(null)
         } else {
-          throw new Error('Respuesta vacía')
+          setConnIssue(null)
         }
       }).catch(err => {
+        try {
+          const v = JSON.parse(localStorage.getItem(key) || 'null')
+          const data = Array.isArray(v?.data) ? v.data : []
+          if (data.length > 0) {
+            setConnIssue(null)
+            return
+          }
+        } catch {}
         setConnIssue('Sin conexión con el servidor. Se cerrará la sesión para reintentar conexión')
         try { window.AppLogout?.() } catch {}
       })

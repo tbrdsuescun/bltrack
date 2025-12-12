@@ -8,7 +8,7 @@ const router = express.Router()
 router.get('/external/masters', authRequired, async (req, res) => {
   try {
     const puerto = String(req.query?.puerto || '').trim().toLowerCase()
-    const base = 'https://tracking.transborder.com.co/Development/ApisNotes-Cotiz/DevRestApiNotesCotiz.nsf/api.xsp/operaciones/masters'
+    const base = MASTERS_URL
     const url = puerto ? `${base}?puerto=${encodeURIComponent(puerto)}` : base
     const username = process.env.MASTERS_USER || ''
     const password = process.env.MASTERS_PASS || ''
