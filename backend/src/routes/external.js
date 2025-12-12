@@ -7,7 +7,7 @@ const router = express.Router()
 
 router.get('/external/masters', authRequired, async (req, res) => {
   try {
-    const puerto = String(req.query?.puerto || '').trim().toLowerCase()
+    const puerto = String(req.query?.puerto || '').trim()
     const base = MASTERS_URL
     const url = puerto ? `${base}?puerto=${encodeURIComponent(puerto)}` : base
     res.set('X-External-URL', url)
@@ -16,7 +16,13 @@ router.get('/external/masters', authRequired, async (req, res) => {
     const opts = { timeout: EXTERNAL_TIMEOUT_MS }
     if (username && password) opts.auth = { username, password }
     const response = await axios.get(url, opts)
-    const data = Array.isArray(response.data?.data) ? response.data.data : []
+    const payload = response.data
+    let data = []
+    if (Array.isArray(payload)) data = payload
+    else if (Array.isArray(payload?.data)) data = payload.data
+    else if (Array.isArray(payload?.items)) data = payload.items
+    res.set('X-External-Status', String(response.status || ''))
+    res.set('X-External-Count', String(data.length))
     res.json({ data })
   } catch (err) {
     res.status(502).json({ ok: false, error: err.message })

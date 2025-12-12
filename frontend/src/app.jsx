@@ -56,7 +56,7 @@ function App() {
     let puertoParam = ''
     try {
       const u = JSON.parse(userStr || '{}')
-      const pr = String(u?.puerto || '').trim().toLowerCase()
+      const pr = String(u?.puerto || '').trim()
       puertoParam = pr
     } catch {}
     try {
