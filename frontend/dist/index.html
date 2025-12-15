@@ -26,11 +26,12 @@ html,body{margin:0;padding:0;font-family:Inter,system-ui,-apple-system,Segoe UI,
 .login-card button:disabled{opacity:.6;cursor:not-allowed}
 .login-card .error{color:#e11;margin-top:.5rem;font-size:.875rem}
 /* Fallback móvil si el stylesheet tarda en cargar (Safari/iOS) */
-@media(max-width:768px){ .login-grid{ display:flex; flex-direction:column; width:100%; max-width:100%; } }
+@media(max-width:768px){ .login-grid{ display:block !important; width:100% !important; max-width:100% !important; } .login-image{ display:none !important; } .login-card{ padding:20px !important; width:100% !important; } }
+@media(min-width:769px) and (max-width:1024px){ .login-grid{ display:block; width:100%; max-width:100%; } .login-image{ display:block; width:100%; height:clamp(240px,40vh,320px); } }
     </style>
     
-    <script type="module" crossorigin src="/assets/index-baf26ab0.js"></script>
-    <link rel="stylesheet" href="/assets/index-a67fd358.css">
+    <script type="module" crossorigin src="/assets/index-69833b18.js"></script>
+    <link rel="stylesheet" href="/assets/index-2744b151.css">
   </head>
   <body>
     <div id="root"></div>
