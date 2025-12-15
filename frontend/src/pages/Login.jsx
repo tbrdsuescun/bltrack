@@ -40,8 +40,8 @@ function Login({ setUser }) {
       <div className="login-image" style={{ backgroundImage: `url(${imageUrl})` }}>
         <div className="login-overlay">
           <div className="login-overlay-content">
-            <h2 className="h2" style={{ color: '#fff', marginBottom: '8px' }}>Logística ágil</h2>
-            <p className="muted" style={{ color: '#e5e7eb' }}>Sube fotos y gestiona tus Hbls.</p>
+            <h2 className="h2" style={{ color: '#fff', marginBottom: '8px' }}>Reporte fotográfico</h2>
+            <p className="muted" style={{ color: '#e5e7eb' }}>Toma y sube evidencias de tus HBLs.</p>
           </div>
         </div>
       </div>
