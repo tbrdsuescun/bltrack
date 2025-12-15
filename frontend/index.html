@@ -25,8 +25,10 @@ html,body{margin:0;padding:0;font-family:Inter,system-ui,-apple-system,Segoe UI,
 .login-card button{padding:.65rem 1rem;font-size:1rem;border:none;border-radius:.35rem;background:#111;color:#fff;cursor:pointer}
 .login-card button:disabled{opacity:.6;cursor:not-allowed}
 .login-card .error{color:#e11;margin-top:.5rem;font-size:.875rem}
+/* Fallback móvil si el stylesheet tarda en cargar (Safari/iOS) */
+@media(max-width:768px){ .login-grid{ grid-template-columns:1fr } }
     </style>
-    <link rel="stylesheet" href="/src/styles.css" media="print" onload="this.media='all'" />
+    <link rel="stylesheet" href="/src/styles.css" />
   </head>
   <body>
     <div id="root"></div>
