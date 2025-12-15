@@ -231,21 +231,22 @@ card .user {
 
 @media(max-width:768px) {
   .login-grid {
-    display: flex;
-    flex-direction: column;
-    width: 100%;
-    max-width: 100%;
-    min-height: 100vh;
-    padding: 8px;
-    gap: 8px;
-    background: #fff;
+    display: flex !important;
+    flex-direction: column !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-height: 100vh !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    gap: 0 !important;
   }
   .login-image {
     display: block !important;
     width: 100% !important;
     max-width: 100% !important;
-    height: clamp(180px, 28vh, 240px);
-    border-radius: 12px;
+    height: clamp(200px, 30vh, 260px);
+    border: 0;
+    border-radius: 0;
     background-size: cover;
     background-position: center;
     overflow: hidden;
@@ -255,15 +256,16 @@ card .user {
     border: 1px solid #e5e7eb !important;
     box-shadow: 0 8px 24px rgba(16,24,40,0.08) !important;
     border-radius: 12px !important;
-    padding: 12px 14px !important;
+    padding: 36px !important;
     width: 100% !important;
     max-width: 100% !important;
     margin: 0 !important;
+    align-self: stretch !important;
   }
   .login-card-content { padding-bottom: 0 !important; }
-  .login-logo { width: 180px !important; max-width: 70% !important; margin: 6px auto 0 !important; display:block !important; }
-  .login-card .h1 { margin: 8px 0 6px !important; }
-  .login-card .muted { margin: 0 0 8px !important; }
+  .login-logo { width: 300px !important; max-width: 80% !important; margin: 8px auto 0 !important; display:block !important; }
+  .login-card .h1 { margin: 40px 0 8px !important; }
+  .login-card .muted { margin: 0 0 10px !important; }
 }
 
 .login-image {
