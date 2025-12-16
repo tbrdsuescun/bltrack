@@ -179,10 +179,10 @@ function BLEvidenceChild() {
   async function onUpload(e) {
     const files = Array.from(e.target.files || [])
     if (!files.length || !targetId) return
-    const maxSize = 2 * 1024 * 1024
+    const maxSize = 5 * 1024 * 1024
     const valid = files.filter(f => Number(f.size || 0) <= maxSize)
     const skipped = files.length - valid.length
-    if (skipped > 0) setStatus('Se omitieron ' + skipped + ' archivo(s) por superar 2MB')
+    if (skipped > 0) setStatus('Se omitieron ' + skipped + ' archivo(s) por superar 5MB')
     if (!valid.length) return
     setUploading(true)
     setLoading(true)

@@ -181,10 +181,10 @@ function BLEvidenceMaster() {
     if (!files.length || !targetId) return
     if (containers.length && !selectedContainer) { setStatus('Selecciona un contenedor'); setContainerError(true); setContainerModalOpen(true); return }
     if (!selectedPrefix) { setStatus('Selecciona un prefijo para nombrar las fotos'); setPrefixError(true); setPrefixModalOpen(true); return }
-    const maxSize = 2 * 1024 * 1024
+    const maxSize = 5 * 1024 * 1024
     const valid = files.filter(f => Number(f.size || 0) <= maxSize)
     const skipped = files.length - valid.length
-    if (skipped > 0) setStatus('Se omitieron ' + skipped + ' archivo(s) por superar 2MB')
+    if (skipped > 0) setStatus('Se omitieron ' + skipped + ' archivo(s) por superar 5MB')
     if (!valid.length) return
     setUploading(true)
     setLoading(true)
