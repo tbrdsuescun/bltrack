@@ -348,7 +348,9 @@ function BLEvidenceChild() {
     try {
       const flagsExisting = {}
       ;(photos || []).forEach(p => { if (!String(p.id||'').endsWith('-local')) flagsExisting[p.id] = !!p.averia })
-      await API.patch('/bls/' + (hblId || targetId) + '/photos/averia', { flags: flagsExisting })
+      const resPatch = await API.patch('/bls/' + (hblId || targetId) + '/photos/averia', { flags: flagsExisting })
+      const okPatch = resPatch && resPatch.status >= 200 && resPatch.status < 300
+      if (!okPatch) throw new Error('Error en actualización de avería')
       if (hasNewUploads && recentPhotoIds.length) {
         const docs = recentDocuments.map(d => {
           const dn = String(d.name || '')
@@ -368,7 +370,9 @@ function BLEvidenceChild() {
           type: 'hijo',
           documents: docs
         }
-        await API.post(EVIDENCE_ENDPOINT, payload)
+        const resEv = await API.post(EVIDENCE_ENDPOINT, payload)
+        const ok = resEv && resEv.status >= 200 && resEv.status < 300 && (resEv.data?.success !== false)
+        if (!ok) throw new Error('Error en envío de evidencias')
         setHasNewUploads(false)
         setRecentPhotoIds([])
         setRecentDocuments([])

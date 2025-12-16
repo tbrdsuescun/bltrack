@@ -321,7 +321,6 @@ function BLEvidenceMaster() {
           return { name: baseName, extension: ext, category, date, contentBase64 }
         }))
         setPhotos(newPhotos)
-        setPendingFiles([])
         setUploading(false)
         const payload = {
           referenceNumber: String(details.master_id || ''),
@@ -329,9 +328,13 @@ function BLEvidenceMaster() {
           type: 'master',
           documents: docs
         }
-        await API.post(EVIDENCE_ENDPOINT, payload)
+        const resEv = await API.post(EVIDENCE_ENDPOINT, payload)
+        const ok = resEv && resEv.status >= 200 && resEv.status < 300 && (resEv.data?.success !== false)
+        if (!ok) throw new Error('Error en envío de evidencias')
+        setPendingFiles([])
+        setStatus('Guardado correctamente')
       }
-      setStatus('Guardado correctamente')
+      if (!pendingFiles.length) setStatus('No hay cambios para guardar')
     } catch (err) {
       setStatus('Error al guardar: ' + (err.response?.data?.error || err.message))
       setSaveError(true)
