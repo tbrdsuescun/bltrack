@@ -20,8 +20,9 @@ app.set('etag', false);
 // Compresión Gzip/Brotli antes de static para reducir transfer
 app.use(compression());
 
+const allowedOrigins = (process.env.FRONT_ORIGIN || '').split(',').filter(Boolean).concat(['http://localhost:4002'])
 app.use(cors({
-  origin: ['http://localhost:4002','http://Bltrack.transborder.com.co:4000'],
+  origin: allowedOrigins,
   methods: ['GET','POST','PATCH','DELETE','OPTIONS'],
   allowedHeaders: ['Content-Type','Authorization'],
 }));

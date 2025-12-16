@@ -1,8 +1,9 @@
 import axios from 'axios'
 
 // Instancia compartida de Axios para toda la app
+const base = (import.meta.env?.VITE_API_BASE_URL) || (import.meta.env.PROD ? '' : '/api')
 const API = axios.create({
-  baseURL: import.meta.env.PROD ? '' : '/api'
+  baseURL: base
 })
 
 // Interceptor para adjuntar token
