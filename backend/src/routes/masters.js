@@ -9,13 +9,13 @@ const router = express.Router();
 router.get('/masters', authRequired, async (req, res) => {
   try {
     const mastersRows = await sequelize.query(
-      'SELECT DISTINCT master_id FROM master_children',
+      'SELECT master_id, MAX(created_at) AS last_created FROM master_children GROUP BY master_id ORDER BY last_created DESC',
       { type: QueryTypes.SELECT }
     );
     const masterIds = mastersRows.map(r => r.master_id);
     if (masterIds.length === 0) return res.json({ items: [] });
     const counts = await sequelize.query(
-      'SELECT master_id, COUNT(child_id) AS children_count FROM master_children WHERE master_id IN (:masterIds) AND child_id <> master_id GROUP BY master_id ORDER BY master_id ASC',
+      'SELECT master_id, COUNT(child_id) AS children_count FROM master_children WHERE master_id IN (:masterIds) AND child_id <> master_id GROUP BY master_id',
       { replacements: { masterIds }, type: QueryTypes.SELECT }
     );
     const photosCounts = await sequelize.query(
@@ -64,26 +64,21 @@ router.get('/masters', authRequired, async (req, res) => {
 
 router.get('/masters/with-photos', authRequired, async (req, res) => {
   try {
-    const userId = req.user.id;
-    const recs = await RegistroFotografico.findAll({ where: { user_id: userId } });
-    const childIds = recs.map(r => r.bl_id);
-    console.log("childIds: ", childIds)
-    if (childIds.length === 0) return res.json({ items: [] });
     const mastersRows = await sequelize.query(
-      'SELECT DISTINCT master_id FROM master_children WHERE child_id IN (:childIds)',
-      { replacements: { childIds }, type: QueryTypes.SELECT }
+      'SELECT master_id, MAX(created_at) AS last_created FROM master_children GROUP BY master_id ORDER BY last_created DESC',
+      { type: QueryTypes.SELECT }
     );
     const masterIds = mastersRows.map(r => r.master_id);
     if (masterIds.length === 0) return res.json({ items: [] });
     const counts = await sequelize.query(
-      'SELECT master_id, COUNT(child_id) AS children_count FROM master_children WHERE master_id IN (:masterIds) AND child_id <> master_id GROUP BY master_id ORDER BY master_id ASC',
+      'SELECT master_id, COUNT(child_id) AS children_count FROM master_children WHERE master_id IN (:masterIds) AND child_id <> master_id GROUP BY master_id',
       { replacements: { masterIds }, type: QueryTypes.SELECT }
     );
     const photosCounts = await sequelize.query(
-      'SELECT bl_id AS master_id, COALESCE(SUM(JSON_LENGTH(photos)), 0) AS photos_count_master FROM registro_fotografico WHERE bl_id IN (:masterIds) AND user_id = :userId GROUP BY bl_id',
-      { replacements: { masterIds, userId }, type: QueryTypes.SELECT }
+      'SELECT bl_id AS master_id, COALESCE(SUM(JSON_LENGTH(photos)), 0) AS photos_count_master FROM registro_fotografico WHERE bl_id IN (:masterIds) GROUP BY bl_id',
+      { replacements: { masterIds }, type: QueryTypes.SELECT }
     );
-    const master = await sequelize.query(
+    const doRows = await sequelize.query(
       'SELECT master_id, MAX(numero_DO_master) AS numero_DO_master FROM master_children WHERE master_id IN (:masterIds) GROUP BY master_id',
       { replacements: { masterIds }, type: QueryTypes.SELECT }
     );
@@ -91,10 +86,9 @@ router.get('/masters/with-photos', authRequired, async (req, res) => {
     counts.forEach(r => { countMap[String(r.master_id)] = Number(r.children_count) });
     const photosMap = {};
     photosCounts.forEach(r => { photosMap[String(r.master_id)] = Number(r.photos_count_master) });
-    const masterMap = {};
-    console.log("master: ", master)
-    master.forEach(r => { masterMap[String(r.master_id)] = r.numero_DO_master ?? null });
-    const items = masterIds.map(id => ({ master: id, children_count: countMap[id] || 0, photos_count_master: photosMap[id] || 0, numero_DO_master: masterMap[id] ?? null }));
+    const doMap = {};
+    doRows.forEach(r => { doMap[String(r.master_id)] = r.numero_DO_master ?? null });
+    const items = masterIds.map(id => ({ master: id, children_count: countMap[id] || 0, photos_count_master: photosMap[id] || 0, numero_DO_master: doMap[id] ?? null }));
     res.json({ items });
   } catch (err) {
     res.status(500).json({ ok: false, error: 'Fallo al obtener masters con fotos', detail: err.message });

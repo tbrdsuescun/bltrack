@@ -12,7 +12,7 @@ function Panel({ user }) {
   const [filters, setFilters] = useState({ bl_id: '', status: '' })
   const [msg, setMsg] = useState(null)
   const [page, setPage] = useState(1)
-  const pageSize = 5
+  const pageSize = 10
   const navigate = useNavigate()
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768)
   const abortRef = useRef(null)
