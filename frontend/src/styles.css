@@ -142,7 +142,8 @@ body {
   .app-shell.sidebar-open .sidebar-backdrop { opacity:1; pointer-events:auto; }
   .content { padding:12px; }
   .page-header { flex-direction:column; align-items:flex-start; gap:10px; }
-  .searchbar input { width:100%; }
+  .searchbar input { width:100%; font-size:16px !important; }
+  .searchbar input:focus { box-shadow:none !important; border-color:#e5e7eb !important; }
   .actions-row { width:100%; justify-content:flex-end; }
   .tabs { flex-wrap:wrap; }
   .tab { padding:6px 10px; margin-bottom:6px; }
@@ -325,7 +326,7 @@ card .user {
 .side-logout:hover { background: rgba(255,255,255,0.25); }
 
 /* Header móvil */
-.mobile-header { display:none; }
+@media(min-width:769px){ .mobile-header { display:none; } }
 .menu-btn { background:transparent; border:none; color:#fff; font-size:20px; line-height:1; cursor:pointer; }
 
 .content { flex: 1; padding: 24px; background: #f7f9fb; }
