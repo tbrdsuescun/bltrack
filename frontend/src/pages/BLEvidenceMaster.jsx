@@ -408,8 +408,8 @@ function BLEvidenceMaster() {
           <div className="actions" style={{ justifyContent:'flex-start' }}>
             {!isAdmin && (
               <>
-                <button className="btn btn-primary" onClick={openFileDialog} disabled={uploading || loading}>Subir Archivo</button>
-                <button className="btn btn-outline" onClick={openFileDialog} disabled={uploading || loading}>Tomar Foto</button>
+                <button className="btn btn-primary" onClick={openFileDialog} disabled={uploading || loading}>Tomar Foto</button>
+                <button className="btn btn-outline" onClick={openFileDialog} disabled={uploading || loading}>Subir Archivo</button>
               </>
             )}
           </div>
