@@ -191,6 +191,7 @@ function BLEvidenceChild() {
       const slug = String(numeroHblCurrent || details.child_id || '')
       const used = []
       ;(Array.isArray(photos) ? photos : []).forEach(p => { const r = parsePrefix(p?.filename || ''); if (r && r.prefix === slug) used.push(r.num) })
+      ;(Array.isArray(pendingFiles) ? pendingFiles : []).forEach(f => { const r = parsePrefix(String(f.name || '')); if (r && r.prefix === slug) used.push(r.num) })
       const start = used.length ? Math.max(...used) + 1 : 1
       filesToUse = valid.map((f, i) => {
         const original = String(f.name || '')
@@ -199,64 +200,12 @@ function BLEvidenceChild() {
         const newName = `${slug}_${start + i}${ext}`
         return new File([f], newName, { type: f.type })
       })
-      setUploadProgress(0)
-      const total = filesToUse.length
-      let uploaded = 0
-      let newPhotos = []
-      for (const f of filesToUse) {
-        const fd = new FormData()
-        const masterIdVal = String(details.master_id || '')
-        fd.append('master_id', masterIdVal)
-        fd.append('child_id', String(details.child_id || ''))
-        fd.append('numero_DO_master', String(details.numero_DO_master || ''))
-        fd.append('numero_DO_hijo', String(details.numero_DO_hijo || ''))
-        fd.append('cliente_nombre', String(details.cliente_nombre || ''))
-        fd.append('numero_ie', String(details.numero_ie || ''))
-        fd.append('pais_de_origen', String(details.pais_de_origen || ''))
-        fd.append('puerto_de_origen', String(details.puerto_de_origen || ''))
-        if (cacheEntry) {
-          fd.append('cliente_nit', String(cacheEntry.nitCliente || cacheEntry.clienteNit || cacheEntry.nit || ''))
-          fd.append('descripcion_mercancia', String(cacheEntry.descripcionMercancia || cacheEntry.descripcion || ''))
-          fd.append('numero_pedido', String(cacheEntry.numeroPedido || cacheEntry.pedido || cacheEntry.orderNumber || ''))
-        }
-        const flags = { [f.name]: false }
-        fd.append('averia_flags', JSON.stringify(flags))
-        fd.append('photos', f)
-        const upRes = await API.post('/bls/' + (hblId || targetId) + '/photos', fd)
-        const batch = (upRes.data.photos || []).map(p => ({ ...p, url: p.id ? ('/uploads/' + p.id) : p.url }))
-        newPhotos = newPhotos.concat(batch)
-        uploaded += 1
-        setUploadProgress(Math.round((uploaded / total) * 100))
-        setStatus('Guardando imagen ' + uploaded + ' de ' + total)
-      }
-
-      try {
-        const tid = String(hblId || targetId || '')
-        if (tid) {
-          const ref = await API.get('/bls/' + tid + '/photos')
-          let list = Array.isArray(ref.data?.photos) ? ref.data.photos : newPhotos
-          setPhotos(list)
-        } else {
-          const acc = []
-          const seen = new Set()
-          ;(Array.isArray(photos) ? photos : []).concat(newPhotos).forEach(p => {
-            const key = String(p.id || p.filename || '')
-            if (!seen.has(key)) { seen.add(key); acc.push(p) }
-          })
-          setPhotos(acc)
-        }
-      } catch {
-        const acc = []
-        const seen = new Set()
-        ;(Array.isArray(photos) ? photos : []).concat(newPhotos).forEach(p => {
-          const key = String(p.id || p.filename || '')
-          if (!seen.has(key)) { seen.add(key); acc.push(p) }
-        })
-        setPhotos(acc)
-      }
-      setStatus('Imágenes subidas: ' + (newPhotos.length || filesToUse.length))
+      const now = Date.now()
+      const staged = filesToUse.map((f, i) => ({ id: `${now + i}-local`, filename: f.name, url: URL.createObjectURL(f) }))
+      setPendingFiles(prev => prev.concat(filesToUse))
+      setPhotos(prev => prev.concat(staged))
       setHasNewUploads(true)
-      setRecentPhotoIds(prev => prev.concat((newPhotos || []).map(p => String(p.id)).filter(Boolean)))
+      setStatus('Fotos preparadas: ' + staged.length)
       const docs = await Promise.all((filesToUse || []).map(async (f) => {
         const name = String(f.name || '')
         const dot = name.lastIndexOf('.')
@@ -278,6 +227,7 @@ function BLEvidenceChild() {
   async function onToggleAveria(photoId, checked) {
     const currentPhoto = (photos || []).find(p => p.id === photoId) || null
     setPhotos(prev => prev.map(p => (p.id === photoId ? { ...p, averia: !!checked } : p)))
+    if (String(photoId || '').endsWith('-local')) { setStatus('Avería actualizada (pendiente de guardar)'); return }
     try {
       const tid = String(hblId || targetId || '')
       if (!tid) return
@@ -305,6 +255,30 @@ function BLEvidenceChild() {
   async function onDeleteConfirmed() {
     const photoId = confirmPhoto?.id
     if (!photoId) { setConfirmPhoto(null); return }
+    if (String(photoId).endsWith('-local')) {
+      try {
+        setPhotos(prev => prev.filter(p => p.id !== photoId))
+        setPendingFiles(prev => {
+          const next = prev.slice()
+          const idx = next.findIndex(f => String(f.name || '') === String(confirmPhoto?.filename || ''))
+          if (idx >= 0) next.splice(idx, 1)
+          return next
+        })
+        try { if (confirmPhoto?.url) URL.revokeObjectURL(confirmPhoto.url) } catch {}
+        setRecentDocuments(prev => {
+          const name = String(confirmPhoto?.filename || '')
+          const dot = name.lastIndexOf('.')
+          const baseName = dot >= 0 ? name.slice(0, dot) : name
+          return prev.filter(d => String(d.name || '') !== baseName)
+        })
+        setStatus('Vista previa eliminada')
+      } catch (err) {
+        setStatus('Error al eliminar: ' + (err.response?.data?.error || err.message))
+      } finally {
+        setConfirmPhoto(null)
+      }
+      return
+    }
     setLoading(true)
     try {
       let res
@@ -362,24 +336,76 @@ function BLEvidenceChild() {
     setSaveModalOpen(true)
     setLoading(true)
     try {
+      if (pendingFiles.length) {
+        setUploading(true)
+        setUploadProgress(0)
+        const total = pendingFiles.length
+        let uploaded = 0
+        let newPhotos = []
+        for (const f of pendingFiles) {
+          const fd = new FormData()
+          const masterIdVal = String(details.master_id || '')
+          fd.append('master_id', masterIdVal)
+          fd.append('child_id', String(details.child_id || ''))
+          fd.append('numero_DO_master', String(details.numero_DO_master || ''))
+          fd.append('numero_DO_hijo', String(details.numero_DO_hijo || ''))
+          fd.append('cliente_nombre', String(details.cliente_nombre || ''))
+          fd.append('numero_ie', String(details.numero_ie || ''))
+          fd.append('pais_de_origen', String(details.pais_de_origen || ''))
+          fd.append('puerto_de_origen', String(details.puerto_de_origen || ''))
+          if (cacheEntry) {
+            fd.append('cliente_nit', String(cacheEntry.nitCliente || cacheEntry.clienteNit || cacheEntry.nit || ''))
+            fd.append('descripcion_mercancia', String(cacheEntry.descripcionMercancia || cacheEntry.descripcion || ''))
+            fd.append('numero_pedido', String(cacheEntry.numeroPedido || cacheEntry.pedido || cacheEntry.orderNumber || ''))
+          }
+          const averiaForFile = !!(photos || []).find(p => String(p.filename || '') === String(f.name || '') && !!p.averia)
+          fd.append('averia_flags', JSON.stringify({ [f.name]: averiaForFile }))
+          fd.append('photos', f)
+          const upRes = await API.post('/bls/' + (hblId || targetId) + '/photos', fd)
+          const batch = (upRes.data.photos || []).map(p => ({ ...p, url: p.id ? ('/uploads/' + p.id) : p.url }))
+          newPhotos = newPhotos.concat(batch)
+          uploaded += 1
+          setUploadProgress(Math.round((uploaded / total) * 100))
+          setStatus('Guardando imagen ' + uploaded + ' de ' + total)
+        }
+        try {
+          const tid = String(hblId || targetId || '')
+          const ref = await API.get('/bls/' + tid + '/photos')
+          let list = Array.isArray(ref.data?.photos) ? ref.data.photos : newPhotos
+          setPhotos(list)
+        } catch {
+          setPhotos(prev => {
+            const acc = []
+            const seen = new Set()
+            ;(Array.isArray(prev) ? prev : []).filter(p => !String(p.id||'').endsWith('-local')).forEach(p => { const key = String(p.id || p.filename || ''); if (!seen.has(key)) { seen.add(key); acc.push(p) } })
+            newPhotos.forEach(p => { const key = String(p.id || p.filename || ''); if (!seen.has(key)) { seen.add(key); acc.push(p) } })
+            return acc
+          })
+        }
+        setUploading(false)
+        setHasNewUploads(false)
+        setPendingFiles([])
+      }
       const flagsExisting = {}
       ;(photos || []).forEach(p => { if (!String(p.id||'').endsWith('-local')) flagsExisting[p.id] = !!p.averia })
-      const resPatch = await API.patch('/bls/' + (hblId || targetId) + '/photos/averia', { flags: flagsExisting })
-      const okPatch = resPatch && resPatch.status >= 200 && resPatch.status < 300
-      if (!okPatch) throw new Error('Error en actualización de avería')
-      if (hasNewUploads && recentPhotoIds.length) {
-        const docs = recentDocuments.map(d => {
-          const dn = String(d.name || '')
-          let cat = String(d.category || '')
-          const match = (photos || []).find(p => {
-            const fn = String(p.filename || '')
-            const dot = fn.lastIndexOf('.')
-            const bn = dot >= 0 ? fn.slice(0, dot) : fn
-            return bn === dn
-          })
-          if (match && !!match.averia) cat = 'averia'
-          return { ...d, category: cat }
+      if (Object.keys(flagsExisting).length) {
+        const resPatch = await API.patch('/bls/' + (hblId || targetId) + '/photos/averia', { flags: flagsExisting })
+        const okPatch = resPatch && resPatch.status >= 200 && resPatch.status < 300
+        if (!okPatch) throw new Error('Error en actualización de avería')
+      }
+      const docs = recentDocuments.map(d => {
+        const dn = String(d.name || '')
+        let cat = String(d.category || '')
+        const match = (photos || []).find(p => {
+          const fn = String(p.filename || '')
+          const dot = fn.lastIndexOf('.')
+          const bn = dot >= 0 ? fn.slice(0, dot) : fn
+          return bn === dn
         })
+        if (match && !!match.averia) cat = 'averia'
+        return { ...d, category: cat }
+      })
+      if (docs.length) {
         const payload = {
           referenceNumber: String(numeroHblCurrent || targetId || ''),
           doNumber: String(details.numero_DO_hijo || details.numero_DO_master || ''),
@@ -389,7 +415,6 @@ function BLEvidenceChild() {
         const resEv = await API.post(EVIDENCE_ENDPOINT, payload)
         const ok = resEv && resEv.status >= 200 && resEv.status < 300 && (resEv.data?.success !== false)
         if (!ok) throw new Error('Error en envío de evidencias')
-        setHasNewUploads(false)
         setRecentPhotoIds([])
         setRecentDocuments([])
       }
