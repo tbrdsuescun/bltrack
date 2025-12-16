@@ -156,6 +156,9 @@ body {
   .bottom-bar { display:flex; }
   .bottom-spacer { display:block; }
   .preview-grid { grid-template-columns: repeat(2, 1fr); }
+  .preview-card > div { flex-direction: column !important; align-items: flex-start !important; justify-content: flex-start !important; gap: 8px; }
+  .preview-card > div > div:last-child { display:flex; flex-wrap:wrap; gap:8px; justify-content:flex-start; }
+  .preview-card button { white-space:nowrap; }
 }
 @media(min-width:769px) and (max-width:1024px) {
   .login-grid { display:block; width:100%; max-width:100%; min-height:100vh; margin:0; padding:16px; }
