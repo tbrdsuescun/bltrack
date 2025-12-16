@@ -3,6 +3,7 @@ const path = require('path');
 const compression = require('compression');
 const cors = require('cors');
 const { errorHandler } = require('./middlewares/errorHandler');
+const { STORAGE_PATH } = require('./config');
 
 const authRouter = require('./routes/auth');
 const blsRouter = require('./routes/bls');
@@ -31,7 +32,7 @@ app.use(express.json({ limit: '1000mb' }));
 app.use(express.urlencoded({ extended: true, limit: '1000mb' }));
 
 // Static uploads
-app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
+app.use('/uploads', express.static(STORAGE_PATH));
 
 // Serve frontend static
 const FRONTEND_DIR = path.join(__dirname, '..', '..', 'frontend', 'dist');
