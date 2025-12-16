@@ -181,16 +181,21 @@ function BLEvidenceMaster() {
     if (!files.length || !targetId) return
     if (containers.length && !selectedContainer) { setStatus('Selecciona un contenedor'); setContainerError(true); setContainerModalOpen(true); return }
     if (!selectedPrefix) { setStatus('Selecciona un prefijo para nombrar las fotos'); setPrefixError(true); setPrefixModalOpen(true); return }
+    const maxSize = 2 * 1024 * 1024
+    const valid = files.filter(f => Number(f.size || 0) <= maxSize)
+    const skipped = files.length - valid.length
+    if (skipped > 0) setStatus('Se omitieron ' + skipped + ' archivo(s) por superar 2MB')
+    if (!valid.length) return
     setUploading(true)
     setLoading(true)
-    let filesToUse = files
+    let filesToUse = valid
     try {
       const slug = selectedPrefix
       const used = []
       ;(Array.isArray(photos) ? photos : []).forEach(p => { const r = parsePrefix(p?.filename || ''); if (r && r.prefix === slug && r.container === (selectedContainer || '')) used.push(r.num) })
       ;(Array.isArray(pendingFiles) ? pendingFiles : []).forEach(f => { const r = parsePrefix(String(f.name || '')); if (r && r.prefix === slug && r.container === (selectedContainer || '')) used.push(r.num) })
       const start = used.length ? Math.max(...used) + 1 : 1
-      filesToUse = files.map((f, i) => {
+      filesToUse = valid.map((f, i) => {
         const original = String(f.name || '')
         const dot = original.lastIndexOf('.')
         const ext = dot >= 0 ? original.slice(dot) : ''
