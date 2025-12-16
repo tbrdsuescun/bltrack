@@ -239,7 +239,18 @@ function BLEvidenceMaster() {
     }
     setLoading(true)
     try {
-      const res = await API.delete('/photos/' + photoId)
+      let res
+      try {
+        res = await API.delete('/photos/' + photoId)
+      } catch (errDel) {
+        const status = errDel?.response?.status
+        const ct = String(errDel?.response?.headers?.['content-type'] || '')
+        if (String(status) === '405' || /text\/html/i.test(ct)) {
+          res = await API.post('/photos/' + photoId + '/delete')
+        } else {
+          throw errDel
+        }
+      }
       if (res.data?.deleted) {
         const tid = String(targetId || '')
         if (tid) {

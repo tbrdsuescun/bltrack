@@ -202,4 +202,24 @@ router.delete('/photos/:photoId', authRequired, async (req, res) => {
   res.json({ photoId, deleted: ok, dbUpdated: removed > 0, updatedRecords: removed });
 });
 
+// Fallback por POST para entornos donde DELETE no está permitido por el proxy
+router.post('/photos/:photoId/delete', authRequired, async (req, res) => {
+  const { photoId } = req.params;
+  const ok = deleteFileSafe(filePath(photoId));
+  let removed = 0;
+  try {
+    const recs = await RegistroFotografico.findAll({ where: { user_id: req.user.id } });
+    for (const rec of recs) {
+      const list = Array.isArray(rec.photos) ? rec.photos : [];
+      const next = list.filter(p => String(p.id) !== String(photoId));
+      if (next.length !== list.length) {
+        rec.photos = next;
+        await rec.save();
+        removed += 1;
+      }
+    }
+  } catch {}
+  res.json({ photoId, deleted: ok, dbUpdated: removed > 0, updatedRecords: removed, method: 'POST' });
+});
+
 module.exports = router;

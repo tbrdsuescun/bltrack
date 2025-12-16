@@ -302,7 +302,18 @@ function BLEvidenceChild() {
     if (!photoId) { setConfirmPhoto(null); return }
     setLoading(true)
     try {
-      const res = await API.delete('/photos/' + photoId)
+      let res
+      try {
+        res = await API.delete('/photos/' + photoId)
+      } catch (errDel) {
+        const status = errDel?.response?.status
+        const ct = String(errDel?.response?.headers?.['content-type'] || '')
+        if (String(status) === '405' || /text\/html/i.test(ct)) {
+          res = await API.post('/photos/' + photoId + '/delete')
+        } else {
+          throw errDel
+        }
+      }
       if (res.data?.deleted) {
         setPhotos(prev => prev.filter(p => p.id !== photoId))
         const tid = String(hblId || targetId || '')
