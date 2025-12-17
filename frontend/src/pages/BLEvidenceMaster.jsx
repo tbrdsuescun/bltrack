@@ -305,7 +305,20 @@ function BLEvidenceMaster() {
         const total = pendingFiles.length
         let uploaded = 0
         let newPhotos = []
+        let allOk = true
         for (const f of pendingFiles) {
+          const name = String(f.name || '')
+          const dot = name.lastIndexOf('.')
+          const baseName = dot >= 0 ? name.slice(0, dot) : name
+          const ext = extFor({ filename: name }, f.type)
+          const date = dayjs().format('DD/MM/YYYY')
+          const r = parsePrefix(name)
+          const category = (r?.prefix === 'averia') ? 'averia' : ''
+          const contentBase64 = await blobToBase64(f)
+          const payload = { referenceNumber: String(details.master_id || ''), doNumber: String(details.numero_DO_master || ''), type: 'master', documents: [{ name: baseName, extension: ext, category, date, contentBase64 }] }
+          const resEv = await API.post(EVIDENCE_ENDPOINT, payload)
+          const okEv = resEv && resEv.status >= 200 && resEv.status < 300 && (resEv.data?.success !== false)
+          if (!okEv) { allOk = false; setSaveError(true); setStatus('Error en envío de evidencias para ' + baseName); break }
           const fd = new FormData()
           const masterIdVal = String(masterId || targetId || '')
           fd.append('master_id', masterIdVal)
@@ -325,30 +338,9 @@ function BLEvidenceMaster() {
           setUploadProgress(Math.round((uploaded / total) * 100))
           setStatus('Guardando imagen ' + uploaded + ' de ' + total)
         }
-        const docs = await Promise.all((pendingFiles || []).map(async (f) => {
-          const name = String(f.name || '')
-          const dot = name.lastIndexOf('.')
-          const baseName = dot >= 0 ? name.slice(0, dot) : name
-          const ext = extFor({ filename: name }, f.type)
-          const date = dayjs().format('DD/MM/YYYY')
-          const r = parsePrefix(name)
-          const category = (r?.prefix === 'averia') ? 'averia' : ''
-          const contentBase64 = await blobToBase64(f)
-          return { name: baseName, extension: ext, category, date, contentBase64 }
-        }))
-        setPhotos(newPhotos)
         setUploading(false)
-        const payload = {
-          referenceNumber: String(details.master_id || ''),
-          doNumber: String(details.numero_DO_master || ''),
-          type: 'master',
-          documents: docs
-        }
-        const resEv = await API.post(EVIDENCE_ENDPOINT, payload)
-        const ok = resEv && resEv.status >= 200 && resEv.status < 300 && (resEv.data?.success !== false)
-        if (!ok) throw new Error('Error en envío de evidencias')
-        setPendingFiles([])
-        setStatus('Guardado correctamente')
+        setPhotos(newPhotos)
+        if (allOk) { setPendingFiles([]); setStatus('Guardado correctamente') }
       }
       if (!pendingFiles.length) setStatus('No hay cambios para guardar')
     } catch (err) {

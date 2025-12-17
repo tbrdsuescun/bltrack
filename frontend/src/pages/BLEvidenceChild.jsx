@@ -342,7 +342,20 @@ function BLEvidenceChild() {
         const total = pendingFiles.length
         let uploaded = 0
         let newPhotos = []
+        let allOk = true
         for (const f of pendingFiles) {
+          const name = String(f.name || '')
+          const dot = name.lastIndexOf('.')
+          const baseName = dot >= 0 ? name.slice(0, dot) : name
+          const ext = extFor({ filename: name }, f.type)
+          const date = dayjs().format('DD/MM/YYYY')
+          const averiaForFile = !!(photos || []).find(p => String(p.filename || '') === String(f.name || '') && !!p.averia)
+          const category = averiaForFile ? 'averia' : ''
+          const contentBase64 = await blobToBase64(f)
+          const payload = { referenceNumber: String(numeroHblCurrent || targetId || ''), doNumber: String(details.numero_DO_hijo || details.numero_DO_master || ''), type: 'hijo', documents: [{ name: baseName, extension: ext, category, date, contentBase64 }] }
+          const resEv = await API.post(EVIDENCE_ENDPOINT, payload)
+          const okEv = resEv && resEv.status >= 200 && resEv.status < 300 && (resEv.data?.success !== false)
+          if (!okEv) { allOk = false; setSaveError(true); setStatus('Error en envío de evidencias para ' + baseName); break }
           const fd = new FormData()
           const masterIdVal = String(details.master_id || '')
           fd.append('master_id', masterIdVal)
@@ -358,7 +371,6 @@ function BLEvidenceChild() {
             fd.append('descripcion_mercancia', String(cacheEntry.descripcionMercancia || cacheEntry.descripcion || ''))
             fd.append('numero_pedido', String(cacheEntry.numeroPedido || cacheEntry.pedido || cacheEntry.orderNumber || ''))
           }
-          const averiaForFile = !!(photos || []).find(p => String(p.filename || '') === String(f.name || '') && !!p.averia)
           fd.append('averia_flags', JSON.stringify({ [f.name]: averiaForFile }))
           fd.append('photos', f)
           const upRes = await API.post('/bls/' + (hblId || targetId) + '/photos', fd)
@@ -384,7 +396,7 @@ function BLEvidenceChild() {
         }
         setUploading(false)
         setHasNewUploads(false)
-        setPendingFiles([])
+        if (allOk) setPendingFiles([])
       }
       const flagsExisting = {}
       ;(photos || []).forEach(p => { if (!String(p.id||'').endsWith('-local')) flagsExisting[p.id] = !!p.averia })
@@ -393,32 +405,9 @@ function BLEvidenceChild() {
         const okPatch = resPatch && resPatch.status >= 200 && resPatch.status < 300
         if (!okPatch) throw new Error('Error en actualización de avería')
       }
-      const docs = recentDocuments.map(d => {
-        const dn = String(d.name || '')
-        let cat = String(d.category || '')
-        const match = (photos || []).find(p => {
-          const fn = String(p.filename || '')
-          const dot = fn.lastIndexOf('.')
-          const bn = dot >= 0 ? fn.slice(0, dot) : fn
-          return bn === dn
-        })
-        if (match && !!match.averia) cat = 'averia'
-        return { ...d, category: cat }
-      })
-      if (docs.length) {
-        const payload = {
-          referenceNumber: String(numeroHblCurrent || targetId || ''),
-          doNumber: String(details.numero_DO_hijo || details.numero_DO_master || ''),
-          type: 'hijo',
-          documents: docs
-        }
-        const resEv = await API.post(EVIDENCE_ENDPOINT, payload)
-        const ok = resEv && resEv.status >= 200 && resEv.status < 300 && (resEv.data?.success !== false)
-        if (!ok) throw new Error('Error en envío de evidencias')
-        setRecentPhotoIds([])
-        setRecentDocuments([])
-      }
-      setStatus('Guardado correctamente')
+      setRecentPhotoIds([])
+      setRecentDocuments([])
+      if (!saveError) setStatus('Guardado correctamente')
     } catch (err) {
       setStatus('Error al guardar: ' + (err.response?.data?.error || err.message))
       setSaveError(true)
