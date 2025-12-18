@@ -20,7 +20,7 @@ function Layout({ user, onLogout, children }) {
     <div className={`app-shell ${sidebarOpen ? 'sidebar-open' : ''}`}>
       <div className="mobile-header">
         <button className="menu-btn" onClick={() => setSidebarOpen(v => !v)}>☰</button>
-        <div className="mobile-title">HBL Track</div>
+        <div className="mobile-title">BL Track</div>
         <div style={{width:24}} />
       </div>
       <Sidebar user={user} onLogout={onLogout} onNavigate={handleNavigate} />
