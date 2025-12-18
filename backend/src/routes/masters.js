@@ -8,9 +8,13 @@ const router = express.Router();
 
 router.get('/masters', authRequired, async (req, res) => {
   try {
+    const isAdmin = req.user.role === 'admin';
+    const whereClause = isAdmin ? '' : 'WHERE user_id = :userId';
+    const replacements = isAdmin ? {} : { userId: req.user.id };
+    
     const mastersRows = await sequelize.query(
-      'SELECT master_id, MAX(created_at) AS last_created FROM master_children GROUP BY master_id ORDER BY last_created DESC',
-      { type: QueryTypes.SELECT }
+      `SELECT master_id, MAX(created_at) AS last_created FROM master_children ${whereClause} GROUP BY master_id ORDER BY last_created DESC`,
+      { replacements, type: QueryTypes.SELECT }
     );
     const masterIds = mastersRows.map(r => r.master_id);
     if (masterIds.length === 0) return res.json({ items: [] });
@@ -64,9 +68,13 @@ router.get('/masters', authRequired, async (req, res) => {
 
 router.get('/masters/with-photos', authRequired, async (req, res) => {
   try {
+    const isAdmin = req.user.role === 'admin';
+    const whereClause = isAdmin ? '' : 'WHERE user_id = :userId';
+    const replacements = isAdmin ? {} : { userId: req.user.id };
+
     const mastersRows = await sequelize.query(
-      'SELECT master_id, MAX(created_at) AS last_created FROM master_children GROUP BY master_id ORDER BY last_created DESC',
-      { type: QueryTypes.SELECT }
+      `SELECT master_id, MAX(created_at) AS last_created FROM master_children ${whereClause} GROUP BY master_id ORDER BY last_created DESC`,
+      { replacements, type: QueryTypes.SELECT }
     );
     const masterIds = mastersRows.map(r => r.master_id);
     if (masterIds.length === 0) return res.json({ items: [] });
