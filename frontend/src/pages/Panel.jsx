@@ -57,7 +57,10 @@ function Panel({ user }) {
 
   useEffect(() => {
     try {
-      const v = JSON.parse(localStorage.getItem('tbMastersCache') || '{}')
+      const userStr = localStorage.getItem('user')
+      let key = 'tbMastersCache'
+      try { const u = JSON.parse(userStr || '{}'); const uid = String(u?.id || '').trim(); if (uid) key = `tbMastersCache:${uid}` } catch {}
+      const v = JSON.parse(localStorage.getItem(key) || '{}')
       const arr = Array.isArray(v.data) ? v.data : []
       setMastersRaw(arr)
     } catch {

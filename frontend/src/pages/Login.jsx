@@ -18,13 +18,9 @@ function Login({ setUser }) {
       localStorage.setItem('token', res.data.token)
       localStorage.setItem('user', JSON.stringify(res.data.user))
       try {
-        const puertoRaw = String(res.data.user?.puerto || '').trim()
-        const puerto = puertoRaw ? puertoRaw.toLowerCase() : ''
-        if (puerto) {
-          const mastersRes = await API.get('/external/masters', { params: { puerto } })
-          const data = Array.isArray(mastersRes.data?.data) ? mastersRes.data.data : []
-          const payload = { data, ts: Date.now() }
-          try { localStorage.setItem('tbMastersCache', JSON.stringify(payload)) } catch {}
+        for (let i = localStorage.length - 1; i >= 0; i--) {
+          const k = localStorage.key(i) || ''
+          if (k && k.startsWith('tbMastersCache')) localStorage.removeItem(k)
         }
       } catch {}
       setUser(res.data.user)

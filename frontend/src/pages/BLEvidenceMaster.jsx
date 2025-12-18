@@ -118,7 +118,10 @@ function BLEvidenceMaster() {
 
   const details = useMemo(() => {
     try {
-      const cache = JSON.parse(localStorage.getItem('tbMastersCache') || '{}')
+      const userStr = localStorage.getItem('user')
+      let key = 'tbMastersCache'
+      try { const u = JSON.parse(userStr || '{}'); const uid = String(u?.id || '').trim(); if (uid) key = `tbMastersCache:${uid}` } catch {}
+      const cache = JSON.parse(localStorage.getItem(key) || '{}')
       const arr = Array.isArray(cache.data) ? cache.data : []
       const masterIdLocal = String(masterId || targetId || '')
       const m = arr.find(x => String(x.numeroMaster || '') === masterIdLocal)
@@ -140,7 +143,10 @@ function BLEvidenceMaster() {
       setPhotos(list)
     }).catch(() => setPhotos([])).finally(() => setLoading(false))
     try {
-      const cache = JSON.parse(localStorage.getItem('tbMastersCache') || '{}')
+      const userStr = localStorage.getItem('user')
+      let key = 'tbMastersCache'
+      try { const u = JSON.parse(userStr || '{}'); const uid = String(u?.id || '').trim(); if (uid) key = `tbMastersCache:${uid}` } catch {}
+      const cache = JSON.parse(localStorage.getItem(key) || '{}')
       const arr = Array.isArray(cache.data) ? cache.data : []
       const entryMaster = arr.find(x => (x.numeroMaster || '') && String(x.numeroMaster) === String(tid))
       if (entryMaster) setCacheEntry(entryMaster)
@@ -154,11 +160,13 @@ function BLEvidenceMaster() {
       const n = Number((raw.split('-')[0]) || 0)
       return Number.isFinite(n) ? n : 0
     }
-    return (photos || [])
+    const arr = (photos || [])
       .filter(p => p && p.id && p.url)
       .slice()
-      .sort((a, b) => parseTs(a) - parseTs(b))
-  }, [photos])
+    const cont = String(selectedContainer || '').trim()
+    const filtered = cont ? arr.filter(p => { const r = parsePrefix(p?.filename || ''); return String(r?.container || '') === cont }) : arr
+    return filtered.sort((a, b) => parseTs(a) - parseTs(b))
+  }, [photos, selectedContainer])
 
   useEffect(() => {
     const next = {}

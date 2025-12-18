@@ -21,18 +21,46 @@ function BLDetail({ user }) {
   const [mineMap, setMineMap] = useState({})
   const [childrenList, setChildrenList] = useState([])
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768)
+  const [syncProgress, setSyncProgress] = useState(0)
+  const [syncActive, setSyncActive] = useState(false)
   useEffect(() => { const onResize = () => setIsMobile(window.innerWidth <= 768); window.addEventListener('resize', onResize); return () => window.removeEventListener('resize', onResize) }, [])
   const isAdmin = (() => { try { const u = JSON.parse(localStorage.getItem('user') || '{}'); return String(u.role || '') === 'admin' } catch { return false } })()
   
   useEffect(() => {
     try {
-      const v = JSON.parse(localStorage.getItem('tbMastersCache') || '{}')
+      const userStr = localStorage.getItem('user')
+      let key = 'tbMastersCache'
+      try { const u = JSON.parse(userStr || '{}'); const uid = String(u?.id || '').trim(); if (uid) key = `tbMastersCache:${uid}` } catch {}
+      const v = JSON.parse(localStorage.getItem(key) || 'null') || window['__MEM_' + key] || {}
       const arr = Array.isArray(v.data) ? v.data : []
       setMastersRaw(arr)
     } catch {
       setMastersRaw([])
     }
   }, [])
+
+  useEffect(() => {
+    const t = setInterval(() => {
+      try {
+        const s = window.MastersSync || {}
+        const progress = Math.round(Number(s.progress || 0))
+        // If progress is moving (between 0 and 100) consider it active to show loader
+        const isActive = String(s.status || '') === 'syncing' || (progress > 0 && progress < 100)
+        setSyncProgress(progress)
+        setSyncActive(isActive)
+
+        const userStr = localStorage.getItem('user')
+        let key = 'tbMastersCache'
+        try { const u = JSON.parse(userStr || '{}'); const uid = String(u?.id || '').trim(); if (uid) key = `tbMastersCache:${uid}` } catch {}
+        const v = JSON.parse(localStorage.getItem(key) || 'null') || window['__MEM_' + key] || {}
+        const arr = Array.isArray(v.data) ? v.data : []
+        if (arr.length !== mastersRaw.length) {
+          setMastersRaw(arr)
+        }
+      } catch {}
+    }, 200)
+    return () => clearInterval(t)
+  }, [mastersRaw.length])
 
   useEffect(() => {
     API.get('/bls/mine').then(res => {
@@ -116,7 +144,7 @@ function BLDetail({ user }) {
       setStatus('Fotos cargadas: ' + newPhotos.length)
       try {
         if (selectedMaster && selectedDo) {
-          const entry = (() => { try { const v = JSON.parse(localStorage.getItem('tbMastersCache') || '{}'); const arr = Array.isArray(v.data) ? v.data : []; return arr.find(x => String(x.numeroDo||'') === String(selectedDo)) } catch { return null } })()
+          const entry = (() => { try { const userStr = localStorage.getItem('user'); let key = 'tbMastersCache'; try { const u = JSON.parse(userStr || '{}'); const uid = String(u?.id || '').trim(); if (uid) key = `tbMastersCache:${uid}` } catch {} const v = JSON.parse(localStorage.getItem(key) || '{}'); const arr = Array.isArray(v.data) ? v.data : []; return arr.find(x => String(x.numeroDo||'') === String(selectedDo)) } catch { return null } })()
           const item = {
             master_id: selectedMaster,
             child_id: selectedDo,
@@ -164,6 +192,17 @@ function BLDetail({ user }) {
       </div>
 
       <div className="card">
+        {syncActive && (
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+              <span className="muted" style={{ fontSize: '0.9rem' }}>Sincronizando masters...</span>
+              <span className="muted" style={{ fontSize: '0.9rem' }}>{syncProgress}%</span>
+            </div>
+            <div style={{ width: '100%', height: 6, background: '#f3f4f6', borderRadius: 3, overflow: 'hidden' }}>
+              <div style={{ width: `${syncProgress}%`, height: '100%', background: 'var(--brand)', transition: 'width 0.3s ease' }} />
+            </div>
+          </div>
+        )}
         <div className="grid-2">
           <label className="label">Master
             <SearchBar placeholder="Buscar master" value={masterInput} onChange={e => setMasterInput(e.target.value)} options={mastersOptions} onSelect={(o) => { const v = o.value ?? o.label ?? String(o); setSelectedMaster(v); setMasterInput(String(o.label ?? v)); setDoInput(''); setSelectedDo('') }} fullWidth />

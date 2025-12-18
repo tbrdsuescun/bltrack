@@ -36,11 +36,19 @@ function App() {
   const handleLogout = useCallback(() => {
     localStorage.removeItem('token')
     localStorage.removeItem('user')
+    try {
+      for (let i = localStorage.length - 1; i >= 0; i--) {
+        const k = localStorage.key(i) || ''
+        if (k && k.startsWith('tbMastersCache')) localStorage.removeItem(k)
+      }
+    } catch {}
     setUser(null)
     try { setConnIssue(null) } catch {}
   }, [])
 
   const [connIssue, setConnIssue] = useState(null)
+  const [syncMsg, setSyncMsg] = useState(null)
+  const [syncProgress, setSyncProgress] = useState(0)
 
   // Make logout available globally for components
   useEffect(() => {
@@ -51,13 +59,15 @@ function App() {
     const token = localStorage.getItem('token')
     const userStr = localStorage.getItem('user')
     if (!token || !userStr) return
-    const key = 'tbMastersCache'
     let stale = true
     let puertoParam = ''
+    let key = 'tbMastersCache'
     try {
       const u = JSON.parse(userStr || '{}')
       const pr = String(u?.puerto || '').trim()
+      const uid = String(u?.id || '').trim()
       puertoParam = pr
+      if (uid) key = `tbMastersCache:${uid}`
     } catch {}
     try {
       const v = JSON.parse(localStorage.getItem(key) || 'null')
@@ -68,37 +78,101 @@ function App() {
     if (!stale) { setConnIssue(null); return }
     const config = puertoParam ? { params: { puerto: puertoParam } } : {}
     const doFetch = () => {
-      API.get('/external/masters', config).then(res => {
-        let data = Array.isArray(res.data?.data) ? res.data.data : []
-        if (res.status === 304) {
-          try {
-            const v = JSON.parse(localStorage.getItem(key) || 'null')
-            data = Array.isArray(v?.data) ? v.data : []
-          } catch {}
-        }
-        if (data.length > 0) {
-          const payload = { data, ts: Date.now() }
-          try { localStorage.setItem(key, JSON.stringify(payload)) } catch {}
-          setConnIssue(null)
-        } else {
-          setConnIssue(null)
-        }
-      }).catch(err => {
+      if (window.__mastersFetching) return
+      window.__mastersFetching = true
+      window.MastersSync = { status: 'syncing', progress: 5, total: 0, count: 0 }
+      setSyncMsg('Sincronizando masters')
+      setSyncProgress(5)
+      
+      // Helper to save to storage or memory fallback
+      const saveCache = (payload) => {
         try {
-          const v = JSON.parse(localStorage.getItem(key) || 'null')
-          const data = Array.isArray(v?.data) ? v.data : []
-          if (data.length > 0) {
-            setConnIssue(null)
-            return
+          localStorage.setItem(key, JSON.stringify(payload))
+        } catch (e) {
+          console.warn('LocalStorage full, using memory fallback')
+          window['__MEM_' + key] = payload
+        }
+      }
+
+      API.get('/masters').then(res => {
+        const items = Array.isArray(res.data?.items) ? res.data.items : []
+        const seed = items.map(it => ({ numeroMaster: String(it.master || ''), hijos: [] }))
+        const payloadSeed = { data: seed, ts: Date.now() }
+        saveCache(payloadSeed)
+      }).catch(() => {}).finally(() => {
+        API.get('/external/masters', config).then(res => {
+          let data = Array.isArray(res.data?.data) ? res.data.data : []
+          if (res.status === 304) {
+            try {
+              const v = JSON.parse(localStorage.getItem(key) || 'null') || window['__MEM_' + key]
+              data = Array.isArray(v?.data) ? v.data : []
+            } catch {}
           }
-        } catch {}
-        setConnIssue('Sin conexión con el servidor. Se cerrará la sesión para reintentar conexión')
-        try { window.AppLogout?.() } catch {}
+          if (data.length > 0) {
+            const total = data.length
+            // Optimize: map to essential fields to save space
+            const minData = data.map(m => ({
+              numeroMaster: m.numeroMaster,
+              numeroDo: m.numeroDo,
+              hijos: (m.hijos || []).map(h => ({
+                numeroHBL: h.numeroHBL,
+                cliente: h.cliente,
+                puertoOrigen: h.puertoOrigen,
+                numeroIE: h.numeroIE,
+                numeroDo: h.numeroDo,
+                paisOrigen: h.paisOrigen
+              }))
+            }))
+            
+            let idx = Math.max(1, Math.floor(total * 0.2))
+            const first = { data: minData.slice(0, idx), ts: Date.now() }
+            saveCache(first)
+            
+            setSyncProgress(Math.round((idx / total) * 100))
+            const step = () => {
+              if (idx >= total) {
+                setSyncMsg(null)
+                setConnIssue(null)
+                window.MastersSync = { status: 'done', progress: 100, total, count: total }
+                window.__mastersFetching = false
+                return
+              }
+              idx = Math.min(total, idx + Math.max(1, Math.floor(total * 0.2)))
+              const pl = { data: minData.slice(0, idx), ts: Date.now() }
+              saveCache(pl)
+              const pct = Math.round((idx / total) * 100)
+              setSyncProgress(pct)
+              window.MastersSync = { status: 'syncing', progress: pct, total, count: idx }
+              setTimeout(step, 150)
+            }
+            window.MastersSync = { status: 'syncing', progress: Math.round((idx / total) * 100), total, count: idx }
+            setTimeout(step, 200)
+          } else {
+            setSyncMsg(null)
+            setConnIssue(null)
+            window.MastersSync = { status: 'done', progress: 100, total: 0, count: 0 }
+            window.__mastersFetching = false
+          }
+        }).catch(() => {
+          setSyncMsg(null)
+          try {
+            const v = JSON.parse(localStorage.getItem(key) || 'null') || window['__MEM_' + key]
+            const data = Array.isArray(v?.data) ? v.data : []
+            if (data.length > 0) {
+              setConnIssue(null)
+              window.MastersSync = { status: 'done', progress: 100, total: data.length, count: data.length }
+              window.__mastersFetching = false
+              return
+            }
+          } catch {}
+          setConnIssue('Sin conexión con el servidor. Trabajando con caché local')
+          window.__mastersFetching = false
+        })
       })
     }
     doFetch()
     return () => {}
-  }, [])
+  }, [user])
 
   return (
     <>
@@ -109,6 +183,15 @@ function App() {
             <span>{connIssue}</span>
           </div>
           <button type="button" onClick={() => setConnIssue(null)} className="btn btn-small" style={{ background:'transparent', color:'#8a5c00' }}>×</button>
+        </div>
+      )}
+      {syncMsg && (
+        <div style={{ position:'fixed', top: connIssue ? 36 : 0, left:0, right:0, background:'#eef6ff', color:'#034ea2', borderBottom:'1px solid #e5e7eb', padding:'8px 12px', zIndex:1000, display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+          <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+            <span style={{ width:8, height:8, borderRadius:'50%', background:'#1c64f2' }} />
+            <span>{syncMsg} {syncProgress ? (syncProgress + '%') : ''}</span>
+          </div>
+          <button type="button" onClick={() => setSyncMsg(null)} className="btn btn-small" style={{ background:'transparent', color:'#034ea2' }}>×</button>
         </div>
       )}
       <Router future={{ v7_relativeSplatPath: true, v7_startTransition: true }}>

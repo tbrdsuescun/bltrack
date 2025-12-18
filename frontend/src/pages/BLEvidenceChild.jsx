@@ -110,7 +110,10 @@ function BLEvidenceChild() {
     const directCache = String(cacheEntry?.numeroHBL || cacheEntry?.hbl || '').trim()
     if (directCache) return directCache
     try {
-      const cache = JSON.parse(localStorage.getItem('tbMastersCache') || '{}')
+      const userStr = localStorage.getItem('user')
+      let key = 'tbMastersCache'
+      try { const u = JSON.parse(userStr || '{}'); const uid = String(u?.id || '').trim(); if (uid) key = `tbMastersCache:${uid}` } catch {}
+      const cache = JSON.parse(localStorage.getItem(key) || '{}')
       const arr = Array.isArray(cache.data) ? cache.data : []
       const masterCode = String(masterId || cacheEntry?.numeroMaster || '')
       const masterObj = arr.find(m => String(m.numeroMaster || '') === masterCode && Array.isArray(m.hijos))
@@ -122,7 +125,10 @@ function BLEvidenceChild() {
 
   const details = useMemo(() => {
     try {
-      const cache = JSON.parse(localStorage.getItem('tbMastersCache') || '{}')
+      const userStr = localStorage.getItem('user')
+      let key = 'tbMastersCache'
+      try { const u = JSON.parse(userStr || '{}'); const uid = String(u?.id || '').trim(); if (uid) key = `tbMastersCache:${uid}` } catch {}
+      const cache = JSON.parse(localStorage.getItem(key) || '{}')
       const arr = Array.isArray(cache.data) ? cache.data : []
       const masterRow = arr.find(m => String(m.numeroMaster || '') === String(masterId || ''))
       const childRow = masterRow?.hijos?.find(h => String(h.numeroHBL || h.hbl || '') === String(hblId || '')) || arr.find(x => String(x.numeroHBL || x.hbl || '') === String(hblId || ''))
@@ -154,7 +160,10 @@ function BLEvidenceChild() {
       setPhotos(list)
     }).catch(() => setPhotos([])).finally(() => setLoading(false))
     try {
-      const cache = JSON.parse(localStorage.getItem('tbMastersCache') || '{}')
+      const userStr = localStorage.getItem('user')
+      let key = 'tbMastersCache'
+      try { const u = JSON.parse(userStr || '{}'); const uid = String(u?.id || '').trim(); if (uid) key = `tbMastersCache:${uid}` } catch {}
+      const cache = JSON.parse(localStorage.getItem(key) || '{}')
       const arr = Array.isArray(cache.data) ? cache.data : []
       const masterRow = arr.find(x => String(x.numeroMaster || '') === String(masterId || ''))
       const childRow = masterRow?.hijos?.find(h => String(h.numeroHBL || h.hbl || '') === String(hblId || '')) || arr.find(x => String(x.numeroHBL || x.hbl || '') === String(hblId || ''))
