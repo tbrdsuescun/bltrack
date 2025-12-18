@@ -85,14 +85,48 @@ function BLEvidenceMaster() {
   const [containerModalOpen, setContainerModalOpen] = useState(false)
   const [containerError, setContainerError] = useState(false)
   const containers = useMemo(() => {
-    const raw = cacheEntry?.contenedores
-    const arr = Array.isArray(raw) ? raw : []
-    return arr.map((c) => {
-      if (typeof c === 'string') return { label: c, value: c }
-      const v = String(c?.numeroContenedor || c?.numero_contenedor || c?.numero || c?.container || c?.id || c?.code || c?.name || '').trim()
-      const label = String(c?.label || c?.nombre || c?.name || v || '').trim()
-      return { label: label || v, value: v || label }
-    }).filter(x => x && x.value)
+    const gathered = new Set()
+    const entry = cacheEntry || {}
+    const visited = new Set()
+
+    const extractFrom = (item) => {
+      if (!item || typeof item !== 'object') return
+      if (visited.has(item)) return
+      visited.add(item)
+
+      // Propiedades directas de contenedor
+      const direct = item.numeroContenedor || item.numero_contenedor || item.contenedor || item.container || item.numero || item.equipmentId || item.unitId
+      if (direct && (typeof direct === 'string' || typeof direct === 'number')) {
+        const s = String(direct).trim()
+        // Evitar agregar IDs numéricos pequeños que parezcan falsos positivos, aunque aceptamos todo por ahora
+        if (s.length > 2) gathered.add(s)
+      }
+
+      // Listas de contenedores
+      const listKeys = ['contenedores', 'containers', 'units', 'equipments']
+      listKeys.forEach(key => {
+        const list = item[key]
+        if (Array.isArray(list)) {
+          list.forEach(c => {
+            if (!c) return
+            if (typeof c === 'string' || typeof c === 'number') gathered.add(String(c).trim())
+            else extractFrom(c)
+          })
+        }
+      })
+
+      // Estructuras anidadas (hijos, master, data, etc.)
+      const childKeys = ['hijos', 'childs', 'children', 'subOrders', 'items', 'master', 'data', 'details']
+      childKeys.forEach(key => {
+        const val = item[key]
+        if (Array.isArray(val)) val.forEach(extractFrom)
+        else if (val && typeof val === 'object') extractFrom(val)
+      })
+    }
+
+    extractFrom(entry)
+    
+    return Array.from(gathered).filter(Boolean).sort().map(v => ({ label: v, value: v }))
   }, [cacheEntry])
   const [saveModalOpen, setSaveModalOpen] = useState(false)
   const [saveError, setSaveError] = useState(false)
@@ -151,6 +185,35 @@ function BLEvidenceMaster() {
       const entryMaster = arr.find(x => (x.numeroMaster || '') && String(x.numeroMaster) === String(tid))
       if (entryMaster) setCacheEntry(entryMaster)
     } catch {}
+
+    // Fetch full details from API to ensure we have containers (which might be missing in cache)
+    API.get(`/external/masters/${tid}`).then(res => {
+      if (!mounted) return
+      const fullData = res.data?.data || res.data
+      if (fullData) {
+        setCacheEntry(prev => ({ ...(prev || {}), ...fullData }))
+        try {
+          const userStr = localStorage.getItem('user')
+          let key = 'tbMastersCache'
+          try { const u = JSON.parse(userStr || '{}'); const uid = String(u?.id || '').trim(); if (uid) key = `tbMastersCache:${uid}` } catch {}
+          const cache = JSON.parse(localStorage.getItem(key) || '{}')
+          let arr = Array.isArray(cache.data) ? cache.data : []
+          const idx = arr.findIndex(x => String(x.numeroMaster || '') === String(tid))
+          if (idx >= 0) {
+            arr[idx] = { ...arr[idx], ...fullData }
+          } else {
+            arr.push(fullData)
+          }
+          cache.data = arr
+          localStorage.setItem(key, JSON.stringify(cache))
+        } catch (e) {
+          console.warn('Error updating cache', e)
+        }
+      }
+    }).catch(err => {
+      console.warn('Could not fetch master details:', err)
+    })
+
     return () => { mounted = false }
   }, [targetId])
 
@@ -380,29 +443,23 @@ function BLEvidenceMaster() {
             Selecciona un contenedor (si aplica) y el tipo de fotografía antes de subir archivos.
           </p>
         </div>
-        <div className="actions-row">
+        <div className="actions-row" style={{ gap: '8px' }}>
           {!isAdmin && (
-            <button className="btn btn-primary" onClick={() => {
-              if (containers.length && !selectedContainer) { setContainerError(true); setContainerModalOpen(true); return }
-              if (!selectedPrefix) { setPrefixError(true); setPrefixModalOpen(true); return }
-              fileInputCameraRef.current?.click()
-            }}>
-              {uploading ? `Subiendo ${uploadProgress}%...` : '+ Subir Fotos'}
-            </button>
+            <>
+              <button className="btn btn-outline" onClick={() => navigate(-1)}>← Volver</button>
+            </>
           )}
         </div>
       </div>
 
       <div className="card">
         <div className="grid-2">
-          {!isAdmin && containers.length > 0 ? (
-            <label className="label">Contenedor
-              <select className="input" value={selectedContainer} onChange={(e) => { const v = e.target.value; setSelectedContainer(v); if (v) { setContainerError(false); setContainerModalOpen(false) } }}>
-                <option value="">Selecciona contenedor</option>
-                {containers.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
-              </select>
-            </label>
-          ) : null}
+          <label className="label">Contenedor
+            <select className="input" value={selectedContainer} onChange={(e) => { const v = e.target.value; setSelectedContainer(v); if (v) { setContainerError(false); setContainerModalOpen(false) } }}>
+              <option value="">Selecciona contenedor</option>
+              {containers.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+            </select>
+          </label>
           {!isAdmin && (
             <label className="label">Prefijo para nombrar
               <select className="input" value={selectedPrefix} onChange={(e) => { const v = e.target.value; setSelectedPrefix(v); if (v) { setPrefixError(false); setPrefixModalOpen(false) } }}>
@@ -526,7 +583,7 @@ function BLEvidenceMaster() {
         )}
 
         <div className="actions" style={{ justifyContent:'flex-end' }}>
-          {!isAdmin && <button className="btn btn-outline" onClick={onSave} disabled={loading}>Guardar</button>}
+          {!isAdmin && <button className="btn btn-info" onClick={onSave} disabled={loading}>Guardar</button>}
         </div>
 
         {isMobile && !isAdmin && (pendingFiles.length > 0 || uploading) && (
@@ -534,7 +591,7 @@ function BLEvidenceMaster() {
             <div className="bottom-spacer" />
             <div className="bottom-bar">
               <button className="btn btn-primary" onClick={openCameraDialog} disabled={uploading || loading}>Cámara</button>
-              <button className="btn btn-outline" onClick={openFileDialog} disabled={uploading || loading}>Subir</button>
+              <button className="btn btn-info" onClick={openFileDialog} disabled={uploading || loading}>Subir</button>
               <button className="btn btn-primary" onClick={onSave} disabled={loading}>Guardar</button>
             </div>
           </>

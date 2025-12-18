@@ -114,13 +114,21 @@ function App() {
             const minData = data.map(m => ({
               numeroMaster: m.numeroMaster,
               numeroDo: m.numeroDo,
+              contenedores: m.contenedores,
+              containers: m.containers,
+              units: m.units,
+              equipments: m.equipments,
               hijos: (m.hijos || []).map(h => ({
                 numeroHBL: h.numeroHBL,
                 cliente: h.cliente,
                 puertoOrigen: h.puertoOrigen,
                 numeroIE: h.numeroIE,
                 numeroDo: h.numeroDo,
-                paisOrigen: h.paisOrigen
+                paisOrigen: h.paisOrigen,
+                contenedores: h.contenedores,
+                containers: h.containers,
+                units: h.units,
+                equipments: h.equipments
               }))
             }))
             
