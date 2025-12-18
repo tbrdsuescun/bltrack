@@ -426,7 +426,10 @@ function BLEvidenceChild() {
     }
   }
 
+  const fileInputCameraRef = useRef()
+
   function openFileDialog(){ if (uploading || isAdmin) { return } fileInputRef.current?.click() }
+  function openCameraDialog(){ if (uploading || isAdmin) { return } fileInputCameraRef.current?.click() }
   function onDrop(e){ e.preventDefault(); if (uploading || isAdmin) { return } const files = Array.from(e.dataTransfer?.files || []); if (!files.length) return; const synthetic = { target: { files } }; onUpload(synthetic) }
   function onDragOver(e){ e.preventDefault() }
   function onDownloadPhoto(photo){ if (!photo || !photo.url) return; const a = document.createElement('a'); a.href = urlFor(photo.url); a.download = String(photo.filename || photo.id || 'foto'); a.target = '_blank'; document.body.appendChild(a); a.click(); document.body.removeChild(a) }
@@ -435,8 +438,11 @@ function BLEvidenceChild() {
     <>
       <div className="page-header">
         <div>
-          <h1 className="h1">Evidencia Fotográfica</h1>
-          <p className="muted">HBL {hblId || targetId}</p>
+          <h1 className="h1">Evidencia para {hblId || 'BL'}</h1>
+          <p className="muted">
+            Gestiona las fotografías y documentos asociados a este BL. 
+            Utiliza "Tomar foto o Subir Fotos" para agregar evidencia visual.
+          </p>
         </div>
         <div className="actions-row">
           <button className="btn btn-outline" onClick={() => navigate(-1)}>← Volver</button>
@@ -447,7 +453,7 @@ function BLEvidenceChild() {
 
         <div style={{ marginTop:'12px' }}>
           <h2 className="h2" style={{ display:'flex', alignItems:'center', gap:8 }}>Evidencia {uploading ? (<svg width="16" height="16" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="#c0c4c9" strokeWidth="3" fill="none" opacity="0.25"/><path d="M12 2a10 10 0 0 1 0 20" stroke="var(--brand)" strokeWidth="3" fill="none"><animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="1s" repeatCount="indefinite"/></path></svg>) : null}</h2>
-          {!isAdmin && (
+          {!isAdmin && !isMobile && (
             <div className="dropzone" onClick={isAdmin ? undefined : openFileDialog} onDrop={onDrop} onDragOver={onDragOver}>
               {uploading ? (
                 <div style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:8, flexDirection:'column' }}>
@@ -464,15 +470,20 @@ function BLEvidenceChild() {
               )}
             </div>
           )}
-          <div className="actions" style={{ justifyContent:'flex-start' }}>
+          <div className="actions" style={{ justifyContent:'flex-start', gap: '8px' }}>
             {!isAdmin && (
               <>
-                <button className="btn btn-primary" onClick={openFileDialog} disabled={uploading || loading}>Tomar Foto</button>
-                <button className="btn btn-outline" onClick={openFileDialog} disabled={uploading || loading}>Subir Archivo</button>
+                <button className="btn btn-primary" onClick={openCameraDialog} disabled={uploading || loading}>
+                  {uploading ? `Subiendo ${uploadProgress}%...` : 'Tomar Foto'}
+                </button>
+                <button className="btn btn-outline" onClick={openFileDialog} disabled={uploading || loading}>
+                  Subir Fotos
+                </button>
               </>
             )}
           </div>
-          {!isAdmin && (<input ref={fileInputRef} type="file" accept="image/*" multiple capture="environment" style={{ display:'none' }} onChange={onUpload} disabled={loading || uploading} />)}
+          {!isAdmin && (<input ref={fileInputRef} type="file" accept="image/*" multiple style={{ display:'none' }} onChange={onUpload} disabled={loading || uploading} />)}
+          {!isAdmin && (<input ref={fileInputCameraRef} type="file" accept="image/*" capture="environment" style={{ display:'none' }} onChange={onUpload} disabled={loading || uploading} />)}
           {status && <p className="muted">{status}</p>}
         </div>
         {orderedPhotos.length === 0 ? (
@@ -551,15 +562,16 @@ function BLEvidenceChild() {
         )}
 
         <div className="actions" style={{ justifyContent:'flex-end' }}>
-          {!isAdmin && <button className="btn btn-outline" onClick={onSave} disabled={loading}>Guardar</button>}
+          {!isAdmin && <button className="btn btn-info" onClick={onSave} disabled={loading}>Guardar</button>}
         </div>
 
         {isMobile && !isAdmin && (pendingFiles.length > 0 || uploading) && (
           <>
             <div className="bottom-spacer" />
             <div className="bottom-bar">
+              <button className="btn btn-primary" onClick={openCameraDialog} disabled={uploading || loading}>Cámara</button>
               <button className="btn btn-outline" onClick={openFileDialog} disabled={uploading || loading}>Subir</button>
-              <button className="btn btn-primary" onClick={onSave} disabled={loading}>Guardar</button>
+              <button className="btn btn-info" onClick={onSave} disabled={loading}>Guardar</button>
             </div>
           </>
         )}

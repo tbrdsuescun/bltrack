@@ -186,6 +186,11 @@ body {
     color: var(--brand);
 }
 
+.btn-info {
+    background: #17a2b8;
+    color: #fff;
+}
+
 .btn-accent {
     background: var(--accent);
     color: #fff

@@ -360,7 +360,10 @@ function BLEvidenceMaster() {
     }
   }
 
+  const fileInputCameraRef = useRef()
+
   function openFileDialog(){ if (uploading || isAdmin) { return } if (containers.length && !selectedContainer) { setStatus('Selecciona un contenedor'); setContainerError(true); setContainerModalOpen(true); return } if (!selectedPrefix) { setStatus('Selecciona un prefijo para nombrar las fotos'); setPrefixError(true); setPrefixModalOpen(true); return } fileInputRef.current?.click() }
+  function openCameraDialog(){ if (uploading || isAdmin) { return } if (containers.length && !selectedContainer) { setStatus('Selecciona un contenedor'); setContainerError(true); setContainerModalOpen(true); return } if (!selectedPrefix) { setStatus('Selecciona un prefijo para nombrar las fotos'); setPrefixError(true); setPrefixModalOpen(true); return } fileInputCameraRef.current?.click() }
   function onDrop(e){ e.preventDefault(); if (uploading || isAdmin) { return } if (containers.length && !selectedContainer) { setStatus('Selecciona un contenedor'); setContainerError(true); setContainerModalOpen(true); return } if (!selectedPrefix) { setStatus('Selecciona un prefijo para nombrar las fotos'); setPrefixError(true); setPrefixModalOpen(true); return } const files = Array.from(e.dataTransfer?.files || []); if (!files.length) return; const synthetic = { target: { files } }; onUpload(synthetic) }
   function onDragOver(e){ e.preventDefault() }
 
@@ -371,11 +374,22 @@ function BLEvidenceMaster() {
     <>
       <div className="page-header">
         <div>
-          <h1 className="h1">Evidencia Fotográfica</h1>
-          <p className="muted">MASTER {masterId || targetId}</p>
+          <h1 className="h1">Evidencia Master {targetId}</h1>
+          <p className="muted">
+            Gestiona la evidencia fotográfica a nivel de Master.
+            Selecciona un contenedor (si aplica) y el tipo de fotografía antes de subir archivos.
+          </p>
         </div>
         <div className="actions-row">
-          <button className="btn btn-outline" onClick={() => navigate(-1)}>← Volver</button>
+          {!isAdmin && (
+            <button className="btn btn-primary" onClick={() => {
+              if (containers.length && !selectedContainer) { setContainerError(true); setContainerModalOpen(true); return }
+              if (!selectedPrefix) { setPrefixError(true); setPrefixModalOpen(true); return }
+              fileInputCameraRef.current?.click()
+            }}>
+              {uploading ? `Subiendo ${uploadProgress}%...` : '+ Subir Fotos'}
+            </button>
+          )}
         </div>
       </div>
 
@@ -427,15 +441,16 @@ function BLEvidenceMaster() {
           <div className="actions" style={{ justifyContent:'flex-start' }}>
             {!isAdmin && (
               <>
-                <button className="btn btn-primary" onClick={openFileDialog} disabled={uploading || loading}>Tomar Foto</button>
-                <button className="btn btn-outline" onClick={openFileDialog} disabled={uploading || loading}>Subir Archivo</button>
+                <button className="btn btn-primary" onClick={openCameraDialog} disabled={uploading || loading}>Tomar Foto</button>
+                <button className="btn btn-outline" onClick={openFileDialog} disabled={uploading || loading}>Subir Fotos</button>
               </>
             )}
           </div>
-          {!isAdmin && (<input ref={fileInputRef} type="file" accept="image/*" multiple capture="environment" style={{ display:'none' }} onChange={onUpload} disabled={loading || uploading} />)}
-        </div>
-
+          {!isAdmin && (<input ref={fileInputRef} type="file" accept="image/*" multiple style={{ display:'none' }} onChange={onUpload} disabled={loading || uploading} />)}
+          {!isAdmin && (<input ref={fileInputCameraRef} type="file" accept="image/*" capture="environment" style={{ display:'none' }} onChange={onUpload} disabled={loading || uploading} />)}
+        
         {status && <p className="muted" style={(prefixError || containerError) ? { color: '#e11' } : undefined}>{status}</p>}
+        </div>
 
         {orderedPhotos.length === 0 ? (
           <p className="muted">Aún no hay fotos para este MASTER.</p>
@@ -518,6 +533,7 @@ function BLEvidenceMaster() {
           <>
             <div className="bottom-spacer" />
             <div className="bottom-bar">
+              <button className="btn btn-primary" onClick={openCameraDialog} disabled={uploading || loading}>Cámara</button>
               <button className="btn btn-outline" onClick={openFileDialog} disabled={uploading || loading}>Subir</button>
               <button className="btn btn-primary" onClick={onSave} disabled={loading}>Guardar</button>
             </div>
