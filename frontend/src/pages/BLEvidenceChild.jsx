@@ -502,14 +502,36 @@ function BLEvidenceChild() {
                     ) : (
                       <div className="muted" style={{ padding: 12 }}>(sin vista previa)</div>
                     )}
-                    <div style={{ padding: 8, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <div className="muted" style={{ fontSize: 12 }}>{fecha} • {usuario}</div>
-                      <div>
-                        <button className="btn btn-outline btn-small" onClick={() => setSelectedPhoto(p)}>Ver</button>
-                        {' '}
-                        <button className="btn btn-outline btn-small" onClick={() => onDownloadPhoto(p)} disabled={!p.url}>Descargar</button>
-                        {' '}
-                        {!isAdmin && <button className="btn btn-danger btn-small" onClick={() => setConfirmPhoto(p)} disabled={loading}>Eliminar</button>}
+                    <div style={{ padding: 10, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      <div style={{ fontWeight: 600, fontSize: 13, color: 'var(--brand)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={p.filename || p.id}>
+                        {p.filename || p.id}
+                      </div>
+                      
+                      <div className="muted" style={{ fontSize: 11, lineHeight: '1.4' }}>
+                        <div style={{ whiteSpace: 'nowrap' }}>{fecha}</div>
+                        <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{usuario}</div>
+                      </div>
+
+                      {!isAdmin && (
+                        <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13, padding: '6px 8px', background: '#f3f4f6', border: '1px solid #e5e7eb', borderRadius: 6 }}>
+                          <input 
+                            type="checkbox" 
+                            checked={!!p.averia} 
+                            onChange={(e) => onToggleAveria(p.id, e.target.checked)} 
+                            style={{ width: 16, height: 16, margin: 0 }}
+                          />
+                          <span style={{ fontWeight: 500 }}>Avería</span>
+                        </label>
+                      )}
+
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+                        <button className="btn btn-outline btn-small" onClick={() => setSelectedPhoto(p)} style={{ width: '100%', padding: '6px 2px' }}>Ver</button>
+                        <button className="btn btn-outline btn-small" onClick={() => onDownloadPhoto(p)} disabled={!p.url} style={{ width: '100%', padding: '6px 2px' }}>Descargar</button>
+                        {!isAdmin && (
+                          <button className="btn btn-danger btn-small" onClick={() => setConfirmPhoto(p)} disabled={loading} style={{ gridColumn: '1 / -1', width: '100%' }}>
+                            Eliminar
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>
