@@ -199,7 +199,7 @@ function Panel({ user }) {
                       <button className="btn btn-outline btn-small" onClick={() => {
                         const hasChildren = Number(row.childrenCount) > 0
                         navigate(hasChildren ? '/bl?master=' + encodeURIComponent(row.master) : '/evidence/' + row.master)
-                      }}>Ver HBLS</button>
+                      }}>Ver BLS</button>
                       {Number(row.childrenCount) > 0 && (
                         <button className="btn btn-outline btn-small" onClick={() => {
                           navigate('/evidence/' + row.master)
@@ -240,7 +240,7 @@ function Panel({ user }) {
                           <button className="btn btn-outline btn-small" onClick={() => {
                             const hasChildren = Number(row.childrenCount) > 0
                             navigate(hasChildren ? '/bl?master=' + encodeURIComponent(row.master) : '/evidence/' + row.master)
-                          }}>Ver HBLS</button>
+                          }}>Ver BLS</button>
                           {Number(row.childrenCount) > 0 && (
                             <button className="btn btn-outline btn-small" onClick={() => {
                               navigate('/evidence/' + row.master)
