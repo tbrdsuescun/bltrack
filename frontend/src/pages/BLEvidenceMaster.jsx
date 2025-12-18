@@ -463,7 +463,7 @@ function BLEvidenceMaster() {
         <div className="actions-row" style={{ gap: '8px' }}>
           {!isAdmin && (
             <>
-              <button className="btn btn-outline" onClick={() => navigate(-1)}>← Volver</button>
+              <button className="btn btn-outline" onClick={() => navigate('/bl/' + targetId)}>← Volver</button>
             </>
           )}
         </div>

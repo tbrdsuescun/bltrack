@@ -445,7 +445,7 @@ function BLEvidenceChild() {
           </p>
         </div>
         <div className="actions-row">
-          <button className="btn btn-outline" onClick={() => navigate(-1)}>← Volver</button>
+          <button className="btn btn-outline" onClick={() => navigate('/bl/' + (masterId || targetId))}>← Volver</button>
         </div>
       </div>
 

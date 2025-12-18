@@ -6,7 +6,7 @@ import Layout from '../components/Layout.jsx'
 import SearchBar from '../components/SearchBar.jsx'
 
 function BLDetail({ user }) {
-  const { blId } = useParams()
+  const { id: blId } = useParams()
   const navigate = useNavigate()
   const [photos, setPhotos] = useState([])
   const [status, setStatus] = useState(null)
@@ -54,13 +54,13 @@ function BLDetail({ user }) {
         try { const u = JSON.parse(userStr || '{}'); const uid = String(u?.id || '').trim(); if (uid) key = `tbMastersCache:${uid}` } catch {}
         const v = JSON.parse(localStorage.getItem(key) || 'null') || window['__MEM_' + key] || {}
         const arr = Array.isArray(v.data) ? v.data : []
-        if (arr.length !== mastersRaw.length) {
+        if (JSON.stringify(arr) !== JSON.stringify(mastersRaw)) {
           setMastersRaw(arr)
         }
       } catch {}
-    }, 200)
+    }, 1000)
     return () => clearInterval(t)
-  }, [mastersRaw.length])
+  }, [mastersRaw])
 
   useEffect(() => {
     API.get('/bls/mine').then(res => {
@@ -106,23 +106,47 @@ function BLDetail({ user }) {
 
   useEffect(() => {
     if (!blId) return
-    const isMaster = !!mastersMap[blId]
-    if (isMaster) {
-      setSelectedMaster(blId) 
-      setMasterInput(blId)
-      setChildrenList(mastersMap[blId] || [])
-      setDoInput('')
-      setSelectedDo('')
+    const rawTarget = String(blId)
+    const target = rawTarget.trim().toLowerCase()
+    
+    // 1. Try to match as Master (Case Insensitive)
+    const masterKey = Object.keys(mastersMap).find(k => String(k).trim().toLowerCase() === target)
+    if (masterKey) {
+      if (selectedMaster !== masterKey) {
+        setSelectedMaster(masterKey)
+        setMasterInput(masterKey)
+        setChildrenList(mastersMap[masterKey] || [])
+        setDoInput('')
+        setSelectedDo('')
+      }
       return
     }
-    const found = Object.entries(mastersMap).find(([k, arr]) => (arr || []).some(ch => String(ch.numeroHBL || '') === String(blId)))
-    if (found) {
-      const [master] = found
-      setSelectedMaster(master)
-      setMasterInput(master)
-      setChildrenList(mastersMap[master] || [])
-      setSelectedDo(blId)
-      setDoInput(blId)
+
+    // 2. Try to match as Child (HBL)
+    let parentMaster = null
+    let foundChildId = null
+    for (const [mKey, children] of Object.entries(mastersMap)) {
+      const child = (children || []).find(ch => String(ch.numeroHBL || '').trim().toLowerCase() === target)
+      if (child) {
+        parentMaster = mKey
+        foundChildId = child.numeroHBL
+        break
+      }
+    }
+
+    if (parentMaster) {
+      if (selectedMaster !== parentMaster) {
+        setSelectedMaster(parentMaster)
+        setMasterInput(parentMaster)
+        setChildrenList(mastersMap[parentMaster] || [])
+        setSelectedDo(foundChildId)
+        setDoInput(foundChildId)
+      }
+    } else {
+      // 3. Not found in map yet, just show the input
+      if (masterInput !== rawTarget && !selectedMaster) {
+        setMasterInput(rawTarget)
+      }
     }
   }, [blId, mastersMap])
 
