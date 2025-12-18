@@ -108,7 +108,7 @@ function BLDetail({ user }) {
     if (!blId) return
     const isMaster = !!mastersMap[blId]
     if (isMaster) {
-      setSelectedMaster(blId)
+      setSelectedMaster(blId) 
       setMasterInput(blId)
       setChildrenList(mastersMap[blId] || [])
       setDoInput('')
@@ -222,7 +222,12 @@ function BLDetail({ user }) {
           childrenRows.length === 0 ? (
             <p className="muted" style={{ marginTop: '12px' }}>No hay hijos para este master.</p>
           ) : (
-            isMobile ? (
+            <>
+            <div style={{ marginTop: '24px', marginBottom: '16px' }}>
+              <h2 className="h2">BLs asociados al Master {selectedMaster}</h2>
+              <p className="muted">A continuación se listan los BLs vinculados a este Master. Seleccione "Ingresar imágenes" para gestionar la evidencia de cada uno.</p>
+            </div>
+            {isMobile ? (
               <div className="mobile-card-list" style={{ marginTop: '12px' }}>
                 {childrenRows.map(row => (
                   <div key={row.numeroHBL} className="mobile-card">
@@ -249,7 +254,7 @@ function BLDetail({ user }) {
                       </div>
                     </div>
                     <div className="actions" style={{ justifyContent: 'flex-end', marginTop: 8 }}>
-                      {!isAdmin && (<button className="btn btn-outline btn-small" onClick={() => navigate('/evidence/' + selectedMaster + '/' + row.numeroHBL)}>Ingresar imágenes</button>)}
+                      {!isAdmin && (<button className="btn btn-primary btn-small" onClick={() => navigate('/evidence/' + selectedMaster + '/' + row.numeroHBL)}>Ingresar imágenes</button>)}
                     </div>
                   </div>
                 ))}
@@ -264,7 +269,7 @@ function BLDetail({ user }) {
                       <th>Número IE</th>
                       <th>Número DO</th>
                       <th>País Origen</th>
-                      <th>Número HBL</th>
+                      <th>Número BL</th>
                       <th>Fotografías</th>
                       <th className="table-actions">Acciones</th>
                     </tr>
@@ -280,14 +285,15 @@ function BLDetail({ user }) {
                         <td>{row.numeroHBL}</td>
                         <td>{mineMap[row.numeroHBL]?.photos_count || 0}</td>
                         <td className="table-actions">
-                          {!isAdmin && <button className="btn btn-outline btn-small" onClick={() => navigate('/evidence/' + selectedMaster + '/' + row.numeroHBL)}>Ingresar imágenes</button>}
+                          {!isAdmin && <button className="btn btn-primary btn-small" onClick={() => navigate('/evidence/' + selectedMaster + '/' + row.numeroHBL)}>Ingresar imágenes BL</button>}
                         </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
-            )
+            )}
+            </>
           )
         )}
       </div>

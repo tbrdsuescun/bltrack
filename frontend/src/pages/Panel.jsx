@@ -127,8 +127,12 @@ function Panel({ user }) {
     <>
       <div className="page-header">
         <div>
-          <h1 className="h1">Registros Fotográficos</h1>
-          <p className="muted">Gestiona y visualiza todos los registros fotográficos.</p>
+          <h1 className="h1">Dashboard</h1>
+          <p className="muted">
+            {isAdmin 
+              ? 'Resumen de todos los registros realizados.' 
+              : 'Resumen de los registros que has realizado anteriormente.'}
+          </p>
         </div>
         <div className="actions-row">
           {!isAdmin && (
