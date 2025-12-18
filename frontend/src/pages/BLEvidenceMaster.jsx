@@ -27,10 +27,41 @@ function extFor(p, mime) {
   return '.dat'
 }
 
+const PREFIXES = [
+  { label: 'Contenedor cerrado', slug: 'contenedor_cerrado' },
+  { label: 'Contenedor abierto', slug: 'contenedor_abierto' },
+  { label: 'No. de contenedor', slug: 'no_de_contenedor' },
+  { label: 'Sello', slug: 'sello' },
+  { label: 'Líneas de cargue', slug: 'lineas_de_cargue' },
+  { label: 'Averia', slug: 'averia' },
+  { label: 'SGA', slug: 'sga' },
+  { label: 'Contenedor vacío ( lado izquierdo, lado derecho, piso, techo.)', slug: 'contenedor_vacio' },
+  { label: 'Tarja', slug: 'tarja' },
+  { label: 'Acta de averia', slug: 'acta_de_averia' },
+]
+
 function parsePrefix(filename) {
   const s = String(filename || '')
   const dot = s.lastIndexOf('.')
   const base = dot >= 0 ? s.slice(0, dot) : s
+  const ext = dot >= 0 ? s.slice(dot) : ''
+
+  const sorted = [...PREFIXES].sort((a, b) => b.slug.length - a.slug.length)
+  for (const item of sorted) {
+    const p = item.slug
+    if (base === p || base.startsWith(p + '_')) {
+      const remainder = base.length === p.length ? '' : base.slice(p.length + 1)
+      if (!remainder) continue
+      const parts = remainder.split('_')
+      const numStr = parts[parts.length - 1]
+      const num = Number(numStr)
+      if (Number.isFinite(num)) {
+        const container = parts.slice(0, parts.length - 1).join('_')
+        return { prefix: p, container, num, ext }
+      }
+    }
+  }
+
   const parts = base.split('_')
   if (parts.length < 2) return null
   const numStr = parts[parts.length - 1]
@@ -38,7 +69,6 @@ function parsePrefix(filename) {
   if (!Number.isFinite(num)) return null
   const prefix = parts[0]
   const container = parts.length >= 3 ? parts.slice(1, parts.length - 1).join('_') : ''
-  const ext = dot >= 0 ? s.slice(dot) : ''
   return { prefix, container, num, ext }
 }
 
@@ -136,19 +166,6 @@ function BLEvidenceMaster() {
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768)
   useEffect(() => { const onResize = () => setIsMobile(window.innerWidth <= 768); window.addEventListener('resize', onResize); return () => window.removeEventListener('resize', onResize) }, [])
   const isAdmin = (() => { try { const u = JSON.parse(localStorage.getItem('user') || '{}'); return String(u.role || '') === 'admin' } catch { return false } })()
-
-  const PREFIXES = [
-    { label: 'Contenedor cerrado', slug: 'contenedor_cerrado' },
-    { label: 'Contenedor abierto', slug: 'contenedor_abierto' },
-    { label: 'No. de contenedor', slug: 'no_de_contenedor' },
-    { label: 'Sello', slug: 'sello' },
-    { label: 'Líneas de cargue', slug: 'lineas_de_cargue' },
-    { label: 'Averia', slug: 'averia' },
-    { label: 'SGA', slug: 'sga' },
-    { label: 'Contenedor vacío ( lado izquierdo, lado derecho, piso, techo.)', slug: 'contenedor_vacio' },
-    { label: 'Tarja', slug: 'tarja' },
-    { label: 'Acta de averia', slug: 'acta_de_averia' },
-  ]
 
   const details = useMemo(() => {
     try {
