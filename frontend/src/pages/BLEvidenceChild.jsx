@@ -261,6 +261,34 @@ function BLEvidenceChild() {
     }
   }
 
+  async function onToggleCrossdoking(photoId, checked) {
+    const currentPhoto = (photos || []).find(p => p.id === photoId) || null
+    setPhotos(prev => prev.map(p => (p.id === photoId ? { ...p, crossdoking: !!checked } : p)))
+    if (String(photoId || '').endsWith('-local')) { setStatus('Crossdoking actualizado (pendiente de guardar)'); return }
+    try {
+      const tid = String(hblId || targetId || '')
+      if (!tid) return
+      await API.patch('/bls/' + tid + '/photos/crossdoking', { flags: { [photoId]: !!checked } })
+      if (currentPhoto && currentPhoto.url) {
+        const res = await fetch(urlFor(currentPhoto.url))
+        const blob = await res.blob()
+        const contentBase64 = await blobToBase64(blob)
+        const name = String(currentPhoto.filename || '')
+        const dot = name.lastIndexOf('.')
+        const baseName = dot >= 0 ? name.slice(0, dot) : name
+        const ext = extFor(currentPhoto, blob.type)
+        const category = checked ? 'Crossdoking' : ''
+        const doc = { name: baseName, extension: ext, category, date: dayjs().format('DD/MM/YYYY'), contentBase64 }
+        const payload = { referenceNumber: String(numeroHblCurrent || targetId || ''), doNumber: String(details.numero_DO_hijo || details.numero_DO_master || ''), type: 'hijo', documents: [doc] }
+        await API.post(EVIDENCE_ENDPOINT, payload)
+      }
+      setStatus('Crossdoking actualizado')
+    } catch (err) {
+      setStatus('Error al actualizar Crossdoking: ' + (err.response?.data?.error || err.message))
+      setPhotos(prev => prev.map(p => (p.id === photoId ? { ...p, crossdoking: !checked } : p)))
+    }
+  }
+
   async function onDeleteConfirmed() {
     const photoId = confirmPhoto?.id
     if (!photoId) { setConfirmPhoto(null); return }
@@ -359,9 +387,14 @@ function BLEvidenceChild() {
           const ext = extFor({ filename: name }, f.type)
           const date = dayjs().format('DD/MM/YYYY')
           const averiaForFile = !!(photos || []).find(p => String(p.filename || '') === String(f.name || '') && !!p.averia)
-          const category = averiaForFile ? 'averia' : ''
+          const crossdokingForFile = !!(photos || []).find(p => String(p.filename || '') === String(f.name || '') && !!p.crossdoking)
           const contentBase64 = await blobToBase64(f)
-          const payload = { referenceNumber: String(numeroHblCurrent || targetId || ''), doNumber: String(details.numero_DO_hijo || details.numero_DO_master || ''), type: 'hijo', documents: [{ name: baseName, extension: ext, category, date, contentBase64 }] }
+          const documents = []
+          if (averiaForFile) documents.push({ name: baseName, extension: ext, category: 'averia', date, contentBase64 })
+          if (crossdokingForFile) documents.push({ name: baseName, extension: ext, category: 'Crossdoking', date, contentBase64 })
+          if (!averiaForFile && !crossdokingForFile) documents.push({ name: baseName, extension: ext, category: '', date, contentBase64 })
+
+          const payload = { referenceNumber: String(numeroHblCurrent || targetId || ''), doNumber: String(details.numero_DO_hijo || details.numero_DO_master || ''), type: 'hijo', documents }
           const resEv = await API.post(EVIDENCE_ENDPOINT, payload)
           const okEv = resEv && resEv.status >= 200 && resEv.status < 300 && (resEv.data?.success !== false)
           if (!okEv) { allOk = false; setSaveError(true); setStatus('Error en envío de evidencias para ' + baseName); break }
@@ -381,6 +414,7 @@ function BLEvidenceChild() {
             fd.append('numero_pedido', String(cacheEntry.numeroPedido || cacheEntry.pedido || cacheEntry.orderNumber || ''))
           }
           fd.append('averia_flags', JSON.stringify({ [f.name]: averiaForFile }))
+          fd.append('crossdoking_flags', JSON.stringify({ [f.name]: crossdokingForFile }))
           fd.append('photos', f)
           const upRes = await API.post('/bls/' + (hblId || targetId) + '/photos', fd)
           const batch = (upRes.data.photos || []).map(p => ({ ...p, url: p.id ? ('/uploads/' + p.id) : p.url }))
@@ -408,11 +442,22 @@ function BLEvidenceChild() {
         if (allOk) setPendingFiles([])
       }
       const flagsExisting = {}
-      ;(photos || []).forEach(p => { if (!String(p.id||'').endsWith('-local')) flagsExisting[p.id] = !!p.averia })
+      const crossdokingExisting = {}
+      ;(photos || []).forEach(p => { 
+        if (!String(p.id||'').endsWith('-local')) {
+          flagsExisting[p.id] = !!p.averia 
+          crossdokingExisting[p.id] = !!p.crossdoking
+        }
+      })
       if (Object.keys(flagsExisting).length) {
         const resPatch = await API.patch('/bls/' + (hblId || targetId) + '/photos/averia', { flags: flagsExisting })
         const okPatch = resPatch && resPatch.status >= 200 && resPatch.status < 300
         if (!okPatch) throw new Error('Error en actualización de avería')
+      }
+      if (Object.keys(crossdokingExisting).length) {
+        const resPatchCross = await API.patch('/bls/' + (hblId || targetId) + '/photos/crossdoking', { flags: crossdokingExisting })
+        const okPatchCross = resPatchCross && resPatchCross.status >= 200 && resPatchCross.status < 300
+        if (!okPatchCross) throw new Error('Error en actualización de Crossdoking')
       }
       setRecentPhotoIds([])
       setRecentDocuments([])
@@ -513,15 +558,26 @@ function BLEvidenceChild() {
                       </div>
 
                       {!isAdmin && (
-                        <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13, padding: '6px 8px', background: '#f3f4f6', border: '1px solid #e5e7eb', borderRadius: 6 }}>
-                          <input 
-                            type="checkbox" 
-                            checked={!!p.averia} 
-                            onChange={(e) => onToggleAveria(p.id, e.target.checked)} 
-                            style={{ width: 16, height: 16, margin: 0 }}
-                          />
-                          <span style={{ fontWeight: 500 }}>Avería</span>
-                        </label>
+                        <>
+                          <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13, padding: '6px 8px', background: '#f3f4f6', border: '1px solid #e5e7eb', borderRadius: 6 }}>
+                            <input 
+                              type="checkbox" 
+                              checked={!!p.averia} 
+                              onChange={(e) => onToggleAveria(p.id, e.target.checked)} 
+                              style={{ width: 16, height: 16, margin: 0 }}
+                            />
+                            <span style={{ fontWeight: 500 }}>Avería</span>
+                          </label>
+                          <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13, padding: '6px 8px', background: '#f3f4f6', border: '1px solid #e5e7eb', borderRadius: 6 }}>
+                            <input 
+                              type="checkbox" 
+                              checked={!!p.crossdoking} 
+                              onChange={(e) => onToggleCrossdoking(p.id, e.target.checked)} 
+                              style={{ width: 16, height: 16, margin: 0 }}
+                            />
+                            <span style={{ fontWeight: 500 }}>Crossdoking</span>
+                          </label>
+                        </>
                       )}
 
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
@@ -544,6 +600,7 @@ function BLEvidenceChild() {
                 <thead>
                   <tr>
                     <th>Avería</th>
+                    <th>Crossdoking</th>
                     <th>Foto</th>
                     <th>Fecha</th>
                     <th>Usuario</th>
@@ -559,6 +616,7 @@ function BLEvidenceChild() {
                     return (
                       <tr key={p.id}>
                         <td><input type="checkbox" checked={!!p.averia} onChange={(e) => onToggleAveria(p.id, e.target.checked)} disabled={isAdmin} /></td>
+                        <td><input type="checkbox" checked={!!p.crossdoking} onChange={(e) => onToggleCrossdoking(p.id, e.target.checked)} disabled={isAdmin} /></td>
                         <td>
                           {p.url ? (
                             <img src={urlFor(p.url)} alt={p.filename || p.id} style={{ width: 80, height: 60, objectFit: 'cover', borderRadius: 6, cursor: 'zoom-in' }} onClick={() => setSelectedPhoto(p)} />
@@ -670,7 +728,7 @@ function BLEvidenceChild() {
             <div className="modal-footer">
               <button className="btn" onClick={() => setSaveModalOpen(false)} disabled={loading}>Cerrar</button>
             </div>
-          </div>
+          </div> 
         </div>
       )}
 

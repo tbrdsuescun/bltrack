@@ -32,8 +32,11 @@ router.post('/bls/:id/photos', authRequired, (req, res, next) => {
 }, async (req, res) => {
   const { id } = req.params;
   const flagsRaw = req.body?.averia_flags;
+  const crossdokingFlagsRaw = req.body?.crossdoking_flags;
   let flags = {};
+  let crossdokingFlags = {};
   try { flags = typeof flagsRaw === 'string' ? JSON.parse(flagsRaw) : (flagsRaw || {}) } catch { flags = {} }
+  try { crossdokingFlags = typeof crossdokingFlagsRaw === 'string' ? JSON.parse(crossdokingFlagsRaw) : (crossdokingFlagsRaw || {}) } catch { crossdokingFlags = {} }
   const photos = (req.files || []).map((f) => ({
     id: path.basename(f.filename),
     filename: f.originalname,
@@ -41,7 +44,8 @@ router.post('/bls/:id/photos', authRequired, (req, res, next) => {
     size: f.size,
     mime: f.mimetype,
     status: 'kept',
-    averia: !!flags[f.originalname]
+    averia: !!flags[f.originalname],
+    crossdoking: !!crossdokingFlags[f.originalname]
   }));
   try {
     const [rec, created] = await RegistroFotografico.findOrCreate({
@@ -122,6 +126,7 @@ router.get('/bls/:id/photos', authRequired, async (req, res) => {
         mime: p.mime,
         status: p.status || 'kept',
         averia: !!p.averia,
+        crossdoking: !!p.crossdoking,
         user_id: p.user_id,
         user_nombre: p.user_nombre,
         user_display_name: p.user_display_name,
@@ -143,10 +148,27 @@ router.patch('/bls/:id/photos/averia', authRequired, async (req, res) => {
     const photos = rec.photos.map(p => ({ ...p, averia: typeof flags[p.id] !== 'undefined' ? !!flags[p.id] : !!p.averia }));
     rec.photos = photos;
     await rec.save();
-    const response = photos.map(p => ({ id: p.id, filename: p.filename, url: p.path ? ('/uploads/' + p.id) : null, size: p.size, mime: p.mime, status: p.status || 'kept', averia: !!p.averia }));
+    const response = photos.map(p => ({ id: p.id, filename: p.filename, url: p.path ? ('/uploads/' + p.id) : null, size: p.size, mime: p.mime, status: p.status || 'kept', averia: !!p.averia, crossdoking: !!p.crossdoking }));
     res.json({ bl_id: id, count: response.length, photos: response });
   } catch (err) {
     res.status(500).json({ ok: false, error: 'Fallo al actualizar avería', detail: err.message });
+  }
+});
+
+// Actualizar flags de crossdoking para fotos existentes
+router.patch('/bls/:id/photos/crossdoking', authRequired, async (req, res) => {
+  const { id } = req.params;
+  const flags = req.body?.flags || {};
+  try {
+    const rec = await RegistroFotografico.findOne({ where: { bl_id: id, user_id: req.user.id } });
+    if (!rec || !Array.isArray(rec.photos)) return res.status(404).json({ ok: false, error: 'Registro no encontrado' });
+    const photos = rec.photos.map(p => ({ ...p, crossdoking: typeof flags[p.id] !== 'undefined' ? !!flags[p.id] : !!p.crossdoking }));
+    rec.photos = photos;
+    await rec.save();
+    const response = photos.map(p => ({ id: p.id, filename: p.filename, url: p.path ? ('/uploads/' + p.id) : null, size: p.size, mime: p.mime, status: p.status || 'kept', averia: !!p.averia, crossdoking: !!p.crossdoking }));
+    res.json({ bl_id: id, count: response.length, photos: response });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: 'Fallo al actualizar crossdoking', detail: err.message });
   }
 });
 
@@ -175,7 +197,7 @@ router.post('/bls/:id/photos/normalize', authRequired, async (req, res) => {
     target.forEach((t, i) => { t.p.filename = `${prefix}_${i + 1}${t.ext}` });
     rec.photos = photos;
     await rec.save();
-    const response = photos.map(p => ({ id: p.id, filename: p.filename, url: '/uploads/' + p.id, size: p.size, mime: p.mime, status: p.status || 'kept', averia: !!p.averia }));
+    const response = photos.map(p => ({ id: p.id, filename: p.filename, url: '/uploads/' + p.id, size: p.size, mime: p.mime, status: p.status || 'kept', averia: !!p.averia, crossdoking: !!p.crossdoking }));
     res.json({ bl_id: id, count: response.length, photos: response, normalizedPrefix: prefix });
   } catch (err) {
     res.status(500).json({ ok: false, error: 'Fallo al normalizar nombres', detail: err.message });
