@@ -108,6 +108,7 @@ function BLEvidenceMaster() {
   const [confirmPhoto, setConfirmPhoto] = useState(null)
   const [cacheEntry, setCacheEntry] = useState(null)
   const [selectedPrefix, setSelectedPrefix] = useState('')
+  const [blNieto, setBlNieto] = useState('')
   const [selectedContainer, setSelectedContainer] = useState('')
   const [counters, setCounters] = useState({})
   const [prefixModalOpen, setPrefixModalOpen] = useState(false)
@@ -244,7 +245,11 @@ function BLEvidenceMaster() {
       .filter(p => p && p.id && p.url)
       .slice()
     const cont = String(selectedContainer || '').trim()
-    const filtered = cont ? arr.filter(p => { const r = parsePrefix(p?.filename || ''); return String(r?.container || '') === cont }) : arr
+    const filtered = cont ? arr.filter(p => { 
+      const r = parsePrefix(p?.filename || '')
+      const fileCont = String(r?.container || '')
+      return fileCont === cont || fileCont.startsWith(cont + '_')
+    }) : arr
     return filtered.sort((a, b) => parseTs(a) - parseTs(b))
   }, [photos, selectedContainer])
 
@@ -280,15 +285,26 @@ function BLEvidenceMaster() {
     try {
       const slug = selectedPrefix
       const used = []
-      ;(Array.isArray(photos) ? photos : []).forEach(p => { const r = parsePrefix(p?.filename || ''); if (r && r.prefix === slug && r.container === (selectedContainer || '')) used.push(r.num) })
-      ;(Array.isArray(pendingFiles) ? pendingFiles : []).forEach(f => { const r = parsePrefix(String(f.name || '')); if (r && r.prefix === slug && r.container === (selectedContainer || '')) used.push(r.num) })
+      const targetContainerPart = selectedContainer 
+        ? (selectedContainer + (blNieto ? '_' + blNieto : '')) 
+        : (blNieto ? blNieto : '')
+        
+      ;(Array.isArray(photos) ? photos : []).forEach(p => { 
+        const r = parsePrefix(p?.filename || '')
+        if (r && r.prefix === slug && r.container === targetContainerPart) used.push(r.num) 
+      })
+      ;(Array.isArray(pendingFiles) ? pendingFiles : []).forEach(f => { 
+        const r = parsePrefix(String(f.name || ''))
+        if (r && r.prefix === slug && r.container === targetContainerPart) used.push(r.num) 
+      })
       const start = used.length ? Math.max(...used) + 1 : 1
       filesToUse = valid.map((f, i) => {
         const original = String(f.name || '')
         const dot = original.lastIndexOf('.')
         const ext = dot >= 0 ? original.slice(dot) : ''
         const cont = selectedContainer ? `${selectedContainer}_` : ''
-        const newName = `${slug}_${cont}${start + i}${ext}`
+        const nietoPart = blNieto ? `${blNieto}_` : ''
+        const newName = `${slug}_${cont}${nietoPart}${start + i}${ext}`
         return new File([f], newName, { type: f.type })
       })
       const now = Date.now()
@@ -483,6 +499,17 @@ function BLEvidenceMaster() {
                 <option value="">Selecciona prefijo</option>
                 {PREFIXES.map(o => <option key={o.slug} value={o.slug}>{o.label}</option>)}
               </select>
+            </label>
+          )}
+          {!isAdmin && (
+            <label className="label">BL Nieto (Opcional)
+              <input 
+                type="text" 
+                className="input" 
+                placeholder="Ej: 12345" 
+                value={blNieto} 
+                onChange={(e) => setBlNieto(e.target.value.replace(/[^0-9]/g, ''))} 
+              />
             </label>
           )}
         </div>
