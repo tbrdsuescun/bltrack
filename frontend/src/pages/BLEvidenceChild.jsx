@@ -390,10 +390,15 @@ function BLEvidenceChild() {
           const crossdokingForFile = !!(photos || []).find(p => String(p.filename || '') === String(f.name || '') && !!p.crossdoking)
           const contentBase64 = await blobToBase64(f)
           const documents = []
-          if (averiaForFile) documents.push({ name: baseName, extension: ext, category: 'averia', date, contentBase64 })
-          if (crossdokingForFile) documents.push({ name: baseName, extension: ext, category: 'Crossdoking', date, contentBase64 })
-          if (!averiaForFile && !crossdokingForFile) documents.push({ name: baseName, extension: ext, category: '', date, contentBase64 })
-
+          let category = ''
+          if (averiaForFile && crossdokingForFile) {
+            category = 'averia_crossdoking'
+          } else if (averiaForFile) {
+            category = 'averia'
+          } else if (crossdokingForFile) {
+            category = 'crossdoking'
+          }
+          documents.push({ name: baseName, extension: ext, category, date, contentBase64 })
           const payload = { referenceNumber: String(numeroHblCurrent || targetId || ''), doNumber: String(details.numero_DO_hijo || details.numero_DO_master || ''), type: 'hijo', documents }
           const resEv = await API.post(EVIDENCE_ENDPOINT, payload)
           const okEv = resEv && resEv.status >= 200 && resEv.status < 300 && (resEv.data?.success !== false)
