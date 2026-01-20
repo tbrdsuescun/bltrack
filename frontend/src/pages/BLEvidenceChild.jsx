@@ -188,7 +188,7 @@ function BLEvidenceChild() {
       .filter(p => {
         if (!p || !p.id || !p.url) return false
         const r = parsePrefix(p.filename || '')
-        if (slug && r && r.prefix !== slug) return false
+        if (slug && r && !(r.prefix === slug || r.prefix.endsWith('_' + slug))) return false
         return true
       })
       .slice()
@@ -206,7 +206,10 @@ function BLEvidenceChild() {
     
     const slug = String(numeroHblCurrent || details.child_id || '')
     const used = []
-    ;(Array.isArray(photos) ? photos : []).forEach(p => { const r = parsePrefix(p?.filename || ''); if (r && r.prefix === slug) used.push(r.num) })
+    ;(Array.isArray(photos) ? photos : []).forEach(p => { 
+      const r = parsePrefix(p?.filename || '')
+      if (r && (r.prefix === slug || r.prefix.endsWith('_' + slug))) used.push(r.num) 
+    })
     
     // Count pending files to avoid name collisions in this batch
     const pendingCount = pendingFiles.length
@@ -216,7 +219,13 @@ function BLEvidenceChild() {
       const original = String(f.name || '')
       const dot = original.lastIndexOf('.')
       const ext = dot >= 0 ? original.slice(dot) : ''
-      const newName = `${slug}_${start + pendingCount + i}${ext}`
+      
+      let prefix = ''
+      if (nextAveria && nextCrossdoking) prefix = 'AVERIA_CROSSDOKING_'
+      else if (nextAveria) prefix = 'AVERIA_'
+      else if (nextCrossdoking) prefix = 'CROSSDOKING_'
+
+      const newName = `${prefix}${slug}_${start + pendingCount + i}${ext}`
       return new File([f], newName, { type: f.type })
     })
 
@@ -239,8 +248,14 @@ function BLEvidenceChild() {
 
     const newTasks = filesToUse.map(f => {
         const name = String(f.name || '')
-        const dot = name.lastIndexOf('.')
-        const baseName = dot >= 0 ? name.slice(0, dot) : name
+        
+        let cleanName = name
+        if (cleanName.startsWith('AVERIA_CROSSDOKING_')) cleanName = cleanName.replace('AVERIA_CROSSDOKING_', '')
+        else if (cleanName.startsWith('AVERIA_')) cleanName = cleanName.replace('AVERIA_', '')
+        else if (cleanName.startsWith('CROSSDOKING_')) cleanName = cleanName.replace('CROSSDOKING_', '')
+        
+        const dot = cleanName.lastIndexOf('.')
+        const baseName = dot >= 0 ? cleanName.slice(0, dot) : cleanName
         const ext = extFor({ filename: name }, f.type)
         const date = dayjs().format('DD/MM/YYYY')
         
@@ -473,9 +488,14 @@ function BLEvidenceChild() {
              const pName = String(p.filename || '')
              const r = parsePrefix(pName)
              // Check if this photo belongs to this child record
-             if (r && r.prefix === slug) {
-                 const dot = pName.lastIndexOf('.')
-                 const baseName = dot >= 0 ? pName.slice(0, dot) : pName
+             if (r && (r.prefix === slug || r.prefix.endsWith('_' + slug))) {
+                 let cleanName = pName
+                 if (cleanName.startsWith('AVERIA_CROSSDOKING_')) cleanName = cleanName.replace('AVERIA_CROSSDOKING_', '')
+                 else if (cleanName.startsWith('AVERIA_')) cleanName = cleanName.replace('AVERIA_', '')
+                 else if (cleanName.startsWith('CROSSDOKING_')) cleanName = cleanName.replace('CROSSDOKING_', '')
+
+                 const dot = cleanName.lastIndexOf('.')
+                 const baseName = dot >= 0 ? cleanName.slice(0, dot) : cleanName
                  const ext = extFor({ filename: pName }, p.mimetype || 'image/jpeg') // mimetype might be missing, infer from name
                  const date = dayjs().format('DD/MM/YYYY') // Or use p.created_at if available
                  
