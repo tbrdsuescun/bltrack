@@ -99,7 +99,7 @@ function normalizeList(items) {
 
 function BLEvidenceMaster() {
   const { masterId, id } = useParams()
-  const { addTasks, queue } = useUpload()
+  const { addTasks, queue, removeTasks } = useUpload()
   const navigate = useNavigate()
   const targetId = masterId || id
   const [photos, setPhotos] = useState([])
@@ -436,6 +436,7 @@ function BLEvidenceMaster() {
              
              tasks.push({
                  id: `sync-${p.id || pName}-${Date.now()}`,
+                 contextId: 'master-' + targetId,
                  label: `Sincronizando ${pName}`,
                  run: async () => {
                      console.log('[BLEvidenceMaster] Sync task started for:', pName)
@@ -490,6 +491,7 @@ function BLEvidenceMaster() {
                 
                 tasks.push({
                   id: Math.random().toString(36).slice(2),
+                  contextId: 'master-' + targetId,
                   label: `Subiendo nueva ${name}`,
                   run: async () => {
                      console.log('[BLEvidenceMaster] New upload task started for:', name)
@@ -566,30 +568,40 @@ function BLEvidenceMaster() {
   function urlFor(u) { const s = String(u || ''); if (!s) return ''; if (/^(?:https?:\/\/|blob:|data:)/.test(s)) return s; const base = API.defaults?.baseURL || ''; return base ? (base + (s.startsWith('/') ? s : ('/' + s))) : s }
   function onDownloadPhoto(photo){ if (!photo || !photo.url) return; const a = document.createElement('a'); a.href = urlFor(photo.url); a.download = String(photo.filename || photo.id || 'foto'); a.target = '_blank'; document.body.appendChild(a); a.click(); document.body.removeChild(a) }
 
+  const localTasks = queue.filter(t => t.contextId === 'master-' + targetId)
+  const allFinished = localTasks.length > 0 && localTasks.every(t => t.status === 'completed' || t.status === 'failed')
+
   return (
     <>
       <div className="page-header">
         <div>
-          <h1 className="h1">Evidencia Master {targetId}</h1>
+          <h1 className="h1">Evidencia para Master {masterId || targetId}</h1>
           <p className="muted">
-            Gestiona la evidencia fotográfica a nivel de Master.
-            Selecciona un contenedor (si aplica) y el tipo de fotografía antes de subir archivos.
+            Gestiona las fotografías y documentos asociados a este Master BL.
+            Los cambios se guardan automáticamente al confirmar.
           </p>
         </div>
-        <div className="actions-row" style={{ gap: '8px' }}>
-          {!isAdmin && (
-            <>
-              <button className="btn btn-outline" onClick={() => navigate('/bl/' + targetId)}>← Volver</button>
-            </>
-          )}
+        <div className="actions-row">
+          <button className="btn btn-outline" onClick={() => navigate('/bls')}>← Volver</button>
         </div>
       </div>
 
-      {queue.length > 0 && (
+      {localTasks.length > 0 && (
         <div style={{ marginBottom: 20, padding: 15, border: '1px solid #e5e7eb', borderRadius: 8, background: '#f9fafb' }}>
-          <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 10 }}>Subidas en curso</h3>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+             <h3 style={{ fontSize: 16, fontWeight: 600, margin: 0 }}>Subidas en curso</h3>
+             {allFinished && (
+               <button 
+                 onClick={() => removeTasks(localTasks.map(t => t.id))}
+                 style={{ border: 'none', background: 'transparent', cursor: 'pointer', fontSize: '1.2rem', color: '#6b7280' }}
+                 title="Cerrar y limpiar tareas completadas"
+               >
+                 ✕
+               </button>
+             )}
+          </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {queue.map(t => (
+            {localTasks.map(t => (
               <div key={t.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 14 }}>
                 <span>{t.label}</span>
                 <span style={{ 

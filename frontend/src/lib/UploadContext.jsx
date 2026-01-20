@@ -41,6 +41,11 @@ export function UploadProvider({ children }) {
     setQueue(prev => prev.filter(t => t.id !== taskId))
   }, [])
 
+  const removeTasks = useCallback((taskIds) => {
+    console.log('[UploadContext] Removing tasks:', taskIds)
+    setQueue(prev => prev.filter(t => !taskIds.includes(t.id)))
+  }, [])
+
   // Process queue
   useEffect(() => {
     let mounted = true
@@ -103,6 +108,7 @@ export function UploadProvider({ children }) {
     addTasks,
     retryTask,
     removeTask,
+    removeTasks,
     isProcessing
   }
 

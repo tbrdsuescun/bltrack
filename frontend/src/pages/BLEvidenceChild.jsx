@@ -70,7 +70,7 @@ function urlFor(u) { const s = String(u || ''); if (!s) return ''; if (/^(?:http
 
 function BLEvidenceChild() {
   const { masterId, hblId, id } = useParams()
-  const { addTasks, queue } = useUpload()
+  const { addTasks, queue, removeTasks } = useUpload()
   const navigate = useNavigate()
   const targetId = hblId || id || masterId
   const [photos, setPhotos] = useState([])
@@ -401,6 +401,7 @@ function BLEvidenceChild() {
                  
                  tasks.push({
                      id: `sync-${p.id || pName}-${Date.now()}`,
+                     contextId: 'child-' + targetId,
                      label: `Sincronizando ${pName}`,
                      run: async () => {
                          console.log('[BLEvidenceChild] Sync task started for:', pName)
@@ -469,6 +470,7 @@ function BLEvidenceChild() {
 
                 tasks.push({
                   id: Math.random().toString(36).slice(2),
+                  contextId: 'child-' + targetId,
                   label: `Subiendo nueva ${name}`,
                   run: async () => {
                     console.log('[BLEvidenceChild] New upload task started for:', name)
@@ -543,11 +545,12 @@ function BLEvidenceChild() {
 
         if (Object.keys(flagsExisting).length || Object.keys(crossdokingExisting).length) {
             console.log('[BLEvidenceChild] Dispatching flag update task')
-            addTasks([{
-                id: 'update-flags-' + Date.now(),
-                label: 'Actualizando estados de fotos',
-                run: async () => {
-                    if (Object.keys(flagsExisting).length) {
+          addTasks([{
+              id: 'update-flags-' + Date.now(),
+              contextId: 'child-' + targetId, // Add contextId for filtering
+              label: 'Actualizando estados de fotos',
+              run: async () => {
+                  if (Object.keys(flagsExisting).length) {
                         await API.patch('/bls/' + (hblId || targetId) + '/photos/averia', { flags: flagsExisting })
                     }
                     if (Object.keys(crossdokingExisting).length) {
@@ -571,6 +574,9 @@ function BLEvidenceChild() {
   function onDragOver(e){ e.preventDefault() }
   function onDownloadPhoto(photo){ if (!photo || !photo.url) return; const a = document.createElement('a'); a.href = urlFor(photo.url); a.download = String(photo.filename || photo.id || 'foto'); a.target = '_blank'; document.body.appendChild(a); a.click(); document.body.removeChild(a) }
 
+  const localTasks = queue.filter(t => t.contextId === 'child-' + targetId)
+  const allFinished = localTasks.length > 0 && localTasks.every(t => t.status === 'completed' || t.status === 'failed')
+
   return (
     <>
       <div className="page-header">
@@ -586,11 +592,22 @@ function BLEvidenceChild() {
         </div>
       </div>
 
-      {queue.length > 0 && (
+      {localTasks.length > 0 && (
         <div style={{ marginBottom: 20, padding: 15, border: '1px solid #e5e7eb', borderRadius: 8, background: '#f9fafb' }}>
-          <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 10 }}>Subidas en curso</h3>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+             <h3 style={{ fontSize: 16, fontWeight: 600, margin: 0 }}>Subidas en curso</h3>
+             {allFinished && (
+               <button 
+                 onClick={() => removeTasks(localTasks.map(t => t.id))}
+                 style={{ border: 'none', background: 'transparent', cursor: 'pointer', fontSize: '1.2rem', color: '#6b7280' }}
+                 title="Cerrar y limpiar tareas completadas"
+               >
+                 ✕
+               </button>
+             )}
+          </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {queue.map(t => (
+            {localTasks.map(t => (
               <div key={t.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 14 }}>
                 <span>{t.label}</span>
                 <span style={{ 
