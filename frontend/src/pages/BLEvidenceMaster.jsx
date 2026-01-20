@@ -772,7 +772,7 @@ function BLEvidenceMaster() {
         )}
 
         <div className="actions" style={{ justifyContent:'flex-end' }}>
-          {!isAdmin && <button className="btn btn-info" onClick={onSave} disabled={loading}>Guardar</button>}
+          {!isAdmin && !allFinished && <button className="btn btn-info" onClick={onSave} disabled={loading}>Guardar</button>}
         </div>
 
         {isMobile && !isAdmin && (pendingFiles.length > 0 || uploading) && (
@@ -781,7 +781,7 @@ function BLEvidenceMaster() {
             <div className="bottom-bar">
               <button className="btn btn-primary" onClick={openCameraDialog} disabled={uploading || loading}>Cámara</button>
               <button className="btn btn-info" onClick={openFileDialog} disabled={uploading || loading}>Subir</button>
-              <button className="btn btn-primary" onClick={onSave} disabled={loading}>Guardar</button>
+              {!allFinished && <button className="btn btn-primary" onClick={onSave} disabled={loading}>Guardar</button>}
             </div>
           </>
         )}
