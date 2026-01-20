@@ -246,7 +246,8 @@ function BLEvidenceChild() {
     const currentHblNum = numeroHblCurrent
     const currentCache = cacheEntry
 
-    const newTasks = filesToUse.map(f => {
+    const newTasks = filesToUse.map((f, i) => {
+        const localId = `${now + i}-local`
         const name = String(f.name || '')
         
         let cleanName = name
@@ -296,7 +297,11 @@ function BLEvidenceChild() {
                 fd.append('photos', f)
                 
                 console.log('[BLEvidenceChild] Sending photo content to DB')
-                await API.post('/bls/' + (currentTargetId) + '/photos', fd)
+                const resDb = await API.post('/bls/' + (currentTargetId) + '/photos', fd)
+                const uploaded = resDb.data?.photos?.[0]
+                if (uploaded && uploaded.id) {
+                  setPhotos(prev => prev.map(p => (p.id === localId ? { ...p, id: uploaded.id } : p)))
+                }
 
                 // 2. Sync to External Endpoint
                 const contentBase64 = await blobToBase64(f)
@@ -324,7 +329,6 @@ function BLEvidenceChild() {
     })
 
     addTasks(newTasks)
-    setStatus(`Subiendo ${newTasks.length} fotos...`)
     
     if (e.target) e.target.value = ''
   }

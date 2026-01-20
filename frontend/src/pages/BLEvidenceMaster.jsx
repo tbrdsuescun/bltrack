@@ -324,7 +324,8 @@ function BLEvidenceMaster() {
       const currentContainer = selectedContainer
       const currentCache = cacheEntry
 
-      const newTasks = filesToUse.map(f => {
+      const newTasks = filesToUse.map((f, i) => {
+          const localId = `${now + i}-local`
           const name = String(f.name || '')
           const dot = name.lastIndexOf('.')
           const baseName = dot >= 0 ? name.slice(0, dot) : name
@@ -355,7 +356,11 @@ function BLEvidenceMaster() {
                    fd.append('photos', f)
                    
                    console.log('[BLEvidenceMaster] Sending photo content to DB (First)')
-                   await API.post('/bls/' + (targetId) + '/photos', fd)
+                   const resDb = await API.post('/bls/' + (targetId) + '/photos', fd)
+                   const uploaded = resDb.data?.photos?.[0]
+                   if (uploaded && uploaded.id) {
+                     setPhotos(prev => prev.map(p => (p.id === localId ? { ...p, id: uploaded.id } : p)))
+                   }
 
                    // 2. Evidence (Second)
                    const contentBase64 = await blobToBase64(f)
@@ -381,7 +386,6 @@ function BLEvidenceMaster() {
       })
       
       addTasks(newTasks)
-      setStatus(`Subiendo ${newTasks.length} fotos...`)
       
       // Update counters immediately for UI consistency
       filesToUse.forEach((f, i) => {
