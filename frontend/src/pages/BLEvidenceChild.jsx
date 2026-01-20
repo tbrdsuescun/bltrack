@@ -89,6 +89,8 @@ function BLEvidenceChild() {
   const [recentPhotoIds, setRecentPhotoIds] = useState([])
   const [recentDocuments, setRecentDocuments] = useState([])
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768)
+  const [nextAveria, setNextAveria] = useState(false)
+  const [nextCrossdoking, setNextCrossdoking] = useState(false)
   useEffect(() => { const onResize = () => setIsMobile(window.innerWidth <= 768); window.addEventListener('resize', onResize); return () => window.removeEventListener('resize', onResize) }, [])
   const isAdmin = (() => { try { const u = JSON.parse(localStorage.getItem('user') || '{}'); return String(u.role || '') === 'admin' } catch { return false } })()
 
@@ -230,10 +232,13 @@ function BLEvidenceChild() {
         const ext = extFor({ filename: name }, f.type)
         const date = dayjs().format('DD/MM/YYYY')
         
-        // Default flags for new uploads are false
-        const averiaForFile = false
-        const crossdokingForFile = false
-        const category = ''
+        // Use selected flags for new uploads
+        const averiaForFile = nextAveria
+        const crossdokingForFile = nextCrossdoking
+        let category = ''
+        if (averiaForFile && crossdokingForFile) category = 'averia_crossdoking'
+        else if (averiaForFile) category = 'averia'
+        else if (crossdokingForFile) category = 'crossdoking'
 
         return {
           id: Math.random().toString(36).slice(2),
@@ -647,9 +652,18 @@ function BLEvidenceChild() {
               )}
             </div>
           )}
-          <div className="actions" style={{ justifyContent:'flex-start', gap: '8px' }}>
+          <div className="actions" style={{ justifyContent:'flex-start', gap: '8px', alignItems: 'center' }}>
             {!isAdmin && (
               <>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', userSelect: 'none', background: '#f3f4f6', padding: '6px 10px', borderRadius: 6, border: '1px solid #e5e7eb' }}>
+                  <input type="checkbox" checked={nextAveria} onChange={e => setNextAveria(e.target.checked)} disabled={uploading || loading} />
+                  <span style={{ fontSize: 13, fontWeight: 500 }}>Avería</span>
+                </label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', userSelect: 'none', background: '#f3f4f6', padding: '6px 10px', borderRadius: 6, border: '1px solid #e5e7eb' }}>
+                  <input type="checkbox" checked={nextCrossdoking} onChange={e => setNextCrossdoking(e.target.checked)} disabled={uploading || loading} />
+                  <span style={{ fontSize: 13, fontWeight: 500 }}>Crossdoking</span>
+                </label>
+                <div style={{ width: 1, height: 24, background: '#e5e7eb', margin: '0 4px' }} />
                 <button className="btn btn-primary" onClick={openCameraDialog} disabled={uploading || loading}>
                   {uploading ? `Subiendo ${uploadProgress}%...` : 'Tomar Foto'}
                 </button>
@@ -697,7 +711,7 @@ function BLEvidenceChild() {
                               checked={!!p.averia} 
                               onChange={(e) => onToggleAveria(p.id, e.target.checked)} 
                               style={{ width: 16, height: 16, margin: 0 }}
-                              disabled={String(p.id).endsWith('-local')}
+                              disabled={true}
                             />
                             <span style={{ fontWeight: 500 }}>Avería</span>
                           </label>
@@ -707,7 +721,7 @@ function BLEvidenceChild() {
                               checked={!!p.crossdoking} 
                               onChange={(e) => onToggleCrossdoking(p.id, e.target.checked)} 
                               style={{ width: 16, height: 16, margin: 0 }}
-                              disabled={String(p.id).endsWith('-local')}
+                              disabled={true}
                             />
                             <span style={{ fontWeight: 500 }}>Crossdoking</span>
                           </label>
@@ -749,8 +763,8 @@ function BLEvidenceChild() {
                     const usuario = p.user_nombre || p.user_display_name || p.user_email || '-'
                     return (
                       <tr key={p.id}>
-                        <td><input type="checkbox" checked={!!p.averia} onChange={(e) => onToggleAveria(p.id, e.target.checked)} disabled={isAdmin || String(p.id).endsWith('-local')} /></td>
-                        <td><input type="checkbox" checked={!!p.crossdoking} onChange={(e) => onToggleCrossdoking(p.id, e.target.checked)} disabled={isAdmin || String(p.id).endsWith('-local')} /></td>
+                        <td><input type="checkbox" checked={!!p.averia} onChange={(e) => onToggleAveria(p.id, e.target.checked)} disabled={true} /></td>
+                        <td><input type="checkbox" checked={!!p.crossdoking} onChange={(e) => onToggleCrossdoking(p.id, e.target.checked)} disabled={true} /></td>
                         <td>
                           {p.url ? (
                             <img src={urlFor(p.url)} alt={p.filename || p.id} style={{ width: 80, height: 60, objectFit: 'cover', borderRadius: 6, cursor: 'zoom-in' }} onClick={() => setSelectedPhoto(p)} />
