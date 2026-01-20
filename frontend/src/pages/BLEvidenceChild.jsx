@@ -178,16 +178,22 @@ function BLEvidenceChild() {
   }, [targetId, masterId, hblId])
 
   const orderedPhotos = useMemo(() => {
+    const slug = String(numeroHblCurrent || details.child_id || '')
     const parseTs = (p) => {
       const raw = String(p.id || '')
       const n = Number((raw.split('-')[0]) || 0)
       return Number.isFinite(n) ? n : 0
     }
     return (photos || [])
-      .filter(p => p && p.id && p.url)
+      .filter(p => {
+        if (!p || !p.id || !p.url) return false
+        const r = parsePrefix(p.filename || '')
+        if (slug && r && r.prefix !== slug) return false
+        return true
+      })
       .slice()
       .sort((a, b) => parseTs(a) - parseTs(b))
-  }, [photos])
+  }, [photos, numeroHblCurrent, details.child_id])
 
   async function onUpload(e) {
     const files = Array.from(e.target.files || [])
@@ -215,7 +221,13 @@ function BLEvidenceChild() {
     })
 
     const now = Date.now()
-    const staged = filesToUse.map((f, i) => ({ id: `${now + i}-local`, filename: f.name, url: URL.createObjectURL(f) }))
+    const staged = filesToUse.map((f, i) => ({ 
+      id: `${now + i}-local`, 
+      filename: f.name, 
+      url: URL.createObjectURL(f),
+      averia: nextAveria,
+      crossdoking: nextCrossdoking
+    }))
     
     setPhotos(prev => prev.concat(staged))
     // setPendingFiles(prev => prev.concat(filesToUse)) // No longer queuing for manual save

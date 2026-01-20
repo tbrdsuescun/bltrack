@@ -243,8 +243,14 @@ function BLEvidenceMaster() {
       const n = Number((raw.split('-')[0]) || 0)
       return Number.isFinite(n) ? n : 0
     }
+    const validSlugs = new Set(PREFIXES.map(x => x.slug))
     const arr = (photos || [])
-      .filter(p => p && p.id && p.url)
+      .filter(p => {
+        if (!p || !p.id || !p.url) return false
+        const r = parsePrefix(p.filename || '')
+        if (!r || !validSlugs.has(r.prefix)) return false
+        return true
+      })
       .slice()
     const cont = String(selectedContainer || '').trim()
     const filtered = cont ? arr.filter(p => { 
