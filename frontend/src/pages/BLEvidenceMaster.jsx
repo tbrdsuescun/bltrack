@@ -310,10 +310,72 @@ function BLEvidenceMaster() {
       const now = Date.now()
       const staged = filesToUse.map((f, i) => ({ id: `${now + i}-local`, filename: f.name, url: URL.createObjectURL(f) }))
       setPhotos(prev => prev.concat(staged))
-      setPendingFiles(prev => prev.concat(filesToUse))
+      // setPendingFiles(prev => prev.concat(filesToUse))
+
+      const currentDetails = { ...details }
+      const currentMasterId = masterId || targetId
+      const currentPrefix = selectedPrefix
+      const currentContainer = selectedContainer
+      const currentCache = cacheEntry
+
+      const newTasks = filesToUse.map(f => {
+          const name = String(f.name || '')
+          const dot = name.lastIndexOf('.')
+          const baseName = dot >= 0 ? name.slice(0, dot) : name
+          const ext = extFor({ filename: name }, f.type)
+          const date = dayjs().format('DD/MM/YYYY')
+          const r = parsePrefix(name)
+          const category = (r?.prefix === 'averia') ? 'averia' : ''
+          
+          return {
+            id: Math.random().toString(36).slice(2),
+            contextId: 'master-' + targetId,
+            label: `Subiendo ${name}`,
+            run: async () => {
+               console.log('[BLEvidenceMaster] Immediate upload task started for:', name)
+               try {
+                   // 1. Upload to DB (First)
+                   const fd = new FormData()
+                   const masterIdVal = String(currentMasterId || '')
+                   fd.append('master_id', masterIdVal)
+                   fd.append('numero_DO_master', String(currentDetails.numero_DO_master || ''))
+                   if (currentPrefix) fd.append('prefix', currentPrefix)
+                   if (currentContainer) fd.append('contenedor', currentContainer)
+                   if (currentCache) {
+                     fd.append('cliente_nit', String(currentCache.nitCliente || currentCache.clienteNit || currentCache.nit || ''))
+                     fd.append('descripcion_mercancia', String(currentCache.descripcionMercancia || currentCache.descripcion || ''))
+                     fd.append('numero_pedido', String(currentCache.numeroPedido || currentCache.pedido || currentCache.orderNumber || ''))
+                   }
+                   fd.append('photos', f)
+                   
+                   console.log('[BLEvidenceMaster] Sending photo content to DB (First)')
+                   await API.post('/bls/' + (targetId) + '/photos', fd)
+
+                   // 2. Evidence (Second)
+                   const contentBase64 = await blobToBase64(f)
+                   const payload = { 
+                     referenceNumber: String(currentDetails.master_id || ''), 
+                     doNumber: String(currentDetails.numero_DO_master || ''), 
+                     type: 'master', 
+                     documents: [{ name: baseName, extension: ext, category, date, contentBase64 }] 
+                   }
+                   
+                   console.log('[BLEvidenceMaster] Sending metadata to EVIDENCE_ENDPOINT:', payload)
+                   const resEv = await API.post(EVIDENCE_ENDPOINT, payload)
+                   console.log('[BLEvidenceMaster] Metadata response:', resEv.status, resEv.data)
+  
+                   const okEv = resEv && resEv.status >= 200 && resEv.status < 300 && (resEv.data?.success !== false)
+                   if (!okEv) throw new Error('Error en envío de evidencias para ' + baseName)
+               } catch (error) {
+                   console.error('[BLEvidenceMaster] Task error for:', name, error)
+                   throw error
+               }
+            }
+          }
+      })
       
-      const total = filesToUse.length
-      setStatus(`Se agregaron ${total} fotos para subir. Haga clic en Guardar.`)
+      addTasks(newTasks)
+      setStatus(`Subiendo ${newTasks.length} fotos...`)
       
       // Update counters immediately for UI consistency
       filesToUse.forEach((f, i) => {
@@ -472,76 +534,17 @@ function BLEvidenceMaster() {
         })
 
         // 3. Process Pending Files (New Uploads)
+        // NOTE: Pending files are now uploaded immediately in onUpload.
         if (pendingFiles.length) {
-            console.log('[BLEvidenceMaster] Processing pending files:', pendingFiles.length)
-            pendingFiles.forEach(f => {
-                const name = String(f.name || '')
-                const dot = name.lastIndexOf('.')
-                const baseName = dot >= 0 ? name.slice(0, dot) : name
-                const ext = extFor({ filename: name }, f.type)
-                const date = dayjs().format('DD/MM/YYYY')
-                const r = parsePrefix(name)
-                const category = (r?.prefix === 'averia') ? 'averia' : ''
-                
-                const currentDetails = { ...details }
-                const currentMasterId = masterId || targetId
-                const currentPrefix = selectedPrefix
-                const currentContainer = selectedContainer
-                const currentCache = cacheEntry
-                
-                tasks.push({
-                  id: Math.random().toString(36).slice(2),
-                  contextId: 'master-' + targetId,
-                  label: `Subiendo nueva ${name}`,
-                  run: async () => {
-                     console.log('[BLEvidenceMaster] New upload task started for:', name)
-                     try {
-                         const contentBase64 = await blobToBase64(f)
-                         const payload = { 
-                           referenceNumber: String(currentDetails.master_id || ''), 
-                           doNumber: String(currentDetails.numero_DO_master || ''), 
-                           type: 'master', 
-                           documents: [{ name: baseName, extension: ext, category, date, contentBase64 }] 
-                         }
-                         
-                         // 1. Evidence
-                         console.log('[BLEvidenceMaster] Sending metadata to EVIDENCE_ENDPOINT:', payload)
-                         const resEv = await API.post(EVIDENCE_ENDPOINT, payload)
-                         console.log('[BLEvidenceMaster] Metadata response:', resEv.status, resEv.data)
-        
-                         const okEv = resEv && resEv.status >= 200 && resEv.status < 300 && (resEv.data?.success !== false)
-                         if (!okEv) throw new Error('Error en envío de evidencias para ' + baseName)
-                         
-                         // 2. Upload to DB
-                         const fd = new FormData()
-                         const masterIdVal = String(currentMasterId || '')
-                         fd.append('master_id', masterIdVal)
-                         fd.append('numero_DO_master', String(currentDetails.numero_DO_master || ''))
-                         if (currentPrefix) fd.append('prefix', currentPrefix)
-                         if (currentContainer) fd.append('contenedor', currentContainer)
-                         if (currentCache) {
-                           fd.append('cliente_nit', String(currentCache.nitCliente || currentCache.clienteNit || currentCache.nit || ''))
-                           fd.append('descripcion_mercancia', String(currentCache.descripcionMercancia || currentCache.descripcion || ''))
-                           fd.append('numero_pedido', String(currentCache.numeroPedido || currentCache.pedido || currentCache.orderNumber || ''))
-                         }
-                         fd.append('photos', f)
-                         
-                         console.log('[BLEvidenceMaster] Sending photo content to DB')
-                         await API.post('/bls/' + (targetId) + '/photos', fd)
-                     } catch (error) {
-                         console.error('[BLEvidenceMaster] Task error for:', name, error)
-                         throw error
-                     }
-                  }
-                })
-            })
+            console.log('[BLEvidenceMaster] Clearing legacy pending files queue')
+            setPendingFiles([])
         }
         
         if (tasks.length > 0) {
             console.log('[BLEvidenceMaster] Dispatching total tasks:', tasks.length)
             addTasks(tasks)
             setPendingFiles([])
-            setStatus(`Se iniciaron ${tasks.length} tareas en segundo plano.`)
+            setStatus(`Se iniciaron ${tasks.length} el cargue de las fotos.`)
         } else {
             console.log('[BLEvidenceMaster] No tasks created.')
             setStatus('No hay fotos nuevas ni existentes para procesar.')

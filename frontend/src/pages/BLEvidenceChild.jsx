@@ -216,9 +216,83 @@ function BLEvidenceChild() {
     const staged = filesToUse.map((f, i) => ({ id: `${now + i}-local`, filename: f.name, url: URL.createObjectURL(f) }))
     
     setPhotos(prev => prev.concat(staged))
-    setPendingFiles(prev => prev.concat(filesToUse))
+    // setPendingFiles(prev => prev.concat(filesToUse)) // No longer queuing for manual save
     
-    setStatus(`Se agregaron ${filesToUse.length} fotos. Haga clic en Guardar para subir.`)
+    const currentDetails = { ...details }
+    const currentTargetId = targetId
+    const currentHblNum = numeroHblCurrent
+    const currentCache = cacheEntry
+
+    const newTasks = filesToUse.map(f => {
+        const name = String(f.name || '')
+        const dot = name.lastIndexOf('.')
+        const baseName = dot >= 0 ? name.slice(0, dot) : name
+        const ext = extFor({ filename: name }, f.type)
+        const date = dayjs().format('DD/MM/YYYY')
+        
+        // Default flags for new uploads are false
+        const averiaForFile = false
+        const crossdokingForFile = false
+        const category = ''
+
+        return {
+          id: Math.random().toString(36).slice(2),
+          contextId: 'child-' + targetId,
+          label: `Subiendo ${name}`,
+          run: async () => {
+            console.log('[BLEvidenceChild] Immediate upload task started for:', name)
+            try {
+                // 1. Upload to DB (First priority)
+                const fd = new FormData()
+                fd.append('master_id', String(currentDetails.master_id || ''))
+                fd.append('child_id', String(currentDetails.child_id || ''))
+                fd.append('numero_DO_master', String(currentDetails.numero_DO_master || ''))
+                fd.append('numero_DO_hijo', String(currentDetails.numero_DO_hijo || ''))
+                fd.append('cliente_nombre', String(currentDetails.cliente_nombre || ''))
+                fd.append('numero_ie', String(currentDetails.numero_ie || ''))
+                fd.append('pais_de_origen', String(currentDetails.pais_de_origen || ''))
+                fd.append('puerto_de_origen', String(currentDetails.puerto_de_origen || ''))
+                
+                if (currentCache) {
+                    fd.append('cliente_nit', String(currentCache.nitCliente || currentCache.clienteNit || currentCache.nit || ''))
+                    fd.append('descripcion_mercancia', String(currentCache.descripcionMercancia || currentCache.descripcion || ''))
+                    fd.append('numero_pedido', String(currentCache.numeroPedido || currentCache.pedido || currentCache.orderNumber || ''))
+                }
+                
+                fd.append('averia_flags', JSON.stringify({ [f.name]: averiaForFile }))
+                fd.append('crossdoking_flags', JSON.stringify({ [f.name]: crossdokingForFile }))
+                fd.append('photos', f)
+                
+                console.log('[BLEvidenceChild] Sending photo content to DB')
+                await API.post('/bls/' + (currentTargetId) + '/photos', fd)
+
+                // 2. Sync to External Endpoint
+                const contentBase64 = await blobToBase64(f)
+                const documents = [{ name: baseName, extension: ext, category, date, contentBase64 }]
+                
+                const payload = { 
+                  referenceNumber: String(currentHblNum || currentTargetId || ''), 
+                  doNumber: String(currentDetails.numero_DO_hijo || currentDetails.numero_DO_master || ''), 
+                  type: 'hijo', 
+                  documents 
+                }
+                
+                console.log('[BLEvidenceChild] Sending metadata to EVIDENCE_ENDPOINT:', payload)
+                const resEv = await API.post(EVIDENCE_ENDPOINT, payload)
+                
+                if (!resEv || resEv.status < 200 || resEv.status >= 300 || resEv.data?.success === false) {
+                  throw new Error('Error guardando metadatos')
+                }
+            } catch (error) {
+                console.error('[BLEvidenceChild] Task error for:', name, error)
+                throw error
+            }
+          }
+        }
+    })
+
+    addTasks(newTasks)
+    setStatus(`Subiendo ${newTasks.length} fotos...`)
     
     if (e.target) e.target.value = ''
   }
@@ -445,89 +519,18 @@ function BLEvidenceChild() {
         })
 
         // 3. Process Pending Files (New Uploads)
-        if (pendingFiles.length) {
-            console.log('[BLEvidenceChild] Processing pending files:', pendingFiles.length)
-            pendingFiles.forEach(f => {
-                const name = String(f.name || '')
-                const dot = name.lastIndexOf('.')
-                const baseName = dot >= 0 ? name.slice(0, dot) : name
-                const ext = extFor({ filename: name }, f.type)
-                const date = dayjs().format('DD/MM/YYYY')
-                
-                const photoEntry = (photos || []).find(p => String(p.filename || '') === String(f.name || ''))
-                const averiaForFile = !!photoEntry?.averia
-                const crossdokingForFile = !!photoEntry?.crossdoking
-                
-                let category = ''
-                if (averiaForFile && crossdokingForFile) category = 'averia_crossdoking'
-                else if (averiaForFile) category = 'averia'
-                else if (crossdokingForFile) category = 'crossdoking'
-
-                const currentDetails = { ...details }
-                const currentTargetId = targetId
-                const currentHblNum = numeroHblCurrent
-                const currentCache = cacheEntry
-
-                tasks.push({
-                  id: Math.random().toString(36).slice(2),
-                  contextId: 'child-' + targetId,
-                  label: `Subiendo nueva ${name}`,
-                  run: async () => {
-                    console.log('[BLEvidenceChild] New upload task started for:', name)
-                    try {
-                        const contentBase64 = await blobToBase64(f)
-                        const documents = [{ name: baseName, extension: ext, category, date, contentBase64 }]
-                        
-                        const payload = { 
-                          referenceNumber: String(currentHblNum || currentTargetId || ''), 
-                          doNumber: String(currentDetails.numero_DO_hijo || currentDetails.numero_DO_master || ''), 
-                          type: 'hijo', 
-                          documents 
-                        }
-                        
-                        console.log('[BLEvidenceChild] Sending metadata to EVIDENCE_ENDPOINT:', payload)
-                        const resEv = await API.post(EVIDENCE_ENDPOINT, payload)
-                        
-                        if (!resEv || resEv.status < 200 || resEv.status >= 300 || resEv.data?.success === false) {
-                          throw new Error('Error guardando metadatos')
-                        }
-
-                        const fd = new FormData()
-                        fd.append('master_id', String(currentDetails.master_id || ''))
-                        fd.append('child_id', String(currentDetails.child_id || ''))
-                        fd.append('numero_DO_master', String(currentDetails.numero_DO_master || ''))
-                        fd.append('numero_DO_hijo', String(currentDetails.numero_DO_hijo || ''))
-                        fd.append('cliente_nombre', String(currentDetails.cliente_nombre || ''))
-                        fd.append('numero_ie', String(currentDetails.numero_ie || ''))
-                        fd.append('pais_de_origen', String(currentDetails.pais_de_origen || ''))
-                        fd.append('puerto_de_origen', String(currentDetails.puerto_de_origen || ''))
-                        
-                        if (currentCache) {
-                            fd.append('cliente_nit', String(currentCache.nitCliente || currentCache.clienteNit || currentCache.nit || ''))
-                            fd.append('descripcion_mercancia', String(currentCache.descripcionMercancia || currentCache.descripcion || ''))
-                            fd.append('numero_pedido', String(currentCache.numeroPedido || currentCache.pedido || currentCache.orderNumber || ''))
-                        }
-
-                        fd.append('averia_flags', JSON.stringify({ [f.name]: averiaForFile }))
-                        fd.append('crossdoking_flags', JSON.stringify({ [f.name]: crossdokingForFile }))
-                        fd.append('photos', f)
-                        
-                        console.log('[BLEvidenceChild] Sending photo content to DB')
-                        await API.post('/bls/' + (currentTargetId) + '/photos', fd)
-                    } catch (error) {
-                        console.error('[BLEvidenceChild] Task error for:', name, error)
-                        throw error
-                    }
-                  }
-                })
-            })
-        }
+              // NOTE: Pending files are now uploaded immediately in onUpload. 
+              // This block is kept empty or removed to avoid double processing if state lingers.
+              if (pendingFiles.length) {
+                  console.log('[BLEvidenceChild] Clearing legacy pending files queue')
+                  setPendingFiles([])
+              }
 
         if (tasks.length > 0) {
             console.log('[BLEvidenceChild] Dispatching total tasks:', tasks.length)
             addTasks(tasks)
             setPendingFiles([]) // Clear pending files as they are now queued
-            setStatus(`Se iniciaron ${tasks.length} tareas en segundo plano.`)
+            setStatus(`Se iniciaron ${tasks.length} el cargue de las fotos.`)
         } else {
             console.log('[BLEvidenceChild] No tasks created.')
             setStatus('No hay fotos nuevas ni existentes para procesar.')

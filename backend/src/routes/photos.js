@@ -54,9 +54,14 @@ router.post('/bls/:id/photos', authRequired, (req, res, next) => {
     });
     if (!created) {
       const prev = Array.isArray(rec.photos) ? rec.photos : [];
-      rec.photos = prev.concat(photos);
-      rec.send_status = 'pending';
-      await rec.save();
+      const existingNames = new Set(prev.map(p => p.filename));
+      const newPhotos = photos.filter(p => !existingNames.has(p.filename));
+      
+      if (newPhotos.length > 0) {
+        rec.photos = prev.concat(newPhotos);
+        rec.send_status = 'pending';
+        await rec.save();
+      }
     }
     try {
       const master_id = String(req.body.master_id || '').trim();
