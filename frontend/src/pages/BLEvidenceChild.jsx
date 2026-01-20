@@ -200,7 +200,7 @@ function BLEvidenceChild() {
       const slug = String(numeroHblCurrent || details.child_id || '')
       const used = []
       ;(Array.isArray(photos) ? photos : []).forEach(p => { const r = parsePrefix(p?.filename || ''); if (r && r.prefix === slug) used.push(r.num) })
-      ;(Array.isArray(pendingFiles) ? pendingFiles : []).forEach(f => { const r = parsePrefix(String(f.name || '')); if (r && r.prefix === slug) used.push(r.num) })
+      // No checking pendingFiles as we upload immediately
       const start = used.length ? Math.max(...used) + 1 : 1
       filesToUse = valid.map((f, i) => {
         const original = String(f.name || '')
@@ -209,12 +209,44 @@ function BLEvidenceChild() {
         const newName = `${slug}_${start + i}${ext}`
         return new File([f], newName, { type: f.type })
       })
+
+      // Show local previews temporarily
       const now = Date.now()
       const staged = filesToUse.map((f, i) => ({ id: `${now + i}-local`, filename: f.name, url: URL.createObjectURL(f) }))
-      setPendingFiles(prev => prev.concat(filesToUse))
       setPhotos(prev => prev.concat(staged))
-      setHasNewUploads(true)
-      setStatus('Fotos preparadas: ' + staged.length)
+      
+      const total = filesToUse.length
+      let uploaded = 0
+
+      for (const f of filesToUse) {
+        // Upload file content
+        const fd = new FormData()
+        const masterIdVal = String(details.master_id || '')
+        fd.append('master_id', masterIdVal)
+        fd.append('child_id', String(details.child_id || ''))
+        fd.append('numero_DO_master', String(details.numero_DO_master || ''))
+        fd.append('numero_DO_hijo', String(details.numero_DO_hijo || ''))
+        fd.append('cliente_nombre', String(details.cliente_nombre || ''))
+        fd.append('numero_ie', String(details.numero_ie || ''))
+        fd.append('pais_de_origen', String(details.pais_de_origen || ''))
+        fd.append('puerto_de_origen', String(details.puerto_de_origen || ''))
+        if (cacheEntry) {
+          fd.append('cliente_nit', String(cacheEntry.nitCliente || cacheEntry.clienteNit || cacheEntry.nit || ''))
+          fd.append('descripcion_mercancia', String(cacheEntry.descripcionMercancia || cacheEntry.descripcion || ''))
+          fd.append('numero_pedido', String(cacheEntry.numeroPedido || cacheEntry.pedido || cacheEntry.orderNumber || ''))
+        }
+        fd.append('averia_flags', JSON.stringify({ [f.name]: false }))
+        fd.append('crossdoking_flags', JSON.stringify({ [f.name]: false }))
+        fd.append('photos', f)
+
+        await API.post('/bls/' + (targetId) + '/photos', fd)
+        uploaded += 1
+        setStatus('Subiendo imagen ' + uploaded + ' de ' + total)
+      }
+
+      setStatus('Fotos subidas correctamente')
+      
+      // Update recent documents list locally for immediate UI feedback if needed
       const docs = await Promise.all((filesToUse || []).map(async (f) => {
         const name = String(f.name || '')
         const dot = name.lastIndexOf('.')
@@ -225,11 +257,18 @@ function BLEvidenceChild() {
         return { name: baseName, extension: ext, category: '', date, contentBase64 }
       }))
       setRecentDocuments(prev => prev.concat(docs))
+      
+      // Refresh photos list from server
+      const ref = await API.get('/bls/' + targetId + '/photos')
+      let list = Array.isArray(ref.data?.photos) ? ref.data.photos : []
+      setPhotos(list)
+      
     } catch (err) {
-      setStatus('Error al preparar fotos: ' + (err.response?.data?.error || err.message))
+      setStatus('Error al subir fotos: ' + (err.response?.data?.error || err.message))
     } finally {
       setLoading(false)
       setUploading(false)
+      if (e.target) e.target.value = ''
     }
   }
 
@@ -570,6 +609,7 @@ function BLEvidenceChild() {
                               checked={!!p.averia} 
                               onChange={(e) => onToggleAveria(p.id, e.target.checked)} 
                               style={{ width: 16, height: 16, margin: 0 }}
+                              disabled={String(p.id).endsWith('-local')}
                             />
                             <span style={{ fontWeight: 500 }}>Avería</span>
                           </label>
@@ -579,6 +619,7 @@ function BLEvidenceChild() {
                               checked={!!p.crossdoking} 
                               onChange={(e) => onToggleCrossdoking(p.id, e.target.checked)} 
                               style={{ width: 16, height: 16, margin: 0 }}
+                              disabled={String(p.id).endsWith('-local')}
                             />
                             <span style={{ fontWeight: 500 }}>Crossdoking</span>
                           </label>
@@ -620,8 +661,8 @@ function BLEvidenceChild() {
                     const usuario = p.user_nombre || p.user_display_name || p.user_email || '-'
                     return (
                       <tr key={p.id}>
-                        <td><input type="checkbox" checked={!!p.averia} onChange={(e) => onToggleAveria(p.id, e.target.checked)} disabled={isAdmin} /></td>
-                        <td><input type="checkbox" checked={!!p.crossdoking} onChange={(e) => onToggleCrossdoking(p.id, e.target.checked)} disabled={isAdmin} /></td>
+                        <td><input type="checkbox" checked={!!p.averia} onChange={(e) => onToggleAveria(p.id, e.target.checked)} disabled={isAdmin || String(p.id).endsWith('-local')} /></td>
+                        <td><input type="checkbox" checked={!!p.crossdoking} onChange={(e) => onToggleCrossdoking(p.id, e.target.checked)} disabled={isAdmin || String(p.id).endsWith('-local')} /></td>
                         <td>
                           {p.url ? (
                             <img src={urlFor(p.url)} alt={p.filename || p.id} style={{ width: 80, height: 60, objectFit: 'cover', borderRadius: 6, cursor: 'zoom-in' }} onClick={() => setSelectedPhoto(p)} />

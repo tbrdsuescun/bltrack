@@ -288,15 +288,12 @@ function BLEvidenceMaster() {
       const targetContainerPart = selectedContainer 
         ? (selectedContainer + (blNieto ? '_' + blNieto : '')) 
         : (blNieto ? blNieto : '')
-        
+      
       ;(Array.isArray(photos) ? photos : []).forEach(p => { 
         const r = parsePrefix(p?.filename || '')
         if (r && r.prefix === slug && r.container === targetContainerPart) used.push(r.num) 
       })
-      ;(Array.isArray(pendingFiles) ? pendingFiles : []).forEach(f => { 
-        const r = parsePrefix(String(f.name || ''))
-        if (r && r.prefix === slug && r.container === targetContainerPart) used.push(r.num) 
-      })
+      
       const start = used.length ? Math.max(...used) + 1 : 1
       filesToUse = valid.map((f, i) => {
         const original = String(f.name || '')
@@ -307,19 +304,48 @@ function BLEvidenceMaster() {
         const newName = `${slug}_${cont}${nietoPart}${start + i}${ext}`
         return new File([f], newName, { type: f.type })
       })
+
       const now = Date.now()
       const staged = filesToUse.map((f, i) => ({ id: `${now + i}-local`, filename: f.name, url: URL.createObjectURL(f) }))
-      setPendingFiles(prev => prev.concat(filesToUse))
       setPhotos(prev => prev.concat(staged))
-      setStatus('Fotos preparadas: ' + staged.length)
-      const inc = filesToUse.length
-      const key = slug + '__' + (selectedContainer || '')
-      setCounters(prev => ({ ...prev, [key]: start + inc }))
+      
+      const total = filesToUse.length
+      let uploaded = 0
+
+      for (const f of filesToUse) {
+        const fd = new FormData()
+        const masterIdVal = String(masterId || targetId || '')
+        fd.append('master_id', masterIdVal)
+        fd.append('numero_DO_master', String(details.numero_DO_master || ''))
+        if (selectedPrefix) fd.append('prefix', selectedPrefix)
+        if (selectedContainer) fd.append('contenedor', selectedContainer)
+        if (cacheEntry) {
+          fd.append('cliente_nit', String(cacheEntry.nitCliente || cacheEntry.clienteNit || cacheEntry.nit || ''))
+          fd.append('descripcion_mercancia', String(cacheEntry.descripcionMercancia || cacheEntry.descripcion || ''))
+          fd.append('numero_pedido', String(cacheEntry.numeroPedido || cacheEntry.pedido || cacheEntry.orderNumber || ''))
+        }
+        fd.append('photos', f)
+        
+        await API.post('/bls/' + (targetId) + '/photos', fd)
+        uploaded += 1
+        setStatus('Subiendo imagen ' + uploaded + ' de ' + total)
+        
+        const key = slug + '__' + (selectedContainer || '')
+        setCounters(prev => ({ ...prev, [key]: start + uploaded }))
+      }
+
+      setStatus('Fotos subidas correctamente')
+      
+      const ref = await API.get('/bls/' + targetId + '/photos')
+      let list = Array.isArray(ref.data?.photos) ? ref.data.photos : []
+      setPhotos(list)
+
     } catch (err) {
-      setStatus('Error al preparar fotos: ' + (err.response?.data?.error || err.message))
+      setStatus('Error al subir fotos: ' + (err.response?.data?.error || err.message))
     } finally {
       setLoading(false)
       setUploading(false)
+      if (e.target) e.target.value = ''
     }
   }
 
