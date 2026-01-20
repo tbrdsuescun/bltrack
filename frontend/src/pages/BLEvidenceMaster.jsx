@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import dayjs from 'dayjs'
 import API, { EVIDENCE_ENDPOINT } from '../lib/api.js'
+import { useUpload } from '../lib/UploadContext.jsx'
 
 function blobToBase64(blob) {
   return new Promise((resolve, reject) => {
@@ -98,6 +99,7 @@ function normalizeList(items) {
 
 function BLEvidenceMaster() {
   const { masterId, id } = useParams()
+  const { addTasks, queue } = useUpload()
   const navigate = useNavigate()
   const targetId = masterId || id
   const [photos, setPhotos] = useState([])
@@ -308,40 +310,19 @@ function BLEvidenceMaster() {
       const now = Date.now()
       const staged = filesToUse.map((f, i) => ({ id: `${now + i}-local`, filename: f.name, url: URL.createObjectURL(f) }))
       setPhotos(prev => prev.concat(staged))
+      setPendingFiles(prev => prev.concat(filesToUse))
       
       const total = filesToUse.length
-      let uploaded = 0
-
-      for (const f of filesToUse) {
-        const fd = new FormData()
-        const masterIdVal = String(masterId || targetId || '')
-        fd.append('master_id', masterIdVal)
-        fd.append('numero_DO_master', String(details.numero_DO_master || ''))
-        if (selectedPrefix) fd.append('prefix', selectedPrefix)
-        if (selectedContainer) fd.append('contenedor', selectedContainer)
-        if (cacheEntry) {
-          fd.append('cliente_nit', String(cacheEntry.nitCliente || cacheEntry.clienteNit || cacheEntry.nit || ''))
-          fd.append('descripcion_mercancia', String(cacheEntry.descripcionMercancia || cacheEntry.descripcion || ''))
-          fd.append('numero_pedido', String(cacheEntry.numeroPedido || cacheEntry.pedido || cacheEntry.orderNumber || ''))
-        }
-        fd.append('photos', f)
-        
-        await API.post('/bls/' + (targetId) + '/photos', fd)
-        uploaded += 1
-        setStatus('Subiendo imagen ' + uploaded + ' de ' + total)
-        
-        const key = slug + '__' + (selectedContainer || '')
-        setCounters(prev => ({ ...prev, [key]: start + uploaded }))
-      }
-
-      setStatus('Fotos subidas correctamente')
+      setStatus(`Se agregaron ${total} fotos para subir. Haga clic en Guardar.`)
       
-      const ref = await API.get('/bls/' + targetId + '/photos')
-      let list = Array.isArray(ref.data?.photos) ? ref.data.photos : []
-      setPhotos(list)
+      // Update counters immediately for UI consistency
+      filesToUse.forEach((f, i) => {
+        const key = slug + '__' + (selectedContainer || '')
+        setCounters(prev => ({ ...prev, [key]: start + i + 1 }))
+      })
 
     } catch (err) {
-      setStatus('Error al subir fotos: ' + (err.response?.data?.error || err.message))
+      setStatus('Error al procesar fotos: ' + err.message)
     } finally {
       setLoading(false)
       setUploading(false)
@@ -425,60 +406,153 @@ function BLEvidenceMaster() {
   async function onSave() {
     if (!targetId) return
     setSaveError(false)
-    setStatus('Guardando...')
+    setStatus('Verificando fotos en base de datos...')
+    console.log('[BLEvidenceMaster] onSave clicked.')
+    
     setSaveModalOpen(true)
-    setLoading(true)
+    
     try {
-      if (pendingFiles.length) {
-        setUploading(true)
-        setUploadProgress(0)
-        const total = pendingFiles.length
-        let uploaded = 0
-        let newPhotos = []
-        let allOk = true
-        for (const f of pendingFiles) {
-          const name = String(f.name || '')
-          const dot = name.lastIndexOf('.')
-          const baseName = dot >= 0 ? name.slice(0, dot) : name
-          const ext = extFor({ filename: name }, f.type)
-          const date = dayjs().format('DD/MM/YYYY')
-          const r = parsePrefix(name)
-          const category = (r?.prefix === 'averia') ? 'averia' : ''
-          const contentBase64 = await blobToBase64(f)
-          const payload = { referenceNumber: String(details.master_id || ''), doNumber: String(details.numero_DO_master || ''), type: 'master', documents: [{ name: baseName, extension: ext, category, date, contentBase64 }] }
-          const resEv = await API.post(EVIDENCE_ENDPOINT, payload)
-          const okEv = resEv && resEv.status >= 200 && resEv.status < 300 && (resEv.data?.success !== false)
-          if (!okEv) { allOk = false; setSaveError(true); setStatus('Error en envío de evidencias para ' + baseName); break }
-          const fd = new FormData()
-          const masterIdVal = String(masterId || targetId || '')
-          fd.append('master_id', masterIdVal)
-          fd.append('numero_DO_master', String(details.numero_DO_master || ''))
-          if (selectedPrefix) fd.append('prefix', selectedPrefix)
-          if (selectedContainer) fd.append('contenedor', selectedContainer)
-          if (cacheEntry) {
-            fd.append('cliente_nit', String(cacheEntry.nitCliente || cacheEntry.clienteNit || cacheEntry.nit || ''))
-            fd.append('descripcion_mercancia', String(cacheEntry.descripcionMercancia || cacheEntry.descripcion || ''))
-            fd.append('numero_pedido', String(cacheEntry.numeroPedido || cacheEntry.pedido || cacheEntry.orderNumber || ''))
-          }
-          fd.append('photos', f)
-          const upRes = await API.post('/bls/' + (targetId) + '/photos', fd)
-          const batch = (upRes.data.photos || []).map(p => ({ ...p, url: p.id ? ('/uploads/' + p.id) : p.url }))
-          newPhotos = newPhotos.concat(batch)
-          uploaded += 1
-          setUploadProgress(Math.round((uploaded / total) * 100))
-          setStatus('Guardando imagen ' + uploaded + ' de ' + total)
+        // 1. Fetch current photos from DB
+        console.log('[BLEvidenceMaster] Fetching latest photos from DB...')
+        const resPhotos = await API.get('/bls/' + targetId + '/photos')
+        const dbPhotos = Array.isArray(resPhotos.data?.photos) ? resPhotos.data.photos : []
+        console.log('[BLEvidenceMaster] DB Photos found:', dbPhotos.length)
+
+        const tasks = []
+
+        // 2. Identify DB photos for this Master/Container/Prefix
+        dbPhotos.forEach(p => {
+             const pName = String(p.filename || '')
+             
+             const dot = pName.lastIndexOf('.')
+             const baseName = dot >= 0 ? pName.slice(0, dot) : pName
+             const ext = extFor({ filename: pName }, p.mimetype || 'image/jpeg')
+             const date = dayjs().format('DD/MM/YYYY')
+             
+             const r = parsePrefix(pName)
+             const category = (r?.prefix === 'averia') ? 'averia' : ''
+
+             const currentDetails = { ...details }
+             
+             tasks.push({
+                 id: `sync-${p.id || pName}-${Date.now()}`,
+                 label: `Sincronizando ${pName}`,
+                 run: async () => {
+                     console.log('[BLEvidenceMaster] Sync task started for:', pName)
+                     
+                     let blob = null
+                     try {
+                         const imgUrl = p.url
+                         console.log('[BLEvidenceMaster] Fetching image blob from:', imgUrl)
+                         const resBlob = await API.get(imgUrl, { responseType: 'blob' })
+                         blob = resBlob.data
+                     } catch (err) {
+                         console.error('[BLEvidenceMaster] Error fetching image blob:', err)
+                         throw new Error(`No se pudo descargar la imagen ${pName}`)
+                     }
+
+                     const contentBase64 = await blobToBase64(blob)
+                     
+                     const payload = { 
+                       referenceNumber: String(currentDetails.master_id || ''), 
+                       doNumber: String(currentDetails.numero_DO_master || ''), 
+                       type: 'master', 
+                       documents: [{ name: baseName, extension: ext, category, date, contentBase64 }] 
+                     }
+                     
+                     console.log('[BLEvidenceMaster] Sending existing photo to EVIDENCE_ENDPOINT:', payload)
+                     const resEv = await API.post(EVIDENCE_ENDPOINT, payload)
+                     console.log('[BLEvidenceMaster] Metadata response:', resEv.status)
+
+                     const okEv = resEv && resEv.status >= 200 && resEv.status < 300 && (resEv.data?.success !== false)
+                     if (!okEv) throw new Error('Error enviando a endpoint externo')
+                 }
+             })
+        })
+
+        // 3. Process Pending Files (New Uploads)
+        if (pendingFiles.length) {
+            console.log('[BLEvidenceMaster] Processing pending files:', pendingFiles.length)
+            pendingFiles.forEach(f => {
+                const name = String(f.name || '')
+                const dot = name.lastIndexOf('.')
+                const baseName = dot >= 0 ? name.slice(0, dot) : name
+                const ext = extFor({ filename: name }, f.type)
+                const date = dayjs().format('DD/MM/YYYY')
+                const r = parsePrefix(name)
+                const category = (r?.prefix === 'averia') ? 'averia' : ''
+                
+                const currentDetails = { ...details }
+                const currentMasterId = masterId || targetId
+                const currentPrefix = selectedPrefix
+                const currentContainer = selectedContainer
+                const currentCache = cacheEntry
+                
+                tasks.push({
+                  id: Math.random().toString(36).slice(2),
+                  label: `Subiendo nueva ${name}`,
+                  run: async () => {
+                     console.log('[BLEvidenceMaster] New upload task started for:', name)
+                     try {
+                         const contentBase64 = await blobToBase64(f)
+                         const payload = { 
+                           referenceNumber: String(currentDetails.master_id || ''), 
+                           doNumber: String(currentDetails.numero_DO_master || ''), 
+                           type: 'master', 
+                           documents: [{ name: baseName, extension: ext, category, date, contentBase64 }] 
+                         }
+                         
+                         // 1. Evidence
+                         console.log('[BLEvidenceMaster] Sending metadata to EVIDENCE_ENDPOINT:', payload)
+                         const resEv = await API.post(EVIDENCE_ENDPOINT, payload)
+                         console.log('[BLEvidenceMaster] Metadata response:', resEv.status, resEv.data)
+        
+                         const okEv = resEv && resEv.status >= 200 && resEv.status < 300 && (resEv.data?.success !== false)
+                         if (!okEv) throw new Error('Error en envío de evidencias para ' + baseName)
+                         
+                         // 2. Upload to DB
+                         const fd = new FormData()
+                         const masterIdVal = String(currentMasterId || '')
+                         fd.append('master_id', masterIdVal)
+                         fd.append('numero_DO_master', String(currentDetails.numero_DO_master || ''))
+                         if (currentPrefix) fd.append('prefix', currentPrefix)
+                         if (currentContainer) fd.append('contenedor', currentContainer)
+                         if (currentCache) {
+                           fd.append('cliente_nit', String(currentCache.nitCliente || currentCache.clienteNit || currentCache.nit || ''))
+                           fd.append('descripcion_mercancia', String(currentCache.descripcionMercancia || currentCache.descripcion || ''))
+                           fd.append('numero_pedido', String(currentCache.numeroPedido || currentCache.pedido || currentCache.orderNumber || ''))
+                         }
+                         fd.append('photos', f)
+                         
+                         console.log('[BLEvidenceMaster] Sending photo content to DB')
+                         await API.post('/bls/' + (targetId) + '/photos', fd)
+                     } catch (error) {
+                         console.error('[BLEvidenceMaster] Task error for:', name, error)
+                         throw error
+                     }
+                  }
+                })
+            })
         }
-        setUploading(false)
-        setPhotos(newPhotos)
-        if (allOk) { setPendingFiles([]); setStatus('Guardado correctamente') }
-      }
-      if (!pendingFiles.length) setStatus('No hay cambios para guardar')
+        
+        if (tasks.length > 0) {
+            console.log('[BLEvidenceMaster] Dispatching total tasks:', tasks.length)
+            addTasks(tasks)
+            setPendingFiles([])
+            setStatus(`Se iniciaron ${tasks.length} tareas en segundo plano.`)
+        } else {
+            console.log('[BLEvidenceMaster] No tasks created.')
+            setStatus('No hay fotos nuevas ni existentes para procesar.')
+        }
+        
+        setTimeout(() => {
+            setSaveModalOpen(false)
+            setStatus(null)
+        }, 2500)
+
     } catch (err) {
-      setStatus('Error al guardar: ' + (err.response?.data?.error || err.message))
-      setSaveError(true)
-    } finally {
-      setLoading(false)
-      setUploading(false)
+        console.error('[BLEvidenceMaster] Error in onSave:', err)
+        setStatus('Error verificando base de datos: ' + err.message)
     }
   }
 
@@ -510,6 +584,26 @@ function BLEvidenceMaster() {
           )}
         </div>
       </div>
+
+      {queue.length > 0 && (
+        <div style={{ marginBottom: 20, padding: 15, border: '1px solid #e5e7eb', borderRadius: 8, background: '#f9fafb' }}>
+          <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 10 }}>Subidas en curso</h3>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {queue.map(t => (
+              <div key={t.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 14 }}>
+                <span>{t.label}</span>
+                <span style={{ 
+                  padding: '2px 8px', borderRadius: 4, fontSize: 12,
+                  background: t.status === 'completed' ? '#dcfce7' : t.status === 'failed' ? '#fee2e2' : '#dbeafe',
+                  color: t.status === 'completed' ? '#166534' : t.status === 'failed' ? '#991b1b' : '#1e40af'
+                }}>
+                  {t.status === 'pending' ? 'Pendiente' : t.status === 'uploading' ? 'Subiendo...' : t.status === 'failed' ? 'Falló' : 'Completado'}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="card">
         <div className="grid-2">
@@ -768,7 +862,7 @@ function BLEvidenceMaster() {
               {loading && !uploading ? <div className="muted" style={{ marginTop: 8 }}>Procesando...</div> : null}
             </div>
             <div className="modal-footer">
-              <button className="btn" onClick={() => setSaveModalOpen(false)} disabled={loading}>Cerrar</button>
+              <button className="btn btn-primary" onClick={() => setSaveModalOpen(false)} disabled={loading}>Aceptar</button>
             </div>
           </div>
         </div>

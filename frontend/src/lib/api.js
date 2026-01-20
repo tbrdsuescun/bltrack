@@ -3,7 +3,8 @@ import axios from 'axios'
 // Instancia compartida de Axios para toda la app
 const base = (import.meta.env?.VITE_API_BASE_URL) || (import.meta.env.PROD ? '' : '/api')
 const API = axios.create({
-  baseURL: base
+  baseURL: base,
+  timeout: 180000 // 3 minutos de timeout para evitar cuelgues
 })
 
 // Interceptor para adjuntar token
