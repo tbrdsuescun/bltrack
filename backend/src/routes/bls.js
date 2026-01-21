@@ -33,22 +33,23 @@ router.get('/mine', authRequired, async (req, res) => {
         const placeholders = blIds.map(() => '?').join(',');
         const query = `SELECT * FROM master_children WHERE child_id IN (${placeholders})`;
         const detailRows = await sequelize.query(query, { replacements: blIds, type: QueryTypes.SELECT });
-        detailRows.forEach(dr => { detailsMap[String(dr.child_id)] = dr; });
+        detailRows.forEach(dr => { detailsMap[`${dr.child_id}_${dr.type || 'hijo'}`] = dr; });
       } catch (e) {
         detailsMap = {};
       }
     }
     const agg = {};
     rows.forEach(r => {
-      const k = String(r.bl_id);
-      const prev = agg[k] || { bl_id: k, photos_count: 0, send_status: r.send_status, sent_at: r.sent_at };
+      const type = r.type || 'hijo';
+      const k = `${r.bl_id}_${type}`;
+      const prev = agg[k] || { bl_id: r.bl_id, type, photos_count: 0, send_status: r.send_status, sent_at: r.sent_at };
       prev.photos_count += Array.isArray(r.photos) ? r.photos.length : 0;
       prev.send_status = prev.send_status || r.send_status;
       prev.sent_at = prev.sent_at || r.sent_at;
       agg[k] = prev;
     });
     const items = Object.values(agg).map(r => {
-      const d = detailsMap[String(r.bl_id)] || {};
+      const d = detailsMap[`${r.bl_id}_${r.type}`] || {};
       const nombreCliente = d.cliente_nombre || d.nombre_cliente || d.client_name || d.nombre || '';
       const nitCliente = d.cliente_nit || d.nit || d.client_nit || '';
       const clienteNit = [nombreCliente, nitCliente].filter(Boolean).join(' - ');
@@ -57,6 +58,8 @@ router.get('/mine', authRequired, async (req, res) => {
       const pedidoNumero = d.numero_pedido || d.pedido || d.order_number || d.orden || '';
       return {
         bl_id: r.bl_id,
+        type: r.type,
+        master_id: d.master_id || null,
         photos_count: r.photos_count,
         send_status: r.send_status,
         sent_at: r.sent_at,
@@ -128,7 +131,7 @@ router.get('/:id', authRequired, async (req, res) => {
 router.get('/master/:master/children', authRequired, async (req, res) => {
   try {
     const { master } = req.params;
-    const query = 'SELECT * FROM master_children WHERE master_id = ? AND child_id <> master_id';
+    const query = "SELECT * FROM master_children WHERE master_id = ? AND type = 'hijo'";
     const items = await sequelize.query(query, { replacements: [master], type: QueryTypes.SELECT });
     res.json({ items });
   } catch (err) {
