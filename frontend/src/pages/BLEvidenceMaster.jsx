@@ -191,7 +191,7 @@ function BLEvidenceMaster() {
     const tid = String(targetId || '')
     if (!tid) return () => { mounted = false }
     setLoading(true)
-    API.get('/bls/' + tid + '/photos').then(async (res) => {
+    API.get('/bls/' + tid + '/photos?type=master').then(async (res) => {
       if (!mounted) return
       let list = Array.isArray(res.data?.photos) ? res.data.photos : []
       setPhotos(list)
@@ -356,7 +356,7 @@ function BLEvidenceMaster() {
                    fd.append('photos', f)
                    
                    console.log('[BLEvidenceMaster] Sending photo content to DB (First)')
-                   const resDb = await API.post('/bls/' + (targetId) + '/photos', fd)
+                   const resDb = await API.post('/bls/' + (targetId) + '/photos?type=master', fd)
                    const uploaded = resDb.data?.photos?.[0]
                    if (uploaded && uploaded.id) {
                      setPhotos(prev => prev.map(p => (p.id === localId ? { ...p, id: uploaded.id } : p)))

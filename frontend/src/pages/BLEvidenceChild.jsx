@@ -158,7 +158,7 @@ function BLEvidenceChild() {
     const tid = String(targetId || '')
     if (!tid) return () => { mounted = false }
     setLoading(true)
-    API.get('/bls/' + tid + '/photos').then(async (res) => {
+    API.get('/bls/' + tid + '/photos?type=hijo').then(async (res) => {
       if (!mounted) return
       let list = Array.isArray(res.data?.photos) ? res.data.photos : []
       setPhotos(list)
@@ -297,7 +297,7 @@ function BLEvidenceChild() {
                 fd.append('photos', f)
                 
                 console.log('[BLEvidenceChild] Sending photo content to DB')
-                const resDb = await API.post('/bls/' + (currentTargetId) + '/photos', fd)
+                const resDb = await API.post('/bls/' + (currentTargetId) + '/photos?type=hijo', fd)
                 const uploaded = resDb.data?.photos?.[0]
                 if (uploaded && uploaded.id) {
                   setPhotos(prev => prev.map(p => (p.id === localId ? { ...p, id: uploaded.id } : p)))
@@ -340,7 +340,7 @@ function BLEvidenceChild() {
     try {
       const tid = String(hblId || targetId || '')
       if (!tid) return
-      await API.patch('/bls/' + tid + '/photos/averia', { flags: { [photoId]: !!checked } })
+      await API.patch('/bls/' + tid + '/photos/averia?type=hijo', { flags: { [photoId]: !!checked } })
       if (currentPhoto && currentPhoto.url) {
         const res = await fetch(urlFor(currentPhoto.url))
         const blob = await res.blob()
@@ -368,7 +368,7 @@ function BLEvidenceChild() {
     try {
       const tid = String(hblId || targetId || '')
       if (!tid) return
-      await API.patch('/bls/' + tid + '/photos/crossdoking', { flags: { [photoId]: !!checked } })
+      await API.patch('/bls/' + tid + '/photos/crossdoking?type=hijo', { flags: { [photoId]: !!checked } })
       if (currentPhoto && currentPhoto.url) {
         const res = await fetch(urlFor(currentPhoto.url))
         const blob = await res.blob()
@@ -435,7 +435,7 @@ function BLEvidenceChild() {
         const tid = String(hblId || targetId || '')
         if (tid) {
           try {
-            const ref = await API.get('/bls/' + tid + '/photos')
+            const ref = await API.get('/bls/' + tid + '/photos?type=hijo')
             let list = Array.isArray(ref.data?.photos) ? ref.data.photos : []
             setPhotos(list)
           } catch {}
@@ -477,7 +477,7 @@ function BLEvidenceChild() {
     try {
         // 1. Fetch current photos from DB to ensure we have the latest state
         console.log('[BLEvidenceChild] Fetching latest photos from DB...')
-        const resPhotos = await API.get('/bls/' + targetId + '/photos')
+        const resPhotos = await API.get('/bls/' + targetId + '/photos?type=hijo')
         const dbPhotos = Array.isArray(resPhotos.data?.photos) ? resPhotos.data.photos : []
         console.log('[BLEvidenceChild] DB Photos found:', dbPhotos.length)
 
@@ -595,10 +595,10 @@ function BLEvidenceChild() {
               label: 'Actualizando estados de fotos',
               run: async () => {
                   if (Object.keys(flagsExisting).length) {
-                        await API.patch('/bls/' + (hblId || targetId) + '/photos/averia', { flags: flagsExisting })
+                        await API.patch('/bls/' + (hblId || targetId) + '/photos/averia?type=hijo', { flags: flagsExisting })
                     }
                     if (Object.keys(crossdokingExisting).length) {
-                        await API.patch('/bls/' + (hblId || targetId) + '/photos/crossdoking', { flags: crossdokingExisting })
+                        await API.patch('/bls/' + (hblId || targetId) + '/photos/crossdoking?type=hijo', { flags: crossdokingExisting })
                     }
                 }
             }])

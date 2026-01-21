@@ -196,15 +196,14 @@ function Panel({ user }) {
                       ) : null}
                     </div>
                     <div className="mobile-card-actions" style={{ marginTop: 8 }}>
-                      <button className="btn btn-outline btn-small" onClick={() => {
-                        const hasChildren = Number(row.childrenCount) > 0
-                        navigate(hasChildren ? '/bl?master=' + encodeURIComponent(row.master) : '/evidence/' + row.master)
-                      }}>Ver BLS</button>
                       {Number(row.childrenCount) > 0 && (
                         <button className="btn btn-outline btn-small" onClick={() => {
-                          navigate('/evidence/' + row.master)
-                        }}>Ver Master</button>
+                          navigate('/bl?master=' + encodeURIComponent(row.master) + '&type=hijo')
+                        }}>Ver BLS</button>
                       )}
+                      <button className="btn btn-outline btn-small" onClick={() => {
+                        navigate('/evidence/' + row.master + '?type=master')
+                      }}>Ver Master</button>
                     </div>
                   </div>
                 ))}
@@ -226,7 +225,7 @@ function Panel({ user }) {
                   <tbody>
                     {mastersList.slice((page - 1) * pageSize, (page - 1) * pageSize + pageSize).map((row, idx) => (
                       <tr key={idx}>
-                        <td style={{ cursor: 'pointer', color: '#06467c' }} onClick={() => { const hasChildren = Number(row.childrenCount) > 0; navigate(hasChildren ? '/bl?master=' + encodeURIComponent(row.master) : '/evidence/' + row.master) }}>{row.master}</td>
+                        <td style={{ cursor: 'pointer', color: '#06467c' }} onClick={() => { const hasChildren = Number(row.childrenCount) > 0; navigate(hasChildren ? '/bl?master=' + encodeURIComponent(row.master) : '/evidence/' + row.master + '?type=master') }}>{row.master}</td>
                         {isAdmin ? (
                           <td>{(row.users || []).map(u => u.nombre || u.display_name || u.email).filter(Boolean).join(', ') || '-'}</td>
                         ) : null}
@@ -237,15 +236,14 @@ function Panel({ user }) {
                         <td>{row.doNumber}</td>
                         <td>{row.childrenCount}</td>
                         <td className="table-actions">
-                          <button className="btn btn-outline btn-small" onClick={() => {
-                            const hasChildren = Number(row.childrenCount) > 0
-                            navigate(hasChildren ? '/bl?master=' + encodeURIComponent(row.master) : '/evidence/' + row.master)
-                          }}>Ver BLS</button>
                           {Number(row.childrenCount) > 0 && (
                             <button className="btn btn-outline btn-small" onClick={() => {
-                              navigate('/evidence/' + row.master)
-                            }}>Ver Master</button>
+                              navigate('/bl?master=' + encodeURIComponent(row.master) + '&type=hijo')
+                            }}>Ver BLS</button>
                           )}
+                          <button className="btn btn-outline btn-small" onClick={() => {
+                            navigate('/evidence/' + row.master + '?type=master')
+                          }}>Ver Master</button>
                         </td>
                       </tr>
                     ))}
