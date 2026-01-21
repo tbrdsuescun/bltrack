@@ -2,6 +2,7 @@ backend/src/db/sequelize.js
 
 # Ignorar archivos de entorno
 backend/.env
+backend/uploads
 backend/.env.*
 frontend/.env
 frontend/.env.*

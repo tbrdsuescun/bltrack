@@ -595,7 +595,7 @@ function BLEvidenceMaster() {
           </p>
         </div>
         <div className="actions-row">
-          <button className="btn btn-outline" onClick={() => navigate('/bls')}>← Volver</button>
+          <button className="btn btn-outline" onClick={() => navigate('/bl/' + (masterId || targetId))}>← Volver</button>
         </div>
       </div>
 
