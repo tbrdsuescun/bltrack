@@ -19,7 +19,7 @@ router.get('/masters', authRequired, async (req, res) => {
     const masterIds = mastersRows.map(r => r.master_id);
     if (masterIds.length === 0) return res.json({ items: [] });
     const counts = await sequelize.query(
-      'SELECT master_id, COUNT(child_id) AS children_count FROM master_children WHERE master_id IN (:masterIds) GROUP BY master_id',
+      "SELECT master_id, COUNT(child_id) AS children_count FROM master_children WHERE master_id IN (:masterIds) AND type = 'hijo' GROUP BY master_id",
       { replacements: { masterIds }, type: QueryTypes.SELECT }
     );
     const photosCounts = await sequelize.query(
@@ -84,7 +84,7 @@ router.get('/masters/with-photos', authRequired, async (req, res) => {
     const masterIds = mastersRows.map(r => r.master_id);
     if (masterIds.length === 0) return res.json({ items: [] });
     const counts = await sequelize.query(
-      'SELECT master_id, COUNT(child_id) AS children_count FROM master_children WHERE master_id IN (:masterIds) GROUP BY master_id',
+      "SELECT master_id, COUNT(child_id) AS children_count FROM master_children WHERE master_id IN (:masterIds) AND type = 'hijo' GROUP BY master_id",
       { replacements: { masterIds }, type: QueryTypes.SELECT }
     );
     const photosCounts = await sequelize.query(
