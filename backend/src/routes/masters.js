@@ -19,11 +19,11 @@ router.get('/masters', authRequired, async (req, res) => {
     const masterIds = mastersRows.map(r => r.master_id);
     if (masterIds.length === 0) return res.json({ items: [] });
     const counts = await sequelize.query(
-      'SELECT master_id, COUNT(child_id) AS children_count FROM master_children WHERE master_id IN (:masterIds) AND child_id <> master_id GROUP BY master_id',
+      'SELECT master_id, COUNT(child_id) AS children_count FROM master_children WHERE master_id IN (:masterIds) GROUP BY master_id',
       { replacements: { masterIds }, type: QueryTypes.SELECT }
     );
     const photosCounts = await sequelize.query(
-      'SELECT bl_id AS master_id, COALESCE(SUM(JSON_LENGTH(photos)), 0) AS photos_count_master FROM registro_fotografico WHERE bl_id IN (:masterIds) GROUP BY bl_id',
+      "SELECT bl_id AS master_id, COALESCE(SUM(JSON_LENGTH(photos)), 0) AS photos_count_master FROM registro_fotografico WHERE bl_id IN (:masterIds) AND type = 'master' GROUP BY bl_id",
       { replacements: { masterIds }, type: QueryTypes.SELECT }
     );
     const doRows = await sequelize.query(
@@ -36,7 +36,7 @@ router.get('/masters', authRequired, async (req, res) => {
     );
     const blIdsAll = Array.from(new Set(masterIds.concat(childRows.map(r => r.child_id))));
     const rfUserRows = await sequelize.query(
-      'SELECT rf.bl_id, u.id AS user_id, u.nombre, u.display_name, u.email, u.puerto FROM registro_fotografico rf JOIN users u ON u.id = rf.user_id WHERE rf.bl_id IN (:blIdsAll)',
+      'SELECT rf.bl_id, rf.type, u.id AS user_id, u.nombre, u.display_name, u.email, u.puerto FROM registro_fotografico rf JOIN users u ON u.id = rf.user_id WHERE rf.bl_id IN (:blIdsAll)',
       { replacements: { blIdsAll }, type: QueryTypes.SELECT }
     );
     const countMap = {};
@@ -50,7 +50,12 @@ router.get('/masters', authRequired, async (req, res) => {
     const usersMap = {};
     rfUserRows.forEach(r => {
       const bl = String(r.bl_id);
-      const masters = masterIds.includes(bl) ? [bl] : (childMap[bl] || []);
+      const type = r.type || 'hijo';
+      // Si es tipo master, solo asignar si está en masterIds. Si es hijo, buscar en childMap.
+      const masters = type === 'master' 
+        ? (masterIds.includes(bl) ? [bl] : [])
+        : (childMap[bl] || []);
+      
       masters.forEach(m => {
         const k = String(m);
         if (!usersMap[k]) usersMap[k] = [];
@@ -79,11 +84,11 @@ router.get('/masters/with-photos', authRequired, async (req, res) => {
     const masterIds = mastersRows.map(r => r.master_id);
     if (masterIds.length === 0) return res.json({ items: [] });
     const counts = await sequelize.query(
-      'SELECT master_id, COUNT(child_id) AS children_count FROM master_children WHERE master_id IN (:masterIds) AND child_id <> master_id GROUP BY master_id',
+      'SELECT master_id, COUNT(child_id) AS children_count FROM master_children WHERE master_id IN (:masterIds) GROUP BY master_id',
       { replacements: { masterIds }, type: QueryTypes.SELECT }
     );
     const photosCounts = await sequelize.query(
-      'SELECT bl_id AS master_id, COALESCE(SUM(JSON_LENGTH(photos)), 0) AS photos_count_master FROM registro_fotografico WHERE bl_id IN (:masterIds) GROUP BY bl_id',
+      "SELECT bl_id AS master_id, COALESCE(SUM(JSON_LENGTH(photos)), 0) AS photos_count_master FROM registro_fotografico WHERE bl_id IN (:masterIds) AND type = 'master' GROUP BY bl_id",
       { replacements: { masterIds }, type: QueryTypes.SELECT }
     );
     const doRows = await sequelize.query(

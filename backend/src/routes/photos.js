@@ -31,6 +31,8 @@ router.post('/bls/:id/photos', authRequired, (req, res, next) => {
   })
 }, async (req, res) => {
   const { id } = req.params;
+  const { type } = req.query;
+  const typeVal = type === 'master' ? 'master' : 'hijo';
   const flagsRaw = req.body?.averia_flags;
   const crossdokingFlagsRaw = req.body?.crossdoking_flags;
   let flags = {};
@@ -49,8 +51,8 @@ router.post('/bls/:id/photos', authRequired, (req, res, next) => {
   }));
   try {
     const [rec, created] = await RegistroFotografico.findOrCreate({
-      where: { bl_id: id, user_id: req.user.id },
-      defaults: { bl_id: id, user_id: req.user.id, photos, send_status: 'pending' },
+      where: { bl_id: id, user_id: req.user.id, type: typeVal },
+      defaults: { bl_id: id, user_id: req.user.id, type: typeVal, photos, send_status: 'pending' },
     });
     if (!created) {
       const prev = Array.isArray(rec.photos) ? rec.photos : [];
@@ -105,9 +107,11 @@ router.post('/bls/:id/photos', authRequired, (req, res, next) => {
 // Obtener fotos existentes para un BL (si admin: de todos los usuarios, si no: solo propias)
 router.get('/bls/:id/photos', authRequired, async (req, res) => {
   const { id } = req.params;
+  const { type } = req.query;
+  const typeVal = type === 'master' ? 'master' : 'hijo';
   try {
     const isAdmin = req.user.role === 'admin';
-    const where = isAdmin ? { bl_id: id } : { bl_id: id, user_id: req.user.id };
+    const where = isAdmin ? { bl_id: id, type: typeVal } : { bl_id: id, user_id: req.user.id, type: typeVal };
     const rows = await RegistroFotografico.findAll({ where });
     const userIds = Array.from(new Set(rows.map(r => r.user_id).filter(Boolean)));
     let usersMap = {};
@@ -146,9 +150,11 @@ router.get('/bls/:id/photos', authRequired, async (req, res) => {
 // Actualizar flags de avería para fotos existentes
 router.patch('/bls/:id/photos/averia', authRequired, async (req, res) => {
   const { id } = req.params;
+  const { type } = req.query;
+  const typeVal = type === 'master' ? 'master' : 'hijo';
   const flags = req.body?.flags || {};
   try {
-    const rec = await RegistroFotografico.findOne({ where: { bl_id: id, user_id: req.user.id } });
+    const rec = await RegistroFotografico.findOne({ where: { bl_id: id, user_id: req.user.id, type: typeVal } });
     if (!rec || !Array.isArray(rec.photos)) return res.status(404).json({ ok: false, error: 'Registro no encontrado' });
     const photos = rec.photos.map(p => ({ ...p, averia: typeof flags[p.id] !== 'undefined' ? !!flags[p.id] : !!p.averia }));
     rec.photos = photos;
@@ -163,9 +169,11 @@ router.patch('/bls/:id/photos/averia', authRequired, async (req, res) => {
 // Actualizar flags de crossdoking para fotos existentes
 router.patch('/bls/:id/photos/crossdoking', authRequired, async (req, res) => {
   const { id } = req.params;
+  const { type } = req.query;
+  const typeVal = type === 'master' ? 'master' : 'hijo';
   const flags = req.body?.flags || {};
   try {
-    const rec = await RegistroFotografico.findOne({ where: { bl_id: id, user_id: req.user.id } });
+    const rec = await RegistroFotografico.findOne({ where: { bl_id: id, user_id: req.user.id, type: typeVal } });
     if (!rec || !Array.isArray(rec.photos)) return res.status(404).json({ ok: false, error: 'Registro no encontrado' });
     const photos = rec.photos.map(p => ({ ...p, crossdoking: typeof flags[p.id] !== 'undefined' ? !!flags[p.id] : !!p.crossdoking }));
     rec.photos = photos;
@@ -180,10 +188,12 @@ router.patch('/bls/:id/photos/crossdoking', authRequired, async (req, res) => {
 // Normalizar consecutivos por prefijo: renombra p.filename a prefix_1, prefix_2, ...
 router.post('/bls/:id/photos/normalize', authRequired, async (req, res) => {
   const { id } = req.params;
+  const { type } = req.query;
+  const typeVal = type === 'master' ? 'master' : 'hijo';
   const prefix = String(req.body?.prefix || '').trim();
   if (!prefix) return res.status(400).json({ ok: false, error: 'prefix requerido' });
   try {
-    const rec = await RegistroFotografico.findOne({ where: { bl_id: id, user_id: req.user.id } });
+    const rec = await RegistroFotografico.findOne({ where: { bl_id: id, user_id: req.user.id, type: typeVal } });
     if (!rec || !Array.isArray(rec.photos)) return res.status(404).json({ ok: false, error: 'Registro no encontrado' });
     const photos = rec.photos.slice();
     const target = photos

@@ -34,9 +34,23 @@ async function ensureUsersPuerto() {
   }
 }
 
+async function ensureRegistroFotograficoType() {
+  const qi = sequelize.getQueryInterface();
+  try {
+    const desc = await qi.describeTable('registro_fotografico');
+    if (!desc.type) {
+      await qi.addColumn('registro_fotografico', 'type', { type: DataTypes.STRING(20), allowNull: true, defaultValue: 'hijo' });
+      // logger.info({ msg: 'Migration applied: registro_fotografico.type added' });
+    }
+  } catch (err) {
+    // Ignorar si la tabla no existe, se creará luego
+  }
+}
+
 async function runMigrations() {
   await ensureUsersNombre();
   await ensureUsersPuerto();
+  await ensureRegistroFotograficoType();
   const qi = sequelize.getQueryInterface();
   try {
     await qi.describeTable('evidence_submissions');
