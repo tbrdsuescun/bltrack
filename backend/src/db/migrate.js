@@ -94,6 +94,30 @@ async function runMigrations() {
   }
   try {
     const desc = await qi.describeTable('master_children');
+    if (!desc.type) {
+      await qi.addColumn('master_children', 'type', { type: DataTypes.STRING(20), allowNull: true, defaultValue: 'hijo' });
+      // Update existing rows based on IDs
+      await sequelize.query("UPDATE master_children SET type = CASE WHEN master_id = child_id THEN 'master' ELSE 'hijo' END WHERE type IS NULL");
+      
+      // Update unique index to include type
+      try {
+        await qi.removeIndex('master_children', 'mc_master_child_unique');
+      } catch (e) { /* ignore */ }
+      try {
+        await qi.removeIndex('master_children', 'master_children_master_id_child_id');
+      } catch (e) { /* ignore */ }
+      
+      try {
+        // Verify if the new index already exists to avoid errors
+        const indexes = await qi.showIndex('master_children');
+        if (!indexes.some(i => i.name === 'mc_master_child_type_unique')) {
+           await qi.addIndex('master_children', ['master_id', 'child_id', 'type'], { unique: true, name: 'mc_master_child_type_unique' });
+        }
+      } catch (e) {
+         // Fallback if showIndex fails or addIndex fails
+         try { await qi.addIndex('master_children', ['master_id', 'child_id', 'type'], { unique: true, name: 'mc_master_child_type_unique' }); } catch (ex) {}
+      }
+    }
     if (!desc.cliente_nombre) {
       await qi.addColumn('master_children', 'cliente_nombre', { type: DataTypes.STRING(255), allowNull: true });
       // logger.info({ msg: 'Migration applied: master_children.cliente_nombre added' });
