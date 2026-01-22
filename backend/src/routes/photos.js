@@ -51,6 +51,7 @@ router.post('/bls/:id/photos', authRequired, (req, res, next) => {
     id: path.basename(f.filename),
     filename: f.originalname,
     path: f.path,
+    url: '/uploads/' + path.basename(f.filename),
     size: f.size,
     mime: f.mimetype,
     status: 'kept',

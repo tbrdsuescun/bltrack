@@ -320,10 +320,13 @@ function BLEvidenceChild() {
                 const resDb = await API.post('/bls/' + (currentTargetId) + '/photos?type=hijo', fd)
                 const uploaded = resDb.data?.photos?.[0]
                 if (uploaded && uploaded.id) {
-                  // Ensure url exists if path exists
+                  // Ensure url exists (for immediate UI update)
                   const photoObj = { ...uploaded }
-                  if (!photoObj.url && photoObj.path) {
-                      photoObj.url = String(photoObj.path).replace(/\\/g, '/')
+                  if (!photoObj.url && photoObj.id) {
+                      photoObj.url = '/uploads/' + photoObj.id
+                  } else if (!photoObj.url && photoObj.path) {
+                      // Fallback just in case, but prefer ID-based URL
+                      photoObj.url = '/uploads/' + String(photoObj.path).split(/[\/\\]/).pop()
                   }
 
                   // Only add to UI if saved to DB

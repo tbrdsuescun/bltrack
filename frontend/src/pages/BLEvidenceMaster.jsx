@@ -380,10 +380,13 @@ function BLEvidenceMaster() {
                    const resDb = await API.post('/bls/' + (targetId) + '/photos?type=master', fd)
                    const uploaded = resDb.data?.photos?.[0]
                    if (uploaded && uploaded.id) {
-                     // Ensure url exists if path exists (for immediate UI update)
+                     // Ensure url exists (for immediate UI update)
                      const photoObj = { ...uploaded }
-                     if (!photoObj.url && photoObj.path) {
-                         photoObj.url = String(photoObj.path).replace(/\\/g, '/')
+                     if (!photoObj.url && photoObj.id) {
+                         photoObj.url = '/uploads/' + photoObj.id
+                     } else if (!photoObj.url && photoObj.path) {
+                         // Fallback just in case, but prefer ID-based URL
+                         photoObj.url = '/uploads/' + String(photoObj.path).replace(/\\/g, '/').split('/').pop()
                      }
 
                      // Only add to UI if saved to DB
