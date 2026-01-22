@@ -33,18 +33,18 @@ router.post('/bls/:id/photos', authRequired, (req, res, next) => {
   const { id } = req.params;
   const { type } = req.query;
 
-  console.log(`[UPLOAD_DEBUG] Request for BL: ${id}`);
-  console.log(`[UPLOAD_DEBUG] Query Type: "${type}"`);
-  console.log(`[UPLOAD_DEBUG] Body Type: "${req.body.type}"`);
-  
   // Robustly determine type: check query and body, handle arrays
-  let bodyType = req.body.type;
-  if (Array.isArray(bodyType)) bodyType = bodyType[0];
-  const typeQuery = String(type || '').trim();
-  const typeBody = String(bodyType || '').trim();
+  let bodyTypeRaw = req.body.type;
+  if (Array.isArray(bodyTypeRaw)) bodyTypeRaw = bodyTypeRaw[0];
   
-  const typeVal = (typeQuery === 'master' || typeBody === 'master') ? 'master' : 'hijo';
-  console.log(`[UPLOAD_DEBUG] Final Resolved Type: "${typeVal}"`);
+  const queryType = String(type || '').trim().toLowerCase();
+  const bodyType = String(bodyTypeRaw || '').trim().toLowerCase();
+  
+  // Strict check: It is master ONLY if explicitly requested as master
+  const isMaster = queryType === 'master' || bodyType === 'master';
+  const typeVal = isMaster ? 'master' : 'hijo';
+
+  console.log(`[UPLOAD_DEBUG] Processing upload for BL ${id}. Resolved Type: "${typeVal}" (Query: "${queryType}", Body: "${bodyType}")`);
 
   const flagsRaw = req.body?.averia_flags;
   const crossdokingFlagsRaw = req.body?.crossdoking_flags;
@@ -64,11 +64,13 @@ router.post('/bls/:id/photos', authRequired, (req, res, next) => {
     crossdoking: !!crossdokingFlags[f.originalname]
   }));
   try {
-    const [rec, created] = await RegistroFotografico.findOrCreate({
-      where: { bl_id: id, user_id: req.user.id, type: typeVal },
-      defaults: { bl_id: id, user_id: req.user.id, type: typeVal, photos, send_status: 'pending' },
+    // Explicitly find record by type to avoid "findOrCreate" ambiguity
+    let rec = await RegistroFotografico.findOne({
+      where: { bl_id: id, user_id: req.user.id, type: typeVal }
     });
-    if (!created) {
+
+    if (rec) {
+      console.log(`[UPLOAD_DEBUG] Found existing record ID ${rec.id} for type ${typeVal}. Appending photos.`);
       const prev = Array.isArray(rec.photos) ? rec.photos : [];
       const existingNames = new Set(prev.map(p => p.filename));
       const newPhotos = photos.filter(p => !existingNames.has(p.filename));
@@ -78,6 +80,15 @@ router.post('/bls/:id/photos', authRequired, (req, res, next) => {
         rec.send_status = 'pending';
         await rec.save();
       }
+    } else {
+      console.log(`[UPLOAD_DEBUG] Creating NEW record for type ${typeVal}.`);
+      rec = await RegistroFotografico.create({
+        bl_id: id,
+        user_id: req.user.id,
+        type: typeVal,
+        photos,
+        send_status: 'pending'
+      });
     }
     try {
       const master_id = String(req.body.master_id || '').trim();
