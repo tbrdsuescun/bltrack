@@ -346,6 +346,7 @@ function BLEvidenceMaster() {
                    const masterIdVal = String(currentMasterId || '')
                    fd.append('master_id', masterIdVal)
                    fd.append('numero_DO_master', String(currentDetails.numero_DO_master || ''))
+                   fd.append('type', 'master')
                    if (currentPrefix) fd.append('prefix', currentPrefix)
                    if (currentContainer) fd.append('contenedor', currentContainer)
                    if (currentCache) {
@@ -440,6 +441,18 @@ function BLEvidenceMaster() {
         }
       }
       if (res.data?.deleted) {
+        // Update master_children record on delete
+        try {
+            const fd = new FormData()
+            fd.append('master_id', String(targetId || ''))
+            fd.append('numero_DO_master', String(details.numero_DO_master || ''))
+            fd.append('type', 'master')
+            if (cacheEntry) {
+                fd.append('cliente_nit', String(cacheEntry.nitCliente || cacheEntry.clienteNit || cacheEntry.nit || ''))
+            }
+            await API.post('/bls/' + targetId + '/photos?type=master', fd)
+        } catch (e) { console.warn('Failed to update master record on delete', e) }
+
         const tid = String(targetId || '')
         if (tid) {
           try {
@@ -484,6 +497,23 @@ function BLEvidenceMaster() {
     setSaveModalOpen(true)
     
     try {
+        // 0. Ensure master_children record exists/updates with type='master'
+        try {
+            const fd = new FormData()
+            fd.append('master_id', String(targetId || ''))
+            fd.append('numero_DO_master', String(details.numero_DO_master || ''))
+            fd.append('type', 'master')
+            if (cacheEntry) {
+                fd.append('cliente_nit', String(cacheEntry.nitCliente || cacheEntry.clienteNit || cacheEntry.nit || ''))
+                fd.append('descripcion_mercancia', String(cacheEntry.descripcionMercancia || cacheEntry.descripcion || ''))
+                fd.append('numero_pedido', String(cacheEntry.numeroPedido || cacheEntry.pedido || cacheEntry.orderNumber || ''))
+            }
+            await API.post('/bls/' + targetId + '/photos?type=master', fd)
+            console.log('[BLEvidenceMaster] Master record updated in internal DB')
+        } catch (e) {
+            console.warn('[BLEvidenceMaster] Failed to update master record:', e)
+        }
+
         // 1. Fetch current photos from DB
         console.log('[BLEvidenceMaster] Fetching latest photos from DB...')
         const resPhotos = await API.get('/bls/' + targetId + '/photos')
