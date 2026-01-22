@@ -32,7 +32,15 @@ router.post('/bls/:id/photos', authRequired, (req, res, next) => {
 }, async (req, res) => {
   const { id } = req.params;
   const { type } = req.query;
-  const typeVal = (type === 'master' || req.body.type === 'master') ? 'master' : 'hijo';
+  
+  // Robustly determine type: check query and body, handle arrays
+  let bodyType = req.body.type;
+  if (Array.isArray(bodyType)) bodyType = bodyType[0];
+  const typeQuery = String(type || '').trim();
+  const typeBody = String(bodyType || '').trim();
+  
+  const typeVal = (typeQuery === 'master' || typeBody === 'master') ? 'master' : 'hijo';
+
   const flagsRaw = req.body?.averia_flags;
   const crossdokingFlagsRaw = req.body?.crossdoking_flags;
   let flags = {};

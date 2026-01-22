@@ -177,7 +177,7 @@ function BLEvidenceChild() {
     const tid = String(targetId || '')
     if (!tid) return () => { mounted = false }
     setLoading(true)
-    API.get('/bls/' + tid + '/photos?type=hijo').then(async (res) => {
+    API.get('/bls/' + tid + '/photos?type=hijo&_t=' + Date.now()).then(async (res) => {
       if (!mounted) return
       let list = Array.isArray(res.data?.photos) ? res.data.photos : []
       setPhotos(list)
@@ -467,7 +467,7 @@ function BLEvidenceChild() {
         const tid = String(hblId || targetId || '')
         if (tid) {
           try {
-            const ref = await API.get('/bls/' + tid + '/photos?type=hijo')
+            const ref = await API.get('/bls/' + tid + '/photos?type=hijo&_t=' + Date.now())
             let list = Array.isArray(ref.data?.photos) ? ref.data.photos : []
             setPhotos(list)
           } catch {}
@@ -509,7 +509,7 @@ function BLEvidenceChild() {
     try {
         // 1. Fetch current photos from DB to ensure we have the latest state
         console.log('[BLEvidenceChild] Fetching latest photos from DB...')
-        const resPhotos = await API.get('/bls/' + targetId + '/photos?type=hijo')
+        const resPhotos = await API.get('/bls/' + targetId + '/photos?type=hijo&_t=' + Date.now())
         const dbPhotos = Array.isArray(resPhotos.data?.photos) ? resPhotos.data.photos : []
         console.log('[BLEvidenceChild] DB Photos found:', dbPhotos.length)
 
