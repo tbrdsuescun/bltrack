@@ -32,6 +32,10 @@ router.post('/bls/:id/photos', authRequired, (req, res, next) => {
 }, async (req, res) => {
   const { id } = req.params;
   const { type } = req.query;
+
+  console.log(`[UPLOAD_DEBUG] Request for BL: ${id}`);
+  console.log(`[UPLOAD_DEBUG] Query Type: "${type}"`);
+  console.log(`[UPLOAD_DEBUG] Body Type: "${req.body.type}"`);
   
   // Robustly determine type: check query and body, handle arrays
   let bodyType = req.body.type;
@@ -40,6 +44,7 @@ router.post('/bls/:id/photos', authRequired, (req, res, next) => {
   const typeBody = String(bodyType || '').trim();
   
   const typeVal = (typeQuery === 'master' || typeBody === 'master') ? 'master' : 'hijo';
+  console.log(`[UPLOAD_DEBUG] Final Resolved Type: "${typeVal}"`);
 
   const flagsRaw = req.body?.averia_flags;
   const crossdokingFlagsRaw = req.body?.crossdoking_flags;
