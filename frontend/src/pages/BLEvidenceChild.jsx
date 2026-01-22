@@ -76,6 +76,13 @@ function BLEvidenceChild() {
   const [photos, setPhotos] = useState([])
   const [loading, setLoading] = useState(false)
   const [status, setStatus] = useState(null)
+  const [serverSavedMessage, setServerSavedMessage] = useState(null)
+  useEffect(() => {
+    if (serverSavedMessage) {
+      const timer = setTimeout(() => setServerSavedMessage(null), 4000)
+      return () => clearTimeout(timer)
+    }
+  }, [serverSavedMessage])
   const fileInputRef = useRef()
   const [selectedPhoto, setSelectedPhoto] = useState(null)
   const [confirmPhoto, setConfirmPhoto] = useState(null)
@@ -89,6 +96,18 @@ function BLEvidenceChild() {
   const [recentPhotoIds, setRecentPhotoIds] = useState([])
   const [recentDocuments, setRecentDocuments] = useState([])
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768)
+  const [isOnline, setIsOnline] = useState(navigator.onLine)
+
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true)
+    const handleOffline = () => setIsOnline(false)
+    window.addEventListener('online', handleOnline)
+    window.addEventListener('offline', handleOffline)
+    return () => {
+      window.removeEventListener('online', handleOnline)
+      window.removeEventListener('offline', handleOffline)
+    }
+  }, [])
   const [nextAveria, setNextAveria] = useState(false)
   const [nextCrossdoking, setNextCrossdoking] = useState(false)
   useEffect(() => { const onResize = () => setIsMobile(window.innerWidth <= 768); window.addEventListener('resize', onResize); return () => window.removeEventListener('resize', onResize) }, [])
@@ -238,7 +257,7 @@ function BLEvidenceChild() {
       crossdoking: nextCrossdoking
     }))
     
-    setPhotos(prev => prev.concat(staged))
+    // setPhotos(prev => prev.concat(staged))
     // setPendingFiles(prev => prev.concat(filesToUse)) // No longer queuing for manual save
     
     const currentDetails = { ...details }
@@ -274,6 +293,7 @@ function BLEvidenceChild() {
           label: `Subiendo ${name}`,
           run: async () => {
             console.log('[BLEvidenceChild] Immediate upload task started for:', name)
+            let dbSuccess = false
             try {
                 // 1. Upload to DB (First priority)
                 const fd = new FormData()
@@ -300,7 +320,16 @@ function BLEvidenceChild() {
                 const resDb = await API.post('/bls/' + (currentTargetId) + '/photos?type=hijo', fd)
                 const uploaded = resDb.data?.photos?.[0]
                 if (uploaded && uploaded.id) {
-                  setPhotos(prev => prev.map(p => (p.id === localId ? { ...p, id: uploaded.id } : p)))
+                  // Ensure url exists if path exists
+                  const photoObj = { ...uploaded }
+                  if (!photoObj.url && photoObj.path) {
+                      photoObj.url = String(photoObj.path).replace(/\\/g, '/')
+                  }
+
+                  // Only add to UI if saved to DB
+                  setPhotos(prev => prev.concat(photoObj))
+                  setServerSavedMessage(`Foto "${name}" guardada correctamente.`)
+                  dbSuccess = true
                 }
 
                 // 2. Sync to External Endpoint
@@ -322,6 +351,9 @@ function BLEvidenceChild() {
                 }
             } catch (error) {
                 console.error('[BLEvidenceChild] Task error for:', name, error)
+                if (!dbSuccess) {
+                  alert(`La foto "${name}" no se pudo guardar en la base de datos. Por favor intente subirla nuevamente.`)
+                }
                 throw error
             }
           }
@@ -620,9 +652,23 @@ function BLEvidenceChild() {
 
   const localTasks = queue.filter(t => t.contextId === 'child-' + targetId)
   const allFinished = localTasks.length > 0 && localTasks.every(t => t.status === 'completed' || t.status === 'failed')
+  const hasFailures = localTasks.some(t => t.status === 'failed')
 
   return (
     <>
+      {serverSavedMessage && (
+        <div style={{
+          position: 'fixed', top: 20, left: '50%', transform: 'translateX(-50%)',
+          background: '#dcfce7', color: '#166534', padding: '12px 24px', borderRadius: 8,
+          boxShadow: '0 4px 12px rgba(0,0,0,0.15)', zIndex: 9999, fontWeight: 500,
+          display: 'flex', alignItems: 'center', gap: 8, maxWidth: '90vw', textAlign: 'center'
+        }}>
+          <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+          </svg>
+          {serverSavedMessage}
+        </div>
+      )}
       <div className="page-header">
         <div>
           <h1 className="h1">Evidencia para {hblId || 'BL'}</h1>
@@ -636,36 +682,7 @@ function BLEvidenceChild() {
         </div>
       </div>
 
-      {localTasks.length > 0 && (
-        <div style={{ marginBottom: 20, padding: 15, border: '1px solid #e5e7eb', borderRadius: 8, background: '#f9fafb' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-             <h3 style={{ fontSize: 16, fontWeight: 600, margin: 0 }}>Subidas en curso</h3>
-             {allFinished && (
-               <button 
-                 onClick={() => removeTasks(localTasks.map(t => t.id))}
-                 style={{ border: 'none', background: 'transparent', cursor: 'pointer', fontSize: '1.2rem', color: '#6b7280' }}
-                 title="Cerrar y limpiar tareas completadas"
-               >
-                 ✕
-               </button>
-             )}
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {localTasks.map(t => (
-              <div key={t.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 14 }}>
-                <span>{t.label}</span>
-                <span style={{ 
-                  padding: '2px 8px', borderRadius: 4, fontSize: 12,
-                  background: t.status === 'completed' ? '#dcfce7' : t.status === 'failed' ? '#fee2e2' : '#dbeafe',
-                  color: t.status === 'completed' ? '#166534' : t.status === 'failed' ? '#991b1b' : '#1e40af'
-                }}>
-                  {t.status === 'pending' ? 'Pendiente' : t.status === 'uploading' ? 'Subiendo...' : t.status === 'failed' ? 'Falló' : 'Completado'}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+
 
       <div className="card">
 
@@ -826,16 +843,24 @@ function BLEvidenceChild() {
         )}
 
         <div className="actions" style={{ justifyContent:'flex-end' }}>
-          {!isAdmin && !allFinished && <button className="btn btn-info" onClick={onSave} disabled={loading}>Guardar</button>}
+          {!isAdmin && hasFailures && (
+            <button className="btn btn-warning" onClick={onSave} disabled={loading || !isOnline} title={!isOnline ? "Verifica tu conexión" : ""}>
+              {!isOnline ? 'Sin Internet ⚠️' : 'Reintentar'}
+            </button>
+          )}
         </div>
 
-        {isMobile && !isAdmin && (pendingFiles.length > 0 || uploading) && (
+        {isMobile && !isAdmin && (pendingFiles.length > 0 || uploading || hasFailures) && (
           <>
             <div className="bottom-spacer" />
             <div className="bottom-bar">
               <button className="btn btn-primary" onClick={openCameraDialog} disabled={uploading || loading}>Cámara</button>
               <button className="btn btn-outline" onClick={openFileDialog} disabled={uploading || loading}>Subir</button>
-              {!allFinished && <button className="btn btn-info" onClick={onSave} disabled={loading}>Guardar</button>}
+              {hasFailures && (
+                <button className="btn btn-warning" onClick={onSave} disabled={loading || !isOnline}>
+                  {!isOnline ? 'Sin Internet' : 'Reintentar'}
+                </button>
+              )}
             </div>
           </>
         )}
