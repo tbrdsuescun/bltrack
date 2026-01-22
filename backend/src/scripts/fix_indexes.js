@@ -12,8 +12,13 @@ async function fixIndexes() {
       console.log('Removing problematic index: master_children_master_id_child_id');
       await qi.removeIndex('master_children', 'master_children_master_id_child_id');
       console.log('Removed.');
-    } else {
-      console.log('Index master_children_master_id_child_id not found (good).');
+    }
+
+    const badIndex2 = indexes.find(i => i.name === 'mc_master_child_unique');
+    if (badIndex2) {
+      console.log('Removing problematic index: mc_master_child_unique');
+      await qi.removeIndex('master_children', 'mc_master_child_unique');
+      console.log('Removed.');
     }
 
     // Ensure the new one exists
