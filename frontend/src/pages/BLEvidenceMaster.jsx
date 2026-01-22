@@ -488,7 +488,7 @@ function BLEvidenceMaster() {
         const tid = String(targetId || '')
         if (tid) {
           try {
-            const ref = await API.get('/bls/' + tid + '/photos')
+            const ref = await API.get('/bls/' + tid + '/photos?type=master')
             let list = Array.isArray(ref.data?.photos) ? ref.data.photos : []
             setPhotos(list)
             const deletedName = String(ph?.filename || '')
@@ -548,7 +548,7 @@ function BLEvidenceMaster() {
 
         // 1. Fetch current photos from DB
         console.log('[BLEvidenceMaster] Fetching latest photos from DB...')
-        const resPhotos = await API.get('/bls/' + targetId + '/photos')
+        const resPhotos = await API.get('/bls/' + targetId + '/photos?type=master')
         const dbPhotos = Array.isArray(resPhotos.data?.photos) ? resPhotos.data.photos : []
         console.log('[BLEvidenceMaster] DB Photos found:', dbPhotos.length)
 
