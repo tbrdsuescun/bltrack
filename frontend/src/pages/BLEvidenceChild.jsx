@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import dayjs from 'dayjs'
 import API, { EVIDENCE_ENDPOINT } from '../lib/api.js'
 import { useUpload } from '../lib/UploadContext.jsx'
+import { compressImage } from '../lib/imageUtils.js'
 
 function blobToBase64(blob) {
   return new Promise((resolve, reject) => {
@@ -217,11 +218,29 @@ function BLEvidenceChild() {
   async function onUpload(e) {
     const files = Array.from(e.target.files || [])
     if (!files.length || !targetId) return
+
+    // Comprimir imágenes antes de validar tamaño
+    setStatus('Procesando y comprimiendo imágenes...')
+    let processedFiles = []
+    try {
+      processedFiles = await Promise.all(files.map(f => compressImage(f)))
+    } catch (err) {
+      console.error('Error en compresión', err)
+      processedFiles = files // Fallback a originales si falla
+    }
+
     const maxSize = 5 * 1024 * 1024
-    const valid = files.filter(f => Number(f.size || 0) <= maxSize)
-    const skipped = files.length - valid.length
-    if (skipped > 0) setStatus('Se omitieron ' + skipped + ' archivo(s) por superar 5MB')
-    if (!valid.length) return
+    const valid = processedFiles.filter(f => Number(f.size || 0) <= maxSize)
+    const skipped = processedFiles.length - valid.length
+    if (skipped > 0) setStatus('Se omitieron ' + skipped + ' archivo(s) que superan 5MB tras comprimir')
+    
+    if (!valid.length) {
+      if (skipped === 0) setStatus(null)
+      return
+    }
+
+    // Limpiar mensaje de compresión si todo salió bien y vamos a proceder
+    if (skipped === 0) setStatus(null)
     
     const slug = String(numeroHblCurrent || details.child_id || '')
     const used = []

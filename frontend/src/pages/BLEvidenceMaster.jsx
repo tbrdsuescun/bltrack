@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import dayjs from 'dayjs'
 import API, { EVIDENCE_ENDPOINT } from '../lib/api.js'
 import { useUpload } from '../lib/UploadContext.jsx'
+import { compressImage } from '../lib/imageUtils.js'
 
 function blobToBase64(blob) {
   return new Promise((resolve, reject) => {
@@ -301,13 +302,34 @@ function BLEvidenceMaster() {
     if (!files.length || !targetId) return
     if (containers.length && !selectedContainer) { setStatus('Selecciona un contenedor'); setContainerError(true); setContainerModalOpen(true); return }
     if (!selectedPrefix) { setStatus('Selecciona un prefijo para nombrar las fotos'); setPrefixError(true); setPrefixModalOpen(true); return }
-    const maxSize = 5 * 1024 * 1024
-    const valid = files.filter(f => Number(f.size || 0) <= maxSize)
-    const skipped = files.length - valid.length
-    if (skipped > 0) setStatus('Se omitieron ' + skipped + ' archivo(s) por superar 5MB')
-    if (!valid.length) return
+
     setUploading(true)
     setLoading(true)
+    setStatus('Comprimiendo imágenes...')
+
+    let processed = []
+    try {
+      processed = await Promise.all(files.map(f => compressImage(f)))
+    } catch (err) {
+      console.warn('Error comprimiendo', err)
+      processed = files
+    }
+
+    const maxSize = 5 * 1024 * 1024
+    const valid = processed.filter(f => Number(f.size || 0) <= maxSize)
+    const skipped = processed.length - valid.length
+    if (skipped > 0) setStatus('Se omitieron ' + skipped + ' archivo(s) que superan 5MB tras comprimir')
+    
+    if (!valid.length) {
+      if (skipped === 0) setStatus(null)
+      setUploading(false)
+      setLoading(false)
+      return
+    }
+
+    // Limpiar mensaje de compresión si todo salió bien y vamos a proceder
+    if (skipped === 0) setStatus(null)
+
     let filesToUse = valid
     try {
       const slug = selectedPrefix
