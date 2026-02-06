@@ -723,9 +723,9 @@ function BLEvidenceMaster() {
               <input 
                 type="text" 
                 className="input" 
-                placeholder="Ej: 12345" 
+                placeholder="Ej: 12345-A" 
                 value={blNieto} 
-                onChange={(e) => setBlNieto(e.target.value.replace(/[^0-9]/g, ''))} 
+                onChange={(e) => setBlNieto(e.target.value)} 
               />
             </label>
           )}
