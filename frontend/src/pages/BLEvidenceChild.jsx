@@ -866,14 +866,29 @@ function BLEvidenceChild() {
 
         <div className="actions" style={{ justifyContent:'flex-end' }}>
           {!isAdmin && hasFailures && (
-            <button className="btn btn-warning" onClick={onSave} disabled={loading || !isOnline} title={!isOnline ? "Verifica tu conexión" : ""}>
-              {!isOnline ? 'Sin Internet ⚠️' : 'Reintentar'}
-            </button>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8 }}>
+              <div className="muted" style={{ fontSize: '0.9rem', textAlign: 'right', maxWidth: 450, lineHeight: 1.5, color: '#b45309', background: '#fffbeb', padding: '8px 12px', borderRadius: 6, border: '1px solid #fcd34d' }}>
+                <strong>⚠️ Sincronización Incompleta</strong><br/>
+                Algunas evidencias no se pudieron subir al servidor debido a problemas de conexión o errores inesperados.
+                Por favor, asegúrese de tener una conexión a internet estable y presione <strong>"Reintentar"</strong> para volver a procesar los archivos pendientes.
+              </div>
+              <button className="btn btn-warning" onClick={onSave} disabled={loading || !isOnline} title={!isOnline ? "Verifica tu conexión" : ""}>
+                {!isOnline ? 'Sin Internet ⚠️' : 'Reintentar'}
+              </button>
+            </div>
           )}
         </div>
 
         {isMobile && !isAdmin && (pendingFiles.length > 0 || uploading || hasFailures) && (
           <>
+            {hasFailures && (
+              <div style={{ position: 'fixed', bottom: 80, left: 16, right: 16, zIndex: 999 }}>
+                <div className="muted" style={{ fontSize: '0.85rem', lineHeight: 1.4, color: '#b45309', background: '#fffbeb', padding: '10px', borderRadius: 6, border: '1px solid #fcd34d', boxShadow: '0 4px 12px rgba(0,0,0,0.15)' }}>
+                  <strong>⚠️ Sincronización Incompleta</strong><br/>
+                  Algunas evidencias no se pudieron subir al servidor. Por favor, asegúrese de tener internet y presione <strong>"Reintentar"</strong>.
+                </div>
+              </div>
+            )}
             <div className="bottom-spacer" />
             <div className="bottom-bar">
               <button className="btn btn-primary" onClick={openCameraDialog} disabled={uploading || loading}>Cámara</button>
