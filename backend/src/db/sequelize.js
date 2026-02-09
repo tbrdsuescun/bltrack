@@ -6,6 +6,16 @@ const DB_URL = process.env.DB_URL || 'mysql://root:Transborder2025*@localhost:33
 const sequelize = new Sequelize(DB_URL, {
   logging: false,
   define: { underscored: true },
+  pool: {
+    max: 10,       // Máximo de conexiones simultáneas
+    min: 0,
+    acquire: 30000, // Tiempo máximo para intentar conectar antes de fallar (30s)
+    idle: 10000     // Tiempo que una conexión puede estar libre antes de cerrarse (10s)
+  },
+  dialectOptions: {
+    // Forzar timeout en consultas SQL para evitar bloqueos eternos (ej. 20 segundos)
+    connectTimeout: 20000 
+  }
 });
 
 const User = sequelize.define('User', {
