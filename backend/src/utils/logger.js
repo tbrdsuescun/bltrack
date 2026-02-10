@@ -1,3 +1,8 @@
+const fs = require('fs');
+const path = require('path');
+
+const logFile = path.join(__dirname, '..', '..', 'error.log');
+
 function format(data) {
   if (typeof data === 'string') return data;
   try { return JSON.stringify(data); } catch { return String(data); }
@@ -6,8 +11,13 @@ function format(data) {
 function withLevel(level, args) {
   const ts = new Date().toISOString();
   const msg = args.length === 1 ? args[0] : args;
-  const line = `[${ts}] ${level.toUpperCase()}: ${format(msg)}`;
-  return line;
+  const line = `[${ts}] ${level.toUpperCase()}: ${format(msg)}\n`;
+  
+  if (level === 'error') {
+    fs.appendFileSync(logFile, line);
+  }
+  
+  return line.trim();
 }
 
 const logger = {
