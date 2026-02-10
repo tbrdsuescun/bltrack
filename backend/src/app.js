@@ -18,6 +18,16 @@ const evidencesRouter = require('./routes/evidences');
 const app = express();
 app.set('etag', false);
 
+// DEBUG: Log all incoming requests immediately
+app.use((req, res, next) => {
+  console.log(`[REQUEST_START] ${req.method} ${req.url}`);
+  // Hook into response finish to log completion
+  res.on('finish', () => {
+    console.log(`[REQUEST_END] ${req.method} ${req.url} -> ${res.statusCode}`);
+  });
+  next();
+});
+
 // Compresión Gzip/Brotli antes de static para reducir transfer
 app.use(compression());
 
