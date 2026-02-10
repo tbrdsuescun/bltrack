@@ -346,6 +346,12 @@ function BLEvidenceChild() {
                 console.log('[BLEvidenceChild] Sending photo content to DB')
                 const resDb = await API.post('/bls/' + (currentTargetId) + '/photos?type=hijo', fd)
                 const uploaded = resDb.data?.photos?.[0]
+                
+                // If status is success, we consider DB part done, even if no new photo returned (duplicate)
+                if (resDb.status >= 200 && resDb.status < 300) {
+                    dbSuccess = true
+                }
+
                 if (uploaded && uploaded.id) {
                   // Ensure url exists (for immediate UI update)
                   const photoObj = { ...uploaded }
@@ -359,7 +365,16 @@ function BLEvidenceChild() {
                   // Only add to UI if saved to DB
                   setPhotos(prev => prev.concat(photoObj))
                   setServerSavedMessage(`Foto "${name}" guardada correctamente.`)
-                  dbSuccess = true
+                } else if (dbSuccess) {
+                   // If success but no photo returned, it's likely a duplicate.
+                   // Fetch latest photos to ensure UI is up to date.
+                   console.log('[BLEvidenceChild] Photo uploaded (possible duplicate), refreshing list.')
+                   try {
+                     const refreshRes = await API.get('/bls/' + (currentTargetId) + '/photos?type=hijo&_t=' + Date.now())
+                     if (Array.isArray(refreshRes.data?.photos)) {
+                        setPhotos(refreshRes.data.photos)
+                     }
+                   } catch (e) { console.error('Error refreshing photos', e) }
                 }
 
                 // 2. Sync to External Endpoint
