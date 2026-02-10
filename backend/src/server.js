@@ -9,6 +9,15 @@ const { logger } = require('./utils/logger');
 const { initDb, sequelize } = require('./db/sequelize');
 const { runMigrations } = require('./db/migrate');
 
+// Global error handlers to capture crashes
+process.on('uncaughtException', (err) => {
+  logger.error({ msg: 'CRITICAL: Uncaught Exception', error: err.message, stack: err.stack });
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  logger.error({ msg: 'CRITICAL: Unhandled Rejection', error: reason instanceof Error ? reason.message : String(reason) });
+});
+
 const PORT = process.env.PORT || 4000;
 
 const server = http.createServer(app);
