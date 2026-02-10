@@ -155,7 +155,19 @@ router.get('/bls/:id/photos', authRequired, async (req, res) => {
     });
     const seen = new Set();
     const photos = acc
-      .filter(p => p && p.id && !seen.has(p.id) && fs.existsSync(filePath(p.id)) && seen.add(p.id))
+      .filter(p => {
+        if (!p || !p.id || seen.has(p.id)) return false;
+        const f = filePath(p.id);
+        try {
+          const s = fs.statSync(f);
+          // Filtrar archivos vacíos (0 bytes) para evitar errores en frontend
+          if (s.isFile() && s.size > 0) {
+            seen.add(p.id);
+            return true;
+          }
+        } catch { return false; }
+        return false;
+      })
       .map(p => ({
         id: p.id,
         filename: p.filename,
