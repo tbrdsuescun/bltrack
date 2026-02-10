@@ -102,7 +102,16 @@ router.post('/bls/:id/photos', authRequired, (req, res, next) => {
       try {
         const master_id = String(req.body.master_id || '').trim();
         const child_id = String(req.body.child_id || '').trim() || String(id || '').trim();
-        // ... rest of logic
+        
+        // Extracción segura de campos opcionales
+        const cliente_nombre = req.body.cliente_nombre || req.body.nombre_cliente || null;
+        const cliente_nit = req.body.cliente_nit || req.body.nit || null;
+        const numero_ie = req.body.numero_ie || req.body.ie || null;
+        const numero_DO_master = (req.body.numero_DO_master || req.body.numero_master || master_id) || null;
+        const numero_DO_hijo = (req.body.numero_DO_hijo || req.body.numero_do || child_id) || null;
+        const pais_de_origen = req.body.pais_de_origen || req.body.pais_origen || null;
+        const puerto_de_origen = req.body.puerto_de_origen || req.body.puerto_origen || null;
+
         if (master_id && child_id) {
            logger.debug(`[UPLOAD_DEBUG] Upserting master_children: ${master_id} - ${child_id}`);
            await sequelize.query(

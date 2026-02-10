@@ -1,0 +1,123 @@
+[2026-02-10T20:41:00.202Z] DEBUG: Executing (default): SELECT 1+1 AS result
+[2026-02-10T20:41:00.207Z] DEBUG: Executing (default): SHOW FULL COLUMNS FROM `users`;
+[2026-02-10T20:41:00.221Z] DEBUG: Executing (default): SHOW FULL COLUMNS FROM `users`;
+[2026-02-10T20:41:00.226Z] DEBUG: Executing (default): SHOW FULL COLUMNS FROM `registro_fotografico`;
+[2026-02-10T20:41:00.230Z] DEBUG: Executing (default): SHOW FULL COLUMNS FROM `evidence_submissions`;
+[2026-02-10T20:41:00.233Z] DEBUG: Executing (default): SHOW FULL COLUMNS FROM `master_children`;
+[2026-02-10T20:41:00.237Z] DEBUG: Executing (default): SHOW FULL COLUMNS FROM `master_children`;
+[2026-02-10T20:41:00.242Z] DEBUG: Executing (default): SHOW INDEX FROM `master_children`
+[2026-02-10T20:41:28.464Z] INFO: [REQUEST_START] POST /auth/login
+[2026-02-10T20:41:28.493Z] DEBUG: Executing (default): SELECT `id`, `nombre`, `email`, `password_hash`, `role`, `is_active`, `display_name`, `last_login`, `puerto`, `created_at` AS `createdAt`, `updated_at` AS `updatedAt` FROM `users` AS `User` WHERE `User`.`email` = 'dsuescun@transborder.com.co';
+[2026-02-10T20:41:28.582Z] INFO: [REQUEST_END] POST /login -> 401
+[2026-02-10T20:41:32.011Z] INFO: [REQUEST_START] POST /auth/login
+[2026-02-10T20:41:32.014Z] DEBUG: Executing (default): SELECT `id`, `nombre`, `email`, `password_hash`, `role`, `is_active`, `display_name`, `last_login`, `puerto`, `created_at` AS `createdAt`, `updated_at` AS `updatedAt` FROM `users` AS `User` WHERE `User`.`email` = 'dsuescun@transborder.com.co';
+[2026-02-10T20:41:32.088Z] DEBUG: Executing (default): UPDATE `users` SET `last_login`=?,`updated_at`=? WHERE `id` = ?
+[2026-02-10T20:41:32.108Z] INFO: [REQUEST_END] POST /login -> 200
+[2026-02-10T20:41:32.123Z] INFO: [REQUEST_START] GET /masters
+[2026-02-10T20:41:32.131Z] DEBUG: Executing (default): SELECT master_id, MAX(created_at) AS last_created FROM master_children WHERE user_id = 1 GROUP BY master_id ORDER BY last_created DESC
+[2026-02-10T20:41:32.134Z] INFO: [REQUEST_START] GET /masters/with-photos
+[2026-02-10T20:41:32.135Z] INFO: [REQUEST_START] GET /bls/history
+[2026-02-10T20:41:32.144Z] DEBUG: Executing (default): SELECT master_id, MAX(created_at) AS last_created FROM master_children WHERE user_id = 1 GROUP BY master_id ORDER BY last_created DESC
+[2026-02-10T20:41:32.149Z] DEBUG: Executing (default): SELECT master_id, COUNT(child_id) AS children_count FROM master_children WHERE master_id IN ('29226106') AND type = 'hijo' GROUP BY master_id
+[2026-02-10T20:41:32.152Z] DEBUG: Executing (default): SELECT master_id, COUNT(child_id) AS children_count FROM master_children WHERE master_id IN ('29226106') AND type = 'hijo' GROUP BY master_id
+[2026-02-10T20:41:32.158Z] DEBUG: Executing (default): SELECT bl_id AS master_id, COALESCE(SUM(JSON_LENGTH(photos)), 0) AS photos_count_master FROM registro_fotografico WHERE bl_id IN ('29226106') AND type = 'master' GROUP BY bl_id
+[2026-02-10T20:41:32.172Z] DEBUG: Executing (default): SELECT bl_id AS master_id, COALESCE(SUM(JSON_LENGTH(photos)), 0) AS photos_count_master FROM registro_fotografico WHERE bl_id IN ('29226106') AND type = 'master' GROUP BY bl_id
+[2026-02-10T20:41:32.177Z] DEBUG: Executing (default): SELECT `id`, `bl_id`, `type`, `photos`, `storage_location`, `send_status`, `external_response_code`, `external_response_message`, `external_response_body`, `request_payload`, `error_detail`, `retries`, `sent_at`, `created_at` AS `createdAt`, `updated_at` AS `updatedAt`, `user_id` FROM `registro_fotografico` AS `RegistroFotografico` WHERE `RegistroFotografico`.`user_id` = 1 ORDER BY `updatedAt` DESC;
+[2026-02-10T20:41:32.184Z] DEBUG: Executing (default): SELECT master_id, MAX(numero_DO_master) AS numero_DO_master FROM master_children WHERE master_id IN ('29226106') GROUP BY master_id
+[2026-02-10T20:41:32.188Z] INFO: [REQUEST_END] GET /history -> 200
+[2026-02-10T20:41:32.191Z] DEBUG: Executing (default): SELECT master_id, MAX(numero_DO_master) AS numero_DO_master FROM master_children WHERE master_id IN ('29226106') GROUP BY master_id
+[2026-02-10T20:41:32.195Z] DEBUG: Executing (default): SELECT master_id, child_id FROM master_children WHERE master_id IN ('29226106')
+[2026-02-10T20:41:32.196Z] INFO: [REQUEST_END] GET /masters/with-photos -> 200
+[2026-02-10T20:41:32.198Z] DEBUG: Executing (default): SELECT rf.bl_id, rf.type, u.id AS user_id, u.nombre, u.display_name, u.email, u.puerto FROM registro_fotografico rf JOIN users u ON u.id = rf.user_id WHERE rf.bl_id IN ('29226106', 'GNK688673')
+[2026-02-10T20:41:32.205Z] INFO: [REQUEST_START] GET /masters/with-photos
+[2026-02-10T20:41:32.209Z] INFO: [REQUEST_END] GET /masters -> 200
+[2026-02-10T20:41:32.215Z] DEBUG: Executing (default): SELECT master_id, MAX(created_at) AS last_created FROM master_children WHERE user_id = 1 GROUP BY master_id ORDER BY last_created DESC
+[2026-02-10T20:41:32.219Z] DEBUG: Executing (default): SELECT master_id, COUNT(child_id) AS children_count FROM master_children WHERE master_id IN ('29226106') AND type = 'hijo' GROUP BY master_id
+[2026-02-10T20:41:32.227Z] INFO: [REQUEST_START] GET /external/masters?puerto=Cartagena
+[2026-02-10T20:41:32.235Z] DEBUG: Executing (default): SELECT bl_id AS master_id, COALESCE(SUM(JSON_LENGTH(photos)), 0) AS photos_count_master FROM registro_fotografico WHERE bl_id IN ('29226106') AND type = 'master' GROUP BY bl_id
+[2026-02-10T20:41:32.316Z] DEBUG: Executing (default): SELECT master_id, MAX(numero_DO_master) AS numero_DO_master FROM master_children WHERE master_id IN ('29226106') GROUP BY master_id
+[2026-02-10T20:41:32.319Z] INFO: [REQUEST_END] GET /masters/with-photos -> 200
+[2026-02-10T20:41:32.442Z] INFO: [REQUEST_START] GET /bls/history
+[2026-02-10T20:41:32.447Z] DEBUG: Executing (default): SELECT `id`, `bl_id`, `type`, `photos`, `storage_location`, `send_status`, `external_response_code`, `external_response_message`, `external_response_body`, `request_payload`, `error_detail`, `retries`, `sent_at`, `created_at` AS `createdAt`, `updated_at` AS `updatedAt`, `user_id` FROM `registro_fotografico` AS `RegistroFotografico` WHERE `RegistroFotografico`.`user_id` = 1 ORDER BY `updatedAt` DESC;
+[2026-02-10T20:41:32.454Z] INFO: [REQUEST_END] GET /history -> 200
+[2026-02-10T20:41:33.527Z] INFO: [REQUEST_END] GET /external/masters?puerto=Cartagena -> 200
+[2026-02-10T20:41:33.998Z] INFO: [REQUEST_START] GET /bls/29226106/photos?type=master&_t=1770756093989
+[2026-02-10T20:41:34.005Z] DEBUG: Executing (default): SELECT `id`, `bl_id`, `type`, `photos`, `storage_location`, `send_status`, `external_response_code`, `external_response_message`, `external_response_body`, `request_payload`, `error_detail`, `retries`, `sent_at`, `created_at` AS `createdAt`, `updated_at` AS `updatedAt`, `user_id` FROM `registro_fotografico` AS `RegistroFotografico` WHERE `RegistroFotografico`.`bl_id` = '29226106' AND `RegistroFotografico`.`user_id` = 1 AND `RegistroFotografico`.`type` = 'master';
+[2026-02-10T20:41:34.007Z] INFO: [REQUEST_START] GET /external/masters/29226106
+[2026-02-10T20:41:34.010Z] DEBUG: Executing (default): SELECT id, nombre, display_name, email FROM users WHERE id IN (1)
+[2026-02-10T20:41:34.024Z] INFO: [REQUEST_END] GET /bls/29226106/photos?type=master&_t=1770756093989 -> 200
+[2026-02-10T20:41:34.027Z] INFO: [REQUEST_START] GET /bls/29226106/photos?type=master&_t=1770756093989
+[2026-02-10T20:41:34.031Z] DEBUG: Executing (default): SELECT `id`, `bl_id`, `type`, `photos`, `storage_location`, `send_status`, `external_response_code`, `external_response_message`, `external_response_body`, `request_payload`, `error_detail`, `retries`, `sent_at`, `created_at` AS `createdAt`, `updated_at` AS `updatedAt`, `user_id` FROM `registro_fotografico` AS `RegistroFotografico` WHERE `RegistroFotografico`.`bl_id` = '29226106' AND `RegistroFotografico`.`user_id` = 1 AND `RegistroFotografico`.`type` = 'master';
+[2026-02-10T20:41:34.033Z] DEBUG: Executing (default): SELECT id, nombre, display_name, email FROM users WHERE id IN (1)
+[2026-02-10T20:41:34.038Z] INFO: [REQUEST_END] GET /bls/29226106/photos?type=master&_t=1770756093989 -> 200
+[2026-02-10T20:41:34.051Z] INFO: [REQUEST_START] GET /uploads/1770042665599-contenedor_cerrado_34_1.jpg
+[2026-02-10T20:41:34.054Z] INFO: [REQUEST_START] GET /uploads/1770393675184-contenedor_cerrado_A-234_1.png
+[2026-02-10T20:41:34.056Z] INFO: [REQUEST_START] GET /uploads/1770667320806-contenedor_abierto_213asd_1.png
+[2026-02-10T20:41:34.057Z] INFO: [REQUEST_START] GET /uploads/1770671396442-contenedor_abierto_1234AS_1.png
+[2026-02-10T20:41:34.064Z] INFO: [REQUEST_END] GET /1770393675184-contenedor_cerrado_A-234_1.png -> 200
+[2026-02-10T20:41:34.067Z] INFO: [REQUEST_END] GET /1770042665599-contenedor_cerrado_34_1.jpg -> 200
+[2026-02-10T20:41:34.069Z] INFO: [REQUEST_START] GET /uploads/1770671961810-lineas_de_cargue_NIETO21_1.png
+[2026-02-10T20:41:34.074Z] INFO: [REQUEST_START] GET /uploads/1770672347810-contenedor_abierto_1.png
+[2026-02-10T20:41:34.077Z] INFO: [REQUEST_END] GET /1770667320806-contenedor_abierto_213asd_1.png -> 200
+[2026-02-10T20:41:34.079Z] INFO: [REQUEST_END] GET /1770671396442-contenedor_abierto_1234AS_1.png -> 200
+[2026-02-10T20:41:34.087Z] INFO: [REQUEST_END] GET /1770671961810-lineas_de_cargue_NIETO21_1.png -> 200
+[2026-02-10T20:41:34.093Z] INFO: [REQUEST_END] GET /1770672347810-contenedor_abierto_1.png -> 200
+[2026-02-10T20:41:34.114Z] INFO: [REQUEST_END] GET /external/masters/29226106 -> 404
+[2026-02-10T20:41:34.118Z] INFO: [REQUEST_START] GET /external/masters/29226106
+[2026-02-10T20:41:34.122Z] INFO: [REQUEST_END] GET /external/masters/29226106 -> 404
+[2026-02-10T20:41:39.948Z] INFO: [REQUEST_START] POST /bls/29226106/photos?type=master
+[2026-02-10T20:41:39.951Z] INFO: [PHOTOS_ROUTE] Starting Multer for BL 29226106
+[2026-02-10T20:41:39.963Z] INFO: [UPLOAD_DEBUG] Start upload for BL 29226106. Type: master. Files: 1
+[2026-02-10T20:41:39.964Z] DEBUG: [UPLOAD_DEBUG] Body keys: master_id, numero_DO_master, type, prefix, cliente_nit, descripcion_mercancia, numero_pedido
+[2026-02-10T20:41:39.967Z] DEBUG: Executing (default): SELECT `id`, `bl_id`, `type`, `photos`, `storage_location`, `send_status`, `external_response_code`, `external_response_message`, `external_response_body`, `request_payload`, `error_detail`, `retries`, `sent_at`, `created_at` AS `createdAt`, `updated_at` AS `updatedAt`, `user_id` FROM `registro_fotografico` AS `RegistroFotografico` WHERE `RegistroFotografico`.`bl_id` = '29226106' AND `RegistroFotografico`.`user_id` = 1 AND `RegistroFotografico`.`type` = 'master' LIMIT 1;
+[2026-02-10T20:41:39.971Z] INFO: [UPLOAD_DEBUG] Found existing record ID 2 for type master. Appending photos.
+[2026-02-10T20:41:39.974Z] DEBUG: Executing (default): UPDATE `registro_fotografico` SET `photos`=?,`updated_at`=? WHERE `id` = ?
+[2026-02-10T20:41:39.984Z] INFO: [UPLOAD_DEBUG] Record updated with 1 new photos.
+[2026-02-10T20:41:39.984Z] DEBUG: [UPLOAD_DEBUG] Upserting master_children: 29226106 - 29226106
+[2026-02-10T20:41:39.985Z] ERROR: {"msg":"Error updating master_children","error":"cliente_nombre is not defined"}
+[2026-02-10T20:41:39.986Z] INFO: [UPLOAD_DEBUG] Sending success response for BL 29226106
+[2026-02-10T20:41:39.987Z] INFO: [REQUEST_END] POST /bls/29226106/photos?type=master -> 201
+[2026-02-10T20:41:39.998Z] INFO: [REQUEST_START] GET /uploads/1770756099958-no_de_contenedor_asd_1.jpg
+[2026-02-10T20:41:40.001Z] INFO: [REQUEST_END] GET /1770756099958-no_de_contenedor_asd_1.jpg -> 200
+[2026-02-10T20:41:40.007Z] INFO: [REQUEST_START] POST /evidences/submit
+[2026-02-10T20:41:40.015Z] DEBUG: Executing (default): INSERT INTO `evidence_submissions` (`id`,`user_id`,`reference_number`,`do_number`,`type`,`documents_count`,`total_bytes`,`documents_meta`,`payload`,`status`,`error_message`,`created_at`,`updated_at`) VALUES (DEFAULT,?,?,?,?,?,?,?,?,?,?,?,?);
+[2026-02-10T20:41:40.051Z] INFO: [REQUEST_END] POST /evidences/submit -> 200
+[2026-02-10T20:41:42.724Z] DEBUG: Executing (default): UPDATE `evidence_submissions` SET `status`=?,`updated_at`=? WHERE `id` = ?
+[2026-02-10T20:44:21.440Z] INFO: [REQUEST_START] GET /bls/29226106/photos?type=master&_t=1770756261428
+[2026-02-10T20:44:21.441Z] INFO: [REQUEST_START] GET /external/masters/29226106
+[2026-02-10T20:44:21.442Z] INFO: [REQUEST_START] GET /bls/29226106/photos?type=master&_t=1770756261429
+[2026-02-10T20:44:21.449Z] INFO: [REQUEST_END] GET /external/masters/29226106 -> 404
+[2026-02-10T20:44:21.460Z] INFO: [REQUEST_START] GET /external/masters/29226106
+[2026-02-10T20:44:21.464Z] INFO: [REQUEST_END] GET /external/masters/29226106 -> 404
+[2026-02-10T20:44:21.467Z] DEBUG: Executing (default): SELECT `id`, `bl_id`, `type`, `photos`, `storage_location`, `send_status`, `external_response_code`, `external_response_message`, `external_response_body`, `request_payload`, `error_detail`, `retries`, `sent_at`, `created_at` AS `createdAt`, `updated_at` AS `updatedAt`, `user_id` FROM `registro_fotografico` AS `RegistroFotografico` WHERE `RegistroFotografico`.`bl_id` = '29226106' AND `RegistroFotografico`.`user_id` = 1 AND `RegistroFotografico`.`type` = 'master';
+[2026-02-10T20:44:21.468Z] DEBUG: Executing (default): SELECT `id`, `bl_id`, `type`, `photos`, `storage_location`, `send_status`, `external_response_code`, `external_response_message`, `external_response_body`, `request_payload`, `error_detail`, `retries`, `sent_at`, `created_at` AS `createdAt`, `updated_at` AS `updatedAt`, `user_id` FROM `registro_fotografico` AS `RegistroFotografico` WHERE `RegistroFotografico`.`bl_id` = '29226106' AND `RegistroFotografico`.`user_id` = 1 AND `RegistroFotografico`.`type` = 'master';
+[2026-02-10T20:44:21.475Z] DEBUG: Executing (default): SELECT id, nombre, display_name, email FROM users WHERE id IN (1)
+[2026-02-10T20:44:21.479Z] DEBUG: Executing (default): SELECT id, nombre, display_name, email FROM users WHERE id IN (1)
+[2026-02-10T20:44:21.481Z] INFO: [REQUEST_END] GET /bls/29226106/photos?type=master&_t=1770756261429 -> 200
+[2026-02-10T20:44:21.485Z] INFO: [REQUEST_END] GET /bls/29226106/photos?type=master&_t=1770756261428 -> 200
+[2026-02-10T20:44:21.607Z] INFO: [REQUEST_START] GET /bls/29226106/photos?type=master&_t=1770756261598
+[2026-02-10T20:44:21.608Z] INFO: [REQUEST_START] GET /external/masters/29226106
+[2026-02-10T20:44:21.609Z] INFO: [REQUEST_START] GET /bls/29226106/photos?type=master&_t=1770756261600
+[2026-02-10T20:44:21.613Z] DEBUG: Executing (default): SELECT `id`, `bl_id`, `type`, `photos`, `storage_location`, `send_status`, `external_response_code`, `external_response_message`, `external_response_body`, `request_payload`, `error_detail`, `retries`, `sent_at`, `created_at` AS `createdAt`, `updated_at` AS `updatedAt`, `user_id` FROM `registro_fotografico` AS `RegistroFotografico` WHERE `RegistroFotografico`.`bl_id` = '29226106' AND `RegistroFotografico`.`user_id` = 1 AND `RegistroFotografico`.`type` = 'master';
+[2026-02-10T20:44:21.616Z] INFO: [REQUEST_END] GET /external/masters/29226106 -> 404
+[2026-02-10T20:44:21.620Z] DEBUG: Executing (default): SELECT `id`, `bl_id`, `type`, `photos`, `storage_location`, `send_status`, `external_response_code`, `external_response_message`, `external_response_body`, `request_payload`, `error_detail`, `retries`, `sent_at`, `created_at` AS `createdAt`, `updated_at` AS `updatedAt`, `user_id` FROM `registro_fotografico` AS `RegistroFotografico` WHERE `RegistroFotografico`.`bl_id` = '29226106' AND `RegistroFotografico`.`user_id` = 1 AND `RegistroFotografico`.`type` = 'master';
+[2026-02-10T20:44:21.624Z] DEBUG: Executing (default): SELECT id, nombre, display_name, email FROM users WHERE id IN (1)
+[2026-02-10T20:44:21.625Z] INFO: [REQUEST_START] GET /external/masters/29226106
+[2026-02-10T20:44:21.627Z] DEBUG: Executing (default): SELECT id, nombre, display_name, email FROM users WHERE id IN (1)
+[2026-02-10T20:44:21.631Z] INFO: [REQUEST_END] GET /external/masters/29226106 -> 404
+[2026-02-10T20:44:21.635Z] INFO: [REQUEST_END] GET /bls/29226106/photos?type=master&_t=1770756261598 -> 200
+[2026-02-10T20:44:21.637Z] INFO: [REQUEST_END] GET /bls/29226106/photos?type=master&_t=1770756261600 -> 200
+[2026-02-10T20:44:21.659Z] INFO: [REQUEST_START] GET /uploads/1770042665599-contenedor_cerrado_34_1.jpg
+[2026-02-10T20:44:21.661Z] INFO: [REQUEST_START] GET /uploads/1770393675184-contenedor_cerrado_A-234_1.png
+[2026-02-10T20:44:21.663Z] INFO: [REQUEST_END] GET /1770042665599-contenedor_cerrado_34_1.jpg -> 304
+[2026-02-10T20:44:21.664Z] INFO: [REQUEST_END] GET /1770393675184-contenedor_cerrado_A-234_1.png -> 304
+[2026-02-10T20:44:21.666Z] INFO: [REQUEST_START] GET /uploads/1770667320806-contenedor_abierto_213asd_1.png
+[2026-02-10T20:44:21.667Z] INFO: [REQUEST_START] GET /uploads/1770671396442-contenedor_abierto_1234AS_1.png
+[2026-02-10T20:44:21.668Z] INFO: [REQUEST_START] GET /uploads/1770671961810-lineas_de_cargue_NIETO21_1.png
+[2026-02-10T20:44:21.668Z] INFO: [REQUEST_START] GET /uploads/1770672347810-contenedor_abierto_1.png
+[2026-02-10T20:44:21.669Z] INFO: [REQUEST_END] GET /1770667320806-contenedor_abierto_213asd_1.png -> 304
+[2026-02-10T20:44:21.672Z] INFO: [REQUEST_END] GET /1770671396442-contenedor_abierto_1234AS_1.png -> 304
+[2026-02-10T20:44:21.673Z] INFO: [REQUEST_END] GET /1770671961810-lineas_de_cargue_NIETO21_1.png -> 304
+[2026-02-10T20:44:21.675Z] INFO: [REQUEST_END] GET /1770672347810-contenedor_abierto_1.png -> 304
+[2026-02-10T20:44:21.676Z] INFO: [REQUEST_START] GET /uploads/1770756099958-no_de_contenedor_asd_1.jpg
+[2026-02-10T20:44:21.677Z] INFO: [REQUEST_END] GET /1770756099958-no_de_contenedor_asd_1.jpg -> 304
