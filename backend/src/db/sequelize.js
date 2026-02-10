@@ -4,7 +4,7 @@ const { logger } = require('../utils/logger');
 const DB_URL = process.env.DB_URL || 'mysql://root:Transborder2025*@localhost:3306/app_db';
 
 const sequelize = new Sequelize(DB_URL, {
-  logging: false,
+  logging: msg => logger.debug(msg),
   define: { underscored: true },
   pool: {
     max: 10,       // Máximo de conexiones simultáneas

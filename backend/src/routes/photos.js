@@ -34,22 +34,23 @@ router.post('/bls/:id/photos', authRequired, (req, res, next) => {
 }, async (req, res) => {
   const { id } = req.params;
 
-  const { type } = req.query;
+  try {
+    const { type } = req.query;
 
-  // Robustly determine type: check query and body, handle arrays
-  let bodyTypeRaw = req.body.type;
-  if (Array.isArray(bodyTypeRaw)) bodyTypeRaw = bodyTypeRaw[0];
-  
-  const queryType = String(type || '').trim().toLowerCase();
-  const bodyType = String(bodyTypeRaw || '').trim().toLowerCase();
-  
-  // Strict check: It is master ONLY if explicitly requested as master
-  const isMaster = queryType === 'master' || bodyType === 'master';
-  const typeVal = isMaster ? 'master' : 'hijo';
+    // Robustly determine type: check query and body, handle arrays
+    let bodyTypeRaw = req.body.type;
+    if (Array.isArray(bodyTypeRaw)) bodyTypeRaw = bodyTypeRaw[0];
+    
+    const queryType = String(type || '').trim().toLowerCase();
+    const bodyType = String(bodyTypeRaw || '').trim().toLowerCase();
+    
+    const isMaster = queryType === 'master' || bodyType === 'master';
+    const typeVal = isMaster ? 'master' : 'hijo';
 
-  console.log(`[UPLOAD_DEBUG] Processing upload for BL ${id}. Resolved Type: "${typeVal}" (Query: "${queryType}", Body: "${bodyType}")`);
+    logger.info(`[UPLOAD_DEBUG] Start upload for BL ${id}. Type: ${typeVal}. Files: ${req.files?.length}`);
+    if (req.body) logger.debug(`[UPLOAD_DEBUG] Body keys: ${Object.keys(req.body).join(', ')}`);
 
-  const flagsRaw = req.body?.averia_flags;
+    const flagsRaw = req.body?.averia_flags;
   const crossdokingFlagsRaw = req.body?.crossdoking_flags;
   let flags = {};
   let crossdokingFlags = {};
@@ -67,52 +68,53 @@ router.post('/bls/:id/photos', authRequired, (req, res, next) => {
     crossdoking: !!crossdokingFlags[f.originalname]
   }));
   try {
-    // Explicitly find record by type to avoid "findOrCreate" ambiguity
-    let rec = await RegistroFotografico.findOne({
-      where: { bl_id: id, user_id: req.user.id, type: typeVal }
-    });
-
-    if (rec) {
-      console.log(`[UPLOAD_DEBUG] Found existing record ID ${rec.id} for type ${typeVal}. Appending photos.`);
-      const prev = Array.isArray(rec.photos) ? rec.photos : [];
-      const existingNames = new Set(prev.map(p => p.filename));
-      const newPhotos = photos.filter(p => !existingNames.has(p.filename));
-      
-      if (newPhotos.length > 0) {
-        rec.photos = prev.concat(newPhotos);
-        rec.send_status = 'pending';
-        await rec.save();
-      }
-    } else {
-      console.log(`[UPLOAD_DEBUG] Creating NEW record for type ${typeVal}.`);
-      rec = await RegistroFotografico.create({
-        bl_id: id,
-        user_id: req.user.id,
-        type: typeVal,
-        photos,
-        send_status: 'pending'
+      let rec = await RegistroFotografico.findOne({
+        where: { bl_id: id, user_id: req.user.id, type: typeVal }
       });
-    }
-    try {
-      const master_id = String(req.body.master_id || '').trim();
-      const child_id = String(req.body.child_id || '').trim() || String(id || '').trim();
-      const cliente_nombre = req.body.cliente_nombre ?? req.body.nombre_cliente ?? null;
-      const cliente_nit = req.body.cliente_nit ?? req.body.nit ?? null;
-      const numero_ie = req.body.numero_ie ?? req.body.ie ?? null;
-      const numero_DO_master = (req.body.numero_DO_master ?? req.body.numero_master ?? master_id) || null;
-      const numero_DO_hijo = (req.body.numero_DO_hijo ?? req.body.numero_do ?? child_id) || null;
-      const pais_de_origen = req.body.pais_de_origen ?? req.body.pais_origen ?? null;
-      const puerto_de_origen = req.body.puerto_de_origen ?? req.body.puerto_origen ?? null;
-      if (master_id && child_id) {
-        await sequelize.query(
+
+      if (rec) {
+        logger.info(`[UPLOAD_DEBUG] Found existing record ID ${rec.id} for type ${typeVal}. Appending photos.`);
+        const prev = Array.isArray(rec.photos) ? rec.photos : [];
+        const existingNames = new Set(prev.map(p => p.filename));
+        const newPhotos = photos.filter(p => !existingNames.has(p.filename));
+        
+        if (newPhotos.length > 0) {
+          rec.photos = prev.concat(newPhotos);
+          rec.send_status = 'pending';
+          await rec.save();
+          logger.info(`[UPLOAD_DEBUG] Record updated with ${newPhotos.length} new photos.`);
+        } else {
+          logger.info(`[UPLOAD_DEBUG] No new photos to append (duplicates).`);
+        }
+      } else {
+        logger.info(`[UPLOAD_DEBUG] Creating NEW record for type ${typeVal}.`);
+        rec = await RegistroFotografico.create({
+          bl_id: id,
+          user_id: req.user.id,
+          type: typeVal,
+          photos,
+          send_status: 'pending'
+        });
+        logger.info(`[UPLOAD_DEBUG] Record created with ID ${rec.id}.`);
+      }
+      
+      try {
+        const master_id = String(req.body.master_id || '').trim();
+        const child_id = String(req.body.child_id || '').trim() || String(id || '').trim();
+        // ... rest of logic
+        if (master_id && child_id) {
+           logger.debug(`[UPLOAD_DEBUG] Upserting master_children: ${master_id} - ${child_id}`);
+           await sequelize.query(
           'INSERT INTO master_children (master_id, child_id, type, user_id, cliente_nombre, cliente_nit, numero_ie, numero_DO_master, numero_DO_hijo, pais_de_origen, puerto_de_origen, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW()) ON DUPLICATE KEY UPDATE type = VALUES(type), user_id = VALUES(user_id), cliente_nombre = VALUES(cliente_nombre), cliente_nit = VALUES(cliente_nit), numero_ie = VALUES(numero_ie), numero_DO_master = VALUES(numero_DO_master), numero_DO_hijo = VALUES(numero_DO_hijo), pais_de_origen = VALUES(pais_de_origen), puerto_de_origen = VALUES(puerto_de_origen), updated_at = NOW()',
           { replacements: [master_id, child_id, typeVal, req.user.id, cliente_nombre, cliente_nit, numero_ie, numero_DO_master, numero_DO_hijo, pais_de_origen, puerto_de_origen] }
-        );
+          );
+        }
+      } catch (e) {
+        logger.error({ msg: 'Error updating master_children', error: e.message });
       }
-    } catch (e) {
-      // noop: si falla la inserción de detalles, no bloquea la carga de fotos
-    }
-    res.status(201).json({
+      
+      logger.info(`[UPLOAD_DEBUG] Sending success response for BL ${id}`);
+      res.status(201).json({
       bl_id: id,
       user_id: req.user.id,
       count: photos.length,
@@ -128,8 +130,16 @@ router.post('/bls/:id/photos', authRequired, (req, res, next) => {
       }
     });
   } catch (err) {
-    logger.error({ msg: 'Error in photos upload route', error: err.message, stack: err.stack, bl_id: req.params.id });
-    res.status(500).json({ ok: false, error: 'Fallo al persistir fotos', detail: err.message });
+      logger.error({ msg: 'Error in photos upload route logic', error: err.message, stack: err.stack, bl_id: req.params.id });
+      if (!res.headersSent) {
+         res.status(500).json({ ok: false, error: 'Fallo al persistir fotos', detail: err.message });
+      }
+    }
+  } catch (outerErr) {
+    logger.error({ msg: 'Critical error in upload route', error: outerErr.message, stack: outerErr.stack });
+    if (!res.headersSent) {
+       res.status(500).json({ ok: false, error: 'Error crítico en servidor' });
+    }
   }
 });
 
