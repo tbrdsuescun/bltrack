@@ -15,15 +15,16 @@ const mastersRouter = require('./routes/masters');
 const externalRouter = require('./routes/external');
 const evidencesRouter = require('./routes/evidences');
 
+const { logger } = require('./utils/logger'); // Import logger
+
 const app = express();
 app.set('etag', false);
 
-// DEBUG: Log all incoming requests immediately
+// DEBUG: Log all incoming requests immediately using logger to persist in file
 app.use((req, res, next) => {
-  console.log(`[REQUEST_START] ${req.method} ${req.url}`);
-  // Hook into response finish to log completion
+  logger.info(`[REQUEST_START] ${req.method} ${req.url}`);
   res.on('finish', () => {
-    console.log(`[REQUEST_END] ${req.method} ${req.url} -> ${res.statusCode}`);
+    logger.info(`[REQUEST_END] ${req.method} ${req.url} -> ${res.statusCode}`);
   });
   next();
 });

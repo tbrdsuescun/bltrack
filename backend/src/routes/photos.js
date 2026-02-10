@@ -23,6 +23,7 @@ const router = express.Router();
 
 // Subir fotos: guarda en disco y persiste registro del BL + fotos por usuario
 router.post('/bls/:id/photos', authRequired, (req, res, next) => {
+  logger.info(`[PHOTOS_ROUTE] Starting Multer for BL ${req.params.id}`);
   upload.array('photos', 12)(req, res, (err) => {
     if (err) {
       logger.error({ msg: 'Multer error', error: err.message, stack: err.stack });
