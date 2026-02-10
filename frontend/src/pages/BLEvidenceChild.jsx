@@ -71,7 +71,7 @@ function urlFor(u) { const s = String(u || ''); if (!s) return ''; if (/^(?:http
 
 function BLEvidenceChild() {
   const { masterId, hblId, id } = useParams()
-  const { addTasks, queue, removeTasks } = useUpload()
+  const { addTasks, queue, removeTasks, retryTask } = useUpload()
   const navigate = useNavigate()
   const targetId = hblId || id || masterId
   const [photos, setPhotos] = useState([])
@@ -544,6 +544,7 @@ function BLEvidenceChild() {
         console.log('[BLEvidenceChild] DB Photos found:', dbPhotos.length)
 
         const tasks = []
+        const tasksToRetry = []
 
         // 2. Identify DB photos that belong to this child and create Sync tasks
         // Filter by prefix/logic if necessary. For Child, usually we check if the photo is relevant.
@@ -576,8 +577,20 @@ function BLEvidenceChild() {
                  const currentTargetId = targetId
                  const currentHblNum = numeroHblCurrent
                  
+                 // Use deterministic ID to prevent duplicates
+                 const taskId = `sync-${p.id || pName}`
+                 const existingTask = queue.find(t => t.id === taskId)
+
+                 if (existingTask) {
+                    if (existingTask.status === 'failed') {
+                        tasksToRetry.push(taskId)
+                    }
+                    // If pending, uploading or completed, skip to avoid duplicates
+                    return
+                 }
+
                  tasks.push({
-                     id: `sync-${p.id || pName}-${Date.now()}`,
+                     id: taskId,
                      contextId: 'child-' + targetId,
                      label: `Sincronizando ${pName}`,
                      run: async () => {
@@ -621,6 +634,9 @@ function BLEvidenceChild() {
              }
         })
 
+        // Retry existing failed tasks
+        tasksToRetry.forEach(tid => retryTask(tid))
+
         // 3. Process Pending Files (New Uploads)
               // NOTE: Pending files are now uploaded immediately in onUpload. 
               // This block is kept empty or removed to avoid double processing if state lingers.
@@ -629,14 +645,14 @@ function BLEvidenceChild() {
                   setPendingFiles([])
               }
 
-        if (tasks.length > 0) {
-            console.log('[BLEvidenceChild] Dispatching total tasks:', tasks.length)
-            addTasks(tasks)
+        if (tasks.length > 0 || tasksToRetry.length > 0) {
+            console.log('[BLEvidenceChild] Dispatching new tasks:', tasks.length, 'Retrying:', tasksToRetry.length)
+            if (tasks.length > 0) addTasks(tasks)
             setPendingFiles([]) // Clear pending files as they are now queued
-            setStatus(`Se iniciaron ${tasks.length} el cargue de las fotos.`)
+            setStatus(`Se iniciaron ${tasks.length} tareas nuevas y ${tasksToRetry.length} reintentos.`)
         } else {
-            console.log('[BLEvidenceChild] No tasks created.')
-            setStatus('No hay fotos nuevas ni existentes para procesar.')
+            console.log('[BLEvidenceChild] No new tasks created and no retries needed.')
+            setStatus('No hay fotos nuevas ni pendientes para procesar.')
         }
 
         // Handle flag updates for existing photos (separate from sync)

@@ -1,6 +1,7 @@
 # Ignorar archivos de entorno
 backend/.env
 backend/uploads
+backend/error.log
 backend/.env.*
 frontend/.env
 frontend/.env.*
