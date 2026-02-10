@@ -111,6 +111,7 @@ function BLEvidenceChild() {
   }, [])
   const [nextAveria, setNextAveria] = useState(false)
   const [nextCrossdoking, setNextCrossdoking] = useState(false)
+  const [blNieto, setBlNieto] = useState('')
   useEffect(() => { const onResize = () => setIsMobile(window.innerWidth <= 768); window.addEventListener('resize', onResize); return () => window.removeEventListener('resize', onResize) }, [])
   const isAdmin = (() => { try { const u = JSON.parse(localStorage.getItem('user') || '{}'); return String(u.role || '') === 'admin' } catch { return false } })()
 
@@ -208,7 +209,13 @@ function BLEvidenceChild() {
       .filter(p => {
         if (!p || !p.id || !p.url) return false
         const r = parsePrefix(p.filename || '')
-        if (slug && r && !(r.prefix === slug || r.prefix.endsWith('_' + slug))) return false
+        // Allow if prefix matches slug, ends with _slug, starts with slug_ (for blNieto), or contains _slug_
+        if (slug && r && !(
+          r.prefix === slug || 
+          r.prefix.endsWith('_' + slug) || 
+          r.prefix.startsWith(slug + '_') || 
+          r.prefix.includes('_' + slug + '_')
+        )) return false
         return true
       })
       .slice()
@@ -243,10 +250,11 @@ function BLEvidenceChild() {
     if (skipped === 0) setStatus(null)
     
     const slug = String(numeroHblCurrent || details.child_id || '')
+    const targetSlug = blNieto ? `${slug}_${blNieto}` : slug
     const used = []
     ;(Array.isArray(photos) ? photos : []).forEach(p => { 
       const r = parsePrefix(p?.filename || '')
-      if (r && (r.prefix === slug || r.prefix.endsWith('_' + slug))) used.push(r.num) 
+      if (r && (r.prefix === targetSlug || r.prefix.endsWith('_' + targetSlug))) used.push(r.num) 
     })
     
     // Count pending files to avoid name collisions in this batch
@@ -263,7 +271,7 @@ function BLEvidenceChild() {
       else if (nextAveria) prefix = 'AVERIA_'
       else if (nextCrossdoking) prefix = 'CROSSDOKING_'
 
-      const newName = `${prefix}${slug}_${start + pendingCount + i}${ext}`
+      const newName = `${prefix}${targetSlug}_${start + pendingCount + i}${ext}`
       return new File([f], newName, { type: f.type })
     })
 
@@ -727,9 +735,29 @@ function BLEvidenceChild() {
               )}
             </div>
           )}
-          <div className="actions" style={{ justifyContent:'flex-start', gap: '8px', alignItems: 'center' }}>
+          <div className="actions" style={{ justifyContent:'flex-start', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
             {!isAdmin && (
               <>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#f3f4f6', padding: '2px 8px', borderRadius: 6, border: '1px solid #e5e7eb' }}>
+                   <span style={{ fontSize: 13, fontWeight: 500, color: '#666' }}>BL Nieto:</span>
+                   <input 
+                      type="text" 
+                      placeholder="Opcional" 
+                      value={blNieto} 
+                      onChange={(e) => setBlNieto(e.target.value)}
+                      style={{ border:'none', background:'transparent', outline:'none', fontSize:13, width: 140, padding: '7px 8px' }}
+                   />
+                   {blNieto && (
+                     <button 
+                       type="button"
+                       onClick={() => setBlNieto('')}
+                       style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#999', fontSize: 16, padding: '0 4px', display: 'flex', alignItems: 'center' }}
+                       title="Borrar"
+                     >
+                       ×
+                     </button>
+                   )}
+                </div>
                 <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', userSelect: 'none', background: '#f3f4f6', padding: '6px 10px', borderRadius: 6, border: '1px solid #e5e7eb' }}>
                   <input type="checkbox" checked={nextAveria} onChange={e => setNextAveria(e.target.checked)} disabled={uploading || loading} />
                   <span style={{ fontSize: 13, fontWeight: 500 }}>Avería</span>
