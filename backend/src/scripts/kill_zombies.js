@@ -1,3 +1,9 @@
+const path = require('path');
+const fs = require('fs');
+const envLocal = path.join(__dirname, '..', '..', '.env');
+const envCwd = path.join(process.cwd(), '.env');
+require('dotenv').config({ path: fs.existsSync(envLocal) ? envLocal : envCwd });
+
 const { sequelize, initDb } = require('../db/sequelize');
 const { QueryTypes } = require('sequelize');
 

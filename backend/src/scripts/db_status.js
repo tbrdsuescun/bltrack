@@ -1,3 +1,9 @@
+const path = require('path');
+const fs = require('fs');
+const envLocal = path.join(__dirname, '..', '..', '.env');
+const envCwd = path.join(process.cwd(), '.env');
+require('dotenv').config({ path: fs.existsSync(envLocal) ? envLocal : envCwd });
+
 const { sequelize, initDb } = require('../db/sequelize');
 const { QueryTypes } = require('sequelize');
 
@@ -39,28 +45,50 @@ const { QueryTypes } = require('sequelize');
     }
 
     console.log('\n--- 3. BLOQUEOS (INNODB_LOCKS - Aprox) ---');
-    // Nota: En versiones recientes de MySQL, information_schema.INNODB_LOCKS está deprecado, 
-    // pero INNODB_TRX suele ser suficiente para ver quién tiene el bloqueo.
-    const locks = await sequelize.query(`
-      SELECT 
-        r.trx_id waiting_trx_id,
-        r.trx_mysql_thread_id waiting_thread,
-        r.trx_query waiting_query,
-        b.trx_id blocking_trx_id,
-        b.trx_mysql_thread_id blocking_thread,
-        b.trx_query blocking_query
-      FROM information_schema.innodb_lock_waits w
-      INNER JOIN information_schema.innodb_trx b
-        ON b.trx_id = w.blocking_trx_id
-      INNER JOIN information_schema.innodb_trx r
-        ON r.trx_id = w.requesting_trx_id;
-    `, { type: QueryTypes.SELECT });
+    // Nota: En versiones recientes de MySQL, information_schema.INNODB_LOCKS está deprecado.
+    // Intentamos primero la consulta compatible con MySQL 5.7, si falla, intentamos MySQL 8.0
+    try {
+      const locks = await sequelize.query(`
+        SELECT 
+          r.trx_id waiting_trx_id,
+          r.trx_mysql_thread_id waiting_thread,
+          r.trx_query waiting_query,
+          b.trx_id blocking_trx_id,
+          b.trx_mysql_thread_id blocking_thread,
+          b.trx_query blocking_query
+        FROM information_schema.innodb_lock_waits w
+        INNER JOIN information_schema.innodb_trx b
+          ON b.trx_id = w.blocking_trx_id
+        INNER JOIN information_schema.innodb_trx r
+          ON r.trx_id = w.requesting_trx_id;
+      `, { type: QueryTypes.SELECT });
 
-    if (locks.length === 0) {
-        console.log('>> No hay bloqueos (deadlocks) detectados en este instante exacto.');
-    } else {
-        console.log('!! SE DETECTARON BLOQUEOS !!');
-        console.table(locks);
+      if (locks.length === 0) {
+          console.log('>> No hay bloqueos (deadlocks) detectados en este instante exacto.');
+      } else {
+          console.log('!! SE DETECTARON BLOQUEOS !!');
+          console.table(locks);
+      }
+    } catch (e) {
+      console.log('>> No se pudo consultar information_schema.innodb_lock_waits (Posiblemente MySQL 8+).');
+      console.log('>> Intentando consultar performance_schema.data_lock_waits...');
+      
+      try {
+         const locks8 = await sequelize.query(`
+          SELECT 
+            w.REQUESTING_ENGINE_TRANSACTION_ID as waiting_trx_id,
+            w.BLOCKING_ENGINE_TRANSACTION_ID as blocking_trx_id
+          FROM performance_schema.data_lock_waits w
+        `, { type: QueryTypes.SELECT });
+        
+        if (locks8.length === 0) {
+           console.log('>> No hay bloqueos detectados (MySQL 8+ check).');
+        } else {
+           console.table(locks8);
+        }
+      } catch (e2) {
+        console.log('>> No se pudo obtener información detallada de bloqueos. Revise INNODB_TRX arriba.');
+      }
     }
 
   } catch (err) {
