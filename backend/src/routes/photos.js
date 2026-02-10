@@ -6,6 +6,7 @@ const { ensureStorageDir, filePath, deleteFileSafe } = require('../services/stor
 const { RegistroFotografico, sequelize } = require('../db/sequelize');
 const { QueryTypes } = require('sequelize');
 const fs = require('fs');
+const { logger } = require('../utils/logger');
 
 ensureStorageDir();
 
@@ -24,6 +25,7 @@ const router = express.Router();
 router.post('/bls/:id/photos', authRequired, (req, res, next) => {
   upload.array('photos', 12)(req, res, (err) => {
     if (err) {
+      logger.error({ msg: 'Multer error', error: err.message, stack: err.stack });
       if (err.code === 'LIMIT_FILE_SIZE') return res.status(413).json({ ok: false, error: 'Archivo demasiado grande (máx 20 MB por imagen)' })
       return res.status(400).json({ ok: false, error: err.message })
     }
@@ -31,6 +33,7 @@ router.post('/bls/:id/photos', authRequired, (req, res, next) => {
   })
 }, async (req, res) => {
   const { id } = req.params;
+
   const { type } = req.query;
 
   // Robustly determine type: check query and body, handle arrays
@@ -125,6 +128,7 @@ router.post('/bls/:id/photos', authRequired, (req, res, next) => {
       }
     });
   } catch (err) {
+    logger.error({ msg: 'Error in photos upload route', error: err.message, stack: err.stack, bl_id: req.params.id });
     res.status(500).json({ ok: false, error: 'Fallo al persistir fotos', detail: err.message });
   }
 });

@@ -14,7 +14,11 @@ function withLevel(level, args) {
   const line = `[${ts}] ${level.toUpperCase()}: ${format(msg)}\n`;
   
   if (level === 'error') {
-    fs.appendFileSync(logFile, line);
+    try {
+      fs.appendFileSync(logFile, line);
+    } catch (e) {
+      console.error('Error escribiendo en log:', e);
+    }
   }
   
   return line.trim();
