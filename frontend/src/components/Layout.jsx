@@ -4,7 +4,6 @@ import Sidebar from './Sidebar'
 function Layout({ user, onLogout, children }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
-  // Cerrar sidebar si cambia el tamaño a desktop
   useEffect(() => {
     const onResize = () => {
       if (window.innerWidth > 768 && sidebarOpen) setSidebarOpen(false)
@@ -13,7 +12,6 @@ function Layout({ user, onLogout, children }) {
     return () => window.removeEventListener('resize', onResize)
   }, [sidebarOpen])
 
-  // Cerrar al navegar
   const handleNavigate = () => setSidebarOpen(false)
 
   return (

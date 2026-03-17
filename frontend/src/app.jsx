@@ -10,9 +10,6 @@ import BLEvidence from './pages/BLEvidence.jsx'
 import AdminUsers from './pages/AdminUsers.jsx'
 import Layout from './components/Layout.jsx'
 
- 
-
-// Protected Route component
 const ProtectedRoute = ({ children }) => {
   const token = localStorage.getItem('token')
   const user = localStorage.getItem('user')
@@ -24,7 +21,6 @@ const ProtectedRoute = ({ children }) => {
   return children
 }
 
-// Main App component
 function App() {
   const [user, setUser] = useState(() => {
     try { 
@@ -51,7 +47,6 @@ function App() {
   const [syncMsg, setSyncMsg] = useState(null)
   const [syncProgress, setSyncProgress] = useState(0)
 
-  // Make logout available globally for components
   useEffect(() => {
     window.AppLogout = handleLogout
   }, [handleLogout])
@@ -85,7 +80,6 @@ function App() {
       setSyncMsg('Sincronizando masters')
       setSyncProgress(5)
       
-      // Helper to save to storage or memory fallback
       const saveCache = (payload) => {
         try {
           localStorage.setItem(key, JSON.stringify(payload))
@@ -111,7 +105,6 @@ function App() {
           }
           if (data.length > 0) {
             const total = data.length
-            // Optimize: map to essential fields to save space
             const minData = data.map(m => ({
               numeroMaster: m.numeroMaster,
               numeroDo: m.numeroDo,

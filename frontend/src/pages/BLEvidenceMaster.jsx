@@ -135,15 +135,12 @@ function BLEvidenceMaster() {
       if (visited.has(item)) return
       visited.add(item)
 
-      // Propiedades directas de contenedor
       const direct = item.numeroContenedor || item.numero_contenedor || item.contenedor || item.container || item.numero || item.equipmentId || item.unitId
       if (direct && (typeof direct === 'string' || typeof direct === 'number')) {
         const s = String(direct).trim()
-        // Evitar agregar IDs numéricos pequeños que parezcan falsos positivos, aunque aceptamos todo por ahora
         if (s.length > 2) gathered.add(s)
       }
 
-      // Listas de contenedores
       const listKeys = ['contenedores', 'containers', 'units', 'equipments']
       listKeys.forEach(key => {
         const list = item[key]
@@ -156,7 +153,6 @@ function BLEvidenceMaster() {
         }
       })
 
-      // Estructuras anidadas (hijos, master, data, etc.)
       const childKeys = ['hijos', 'childs', 'children', 'subOrders', 'items', 'master', 'data', 'details']
       childKeys.forEach(key => {
         const val = item[key]
@@ -226,7 +222,6 @@ function BLEvidenceMaster() {
       if (entryMaster) setCacheEntry(entryMaster)
     } catch {}
 
-    // Fetch full details from API to ensure we have containers (which might be missing in cache)
     API.get(`/external/masters/${tid}`).then(res => {
       if (!mounted) return
       const fullData = res.data?.data || res.data
@@ -327,7 +322,6 @@ function BLEvidenceMaster() {
       return
     }
 
-    // Limpiar mensaje de compresión si todo salió bien y vamos a proceder
     if (skipped === 0) setStatus(null)
 
     let filesToUse = valid
@@ -356,8 +350,6 @@ function BLEvidenceMaster() {
 
       const now = Date.now()
       const staged = filesToUse.map((f, i) => ({ id: `${now + i}-local`, filename: f.name, url: URL.createObjectURL(f) }))
-      // setPhotos(prev => prev.concat(staged))
-      // setPendingFiles(prev => prev.concat(filesToUse))
 
       const currentDetails = { ...details }
       const currentMasterId = masterId || targetId
@@ -383,7 +375,6 @@ function BLEvidenceMaster() {
                console.log('[BLEvidenceMaster] Immediate upload task started for:', name)
                let dbSuccess = false
                try {
-                   // 1. Upload to DB (First)
                    const fd = new FormData()
                    const masterIdVal = String(currentMasterId || '')
                    fd.append('master_id', masterIdVal)
@@ -402,22 +393,18 @@ function BLEvidenceMaster() {
                    const resDb = await API.post('/bls/' + (targetId) + '/photos?type=master', fd)
                    const uploaded = resDb.data?.photos?.[0]
                    if (uploaded && uploaded.id) {
-                     // Ensure url exists (for immediate UI update)
                      const photoObj = { ...uploaded }
                      if (!photoObj.url && photoObj.id) {
                          photoObj.url = '/uploads/' + photoObj.id
                      } else if (!photoObj.url && photoObj.path) {
-                         // Fallback just in case, but prefer ID-based URL
                          photoObj.url = '/uploads/' + String(photoObj.path).replace(/\\/g, '/').split('/').pop()
                      }
 
-                     // Only add to UI if saved to DB
                      setPhotos(prev => prev.concat(photoObj))
                      setServerSavedMessage(`Foto "${name}" guardada correctamente.`)
                      dbSuccess = true
                    }
 
-                   // 2. Evidence (Second)
                    const contentBase64 = await blobToBase64(f)
                    const payload = { 
                      referenceNumber: String(currentDetails.master_id || ''), 
@@ -445,7 +432,6 @@ function BLEvidenceMaster() {
       
       addTasks(newTasks)
       
-      // Update counters immediately for UI consistency
       filesToUse.forEach((f, i) => {
         const key = slug + '__' + (selectedContainer || '')
         setCounters(prev => ({ ...prev, [key]: start + i + 1 }))
@@ -498,7 +484,6 @@ function BLEvidenceMaster() {
         }
       }
       if (res.data?.deleted) {
-        // Update master_children record on delete
         try {
             const fd = new FormData()
             fd.append('master_id', String(targetId || ''))
@@ -554,7 +539,6 @@ function BLEvidenceMaster() {
     setSaveModalOpen(true)
     
     try {
-        // 0. Ensure master_children record exists/updates with type='master'
         try {
             const fd = new FormData()
             fd.append('master_id', String(targetId || ''))
@@ -571,7 +555,6 @@ function BLEvidenceMaster() {
             console.warn('[BLEvidenceMaster] Failed to update master record:', e)
         }
 
-        // 1. Fetch current photos from DB
         console.log('[BLEvidenceMaster] Fetching latest photos from DB...')
         const resPhotos = await API.get('/bls/' + targetId + '/photos?type=master&_t=' + Date.now())
         const dbPhotos = Array.isArray(resPhotos.data?.photos) ? resPhotos.data.photos : []
@@ -579,7 +562,6 @@ function BLEvidenceMaster() {
 
         const tasks = []
 
-        // 2. Identify DB photos for this Master/Container/Prefix
         dbPhotos.forEach(p => {
              const pName = String(p.filename || '')
              
@@ -630,8 +612,6 @@ function BLEvidenceMaster() {
              })
         })
 
-        // 3. Process Pending Files (New Uploads)
-        // NOTE: Pending files are now uploaded immediately in onUpload.
         if (pendingFiles.length) {
             console.log('[BLEvidenceMaster] Clearing legacy pending files queue')
             setPendingFiles([])

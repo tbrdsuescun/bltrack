@@ -8,7 +8,6 @@ const { sequelize } = require('../db/sequelize');
 
 const router = express.Router();
 
-// Lista BLs disponibles desde servicio externo (para selector)
 router.get('/options', authRequired, async (req, res) => {
   try {
     const data = await getWithRetry(EXTERNAL_ENDPOINT, EXTERNAL_RETRY_COUNT);
@@ -19,7 +18,6 @@ router.get('/options', authRequired, async (req, res) => {
   }
 });
 
-// Lista de BLs trabajados por el usuario (desde registro_fotografico)
 router.get('/mine', authRequired, async (req, res) => {
   try {
     const userId = req.user.id;
@@ -75,7 +73,6 @@ router.get('/mine', authRequired, async (req, res) => {
   }
 });
 
-// Historial detallado de BLs con filtros (por usuario)
 router.get('/history', authRequired, async (req, res) => {
   try {
     const userId = req.user.id;
@@ -83,7 +80,6 @@ router.get('/history', authRequired, async (req, res) => {
     const where = { user_id: userId };
     if (bl_id) where.bl_id = { [Op.like]: `%${bl_id}%` };
     if (status) where.send_status = status;
-    // Rango de fechas sobre updated_at (última modificación)
     if (from || to) {
       const range = {};
       if (from) range[Op.gte] = new Date(from + 'T00:00:00Z');
@@ -107,7 +103,6 @@ router.get('/history', authRequired, async (req, res) => {
   }
 });
 
-// Lista BLs (demo: mock por compatibilidad)
 router.get('/', authRequired, async (req, res) => {
   try {
     const data = [
@@ -120,14 +115,12 @@ router.get('/', authRequired, async (req, res) => {
   }
 });
 
-// Detalle BL (demo)
 router.get('/:id', authRequired, async (req, res) => {
   const { id } = req.params;
   const item = { id, ref: `REF-${id}`, details: { origin: 'COL', destination: 'USA' } };
   res.json(item);
 });
 
-// Obtiene los HBLs de un master
 router.get('/master/:master/children', authRequired, async (req, res) => {
   try {
     const { master } = req.params;

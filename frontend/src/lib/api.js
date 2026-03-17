@@ -1,13 +1,11 @@
 import axios from 'axios'
 
-// Instancia compartida de Axios para toda la app
 const base = (import.meta.env?.VITE_API_BASE_URL) || (import.meta.env.PROD ? '' : '/api')
 const API = axios.create({
   baseURL: base,
-  timeout: 180000 // 3 minutos de timeout para evitar cuelgues
+  timeout: 180000
 })
 
-// Interceptor para adjuntar token
 API.interceptors.request.use((config) => {
   const token = localStorage.getItem('token')
   if (token) {
@@ -16,7 +14,6 @@ API.interceptors.request.use((config) => {
   return config
 })
 
-// Interceptor de respuesta: si el servidor responde 401, cerrar sesión automáticamente
 API.interceptors.response.use(
   (res) => res,
   (err) => {

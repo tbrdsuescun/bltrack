@@ -51,7 +51,6 @@ router.get('/masters', authRequired, async (req, res) => {
     rfUserRows.forEach(r => {
       const bl = String(r.bl_id);
       const type = r.type || 'hijo';
-      // Si es tipo master, solo asignar si está en masterIds. Si es hijo, buscar en childMap.
       const masters = type === 'master' 
         ? (masterIds.includes(bl) ? [bl] : [])
         : (childMap[bl] || []);

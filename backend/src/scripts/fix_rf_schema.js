@@ -7,25 +7,20 @@ async function run() {
   try {
     console.log(`\n--- Diagnosticando tabla: ${table} ---\n`);
     
-    // 1. Verificar Columnas
     const desc = await qi.describeTable(table);
     if (!desc.type) {
         console.log('ALERTA: Columna "type" no existe. Creándola...');
         await qi.addColumn(table, 'type', { type: DataTypes.STRING(20), allowNull: true, defaultValue: 'hijo' });
         console.log('Columna "type" creada.');
         
-        // Actualizar registros viejos a 'hijo' por defecto
         await sequelize.query("UPDATE registro_fotografico SET type = 'hijo' WHERE type IS NULL");
     } else {
         console.log('OK: Columna "type" existe.');
     }
 
-    // 2. Verificar Índices Bloqueantes
     const indexes = await qi.showIndex(table);
     console.log('Índices actuales:', indexes.map(i => i.name));
 
-    // Buscamos índices únicos que solo tengan (bl_id, user_id) y NO incluyan 'type'
-    // Estos índices impiden tener un registro 'master' y otro 'hijo' para el mismo usuario y BL.
     const blocking = indexes.filter(i => 
         i.unique && 
         i.fields.length === 2 && 

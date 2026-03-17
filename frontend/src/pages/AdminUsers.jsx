@@ -15,10 +15,8 @@ function AdminUsers({ user }) {
   const [showPass, setShowPass] = useState(false)
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768)
   useEffect(() => { const onResize = () => setIsMobile(window.innerWidth <= 768); window.addEventListener('resize', onResize); return () => window.removeEventListener('resize', onResize) }, [])
-
-  // Usar API compartida sin interceptores locales
-
   async function load() {
+    setLoading(true)
     setLoading(true)
     try {
       const res = await API.get('/users')

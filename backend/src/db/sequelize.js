@@ -7,13 +7,12 @@ const sequelize = new Sequelize(DB_URL, {
   logging: msg => logger.debug(msg),
   define: { underscored: true },
   pool: {
-    max: 10,       // Máximo de conexiones simultáneas
+    max: 10,
     min: 0,
-    acquire: 30000, // Tiempo máximo para intentar conectar antes de fallar (30s)
-    idle: 10000     // Tiempo que una conexión puede estar libre antes de cerrarse (10s)
+    acquire: 30000,
+    idle: 10000
   },
   dialectOptions: {
-    // Forzar timeout en consultas SQL para evitar bloqueos eternos (ej. 20 segundos)
     connectTimeout: 20000 
   }
 });
@@ -88,9 +87,7 @@ const EvidenceSubmission = sequelize.define('EvidenceSubmission', {
 async function initDb() {
   try {
     await sequelize.authenticate();
-    // logger.info('DB connection established');
   } catch (err) {
-    // logger.error({ msg: 'DB connect error', error: err.message });
     throw err;
   }
 }

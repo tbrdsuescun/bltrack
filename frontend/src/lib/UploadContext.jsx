@@ -7,11 +7,8 @@ export function UploadProvider({ children }) {
   const [queue, setQueue] = useState([])
   const [isProcessing, setIsProcessing] = useState(false)
   
-  // Use a ref to keep track of processing state
   const processingRef = useRef(false)
   
-  // Use a ref for the queue so the async runner always sees the latest state
-  // without needing to be recreated on every state change
   const queueRef = useRef(queue)
   useEffect(() => { queueRef.current = queue }, [queue])
 
@@ -46,14 +43,12 @@ export function UploadProvider({ children }) {
     setQueue(prev => prev.filter(t => !taskIds.includes(t.id)))
   }, [])
 
-  // Process queue
   useEffect(() => {
     let mounted = true
     const runNext = async () => {
       if (processingRef.current) return
 
       const now = Date.now()
-      // Use queueRef to get the latest queue without triggering re-runs of this effect
       const currentQueue = queueRef.current
       const candidate = currentQueue.find(t => 
         t.status === 'pending' || 
@@ -101,7 +96,7 @@ export function UploadProvider({ children }) {
       mounted = false
       clearInterval(interval)
     }
-  }, []) // Empty dependency to prevent effect cleanup on queue updates
+  }, [])
 
   const value = {
     queue,

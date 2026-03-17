@@ -13,7 +13,6 @@ function withLevel(level, args) {
   const msg = args.length === 1 ? args[0] : args;
   const line = `[${ts}] ${level.toUpperCase()}: ${format(msg)}\n`;
   
-  // Write ALL logs to file for debugging purposes
   try {
     fs.appendFileSync(logFile, line);
   } catch (e) {

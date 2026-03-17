@@ -28,7 +28,6 @@ function Panel({ user }) {
   async function load() {
     setLoading(true)
     setMsg(null)
-    // cancelar solicitud anterior si existe
     if (abortRef.current) {
       try { abortRef.current.abort() } catch { }
     }
@@ -47,7 +46,6 @@ function Panel({ user }) {
       }
     } finally {
       setLoading(false)
-      // limpiar referencia si es esta misma
       if (abortRef.current === controller) abortRef.current = null
     }
   }
@@ -106,7 +104,6 @@ function Panel({ user }) {
   }, [mastersListRaw, filters.bl_id])
 
   useEffect(() => {
-    // debounce de filtros
     if (typingTimerRef.current) clearTimeout(typingTimerRef.current)
     typingTimerRef.current = setTimeout(() => { load() }, 300)
     return () => { if (typingTimerRef.current) clearTimeout(typingTimerRef.current) }

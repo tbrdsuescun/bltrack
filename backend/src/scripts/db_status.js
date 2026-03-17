@@ -16,7 +16,6 @@ const { QueryTypes } = require('sequelize');
     console.log('Muestra todas las conexiones abiertas y qué consulta están ejecutando actualmente.');
     const processList = await sequelize.query('SHOW FULL PROCESSLIST', { type: QueryTypes.SELECT });
     
-    // Filtramos para no mostrar este mismo script y mostrar solo los que están haciendo algo o durmiendo mucho
     const relevantProcesses = processList.filter(p => p.Command !== 'Sleep' || p.Time > 10);
     console.table(relevantProcesses.map(p => ({
       ID: p.Id,
@@ -45,8 +44,6 @@ const { QueryTypes } = require('sequelize');
     }
 
     console.log('\n--- 3. BLOQUEOS (INNODB_LOCKS - Aprox) ---');
-    // Nota: En versiones recientes de MySQL, information_schema.INNODB_LOCKS está deprecado.
-    // Intentamos primero la consulta compatible con MySQL 5.7, si falla, intentamos MySQL 8.0
     try {
       const locks = await sequelize.query(`
         SELECT 

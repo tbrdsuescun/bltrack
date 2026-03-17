@@ -15,7 +15,6 @@ const { QueryTypes } = require('sequelize');
     console.log('Buscando procesos zombis (> 200 segundos)...');
     const processList = await sequelize.query('SHOW FULL PROCESSLIST', { type: QueryTypes.SELECT });
     
-    // Filtramos procesos que llevan mucho tiempo y no son del sistema
     const zombies = processList.filter(p => 
       p.Command !== 'Sleep' && 
       p.User !== 'event_scheduler' && 

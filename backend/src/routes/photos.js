@@ -21,7 +21,6 @@ const upload = multer({ storage, limits: { fileSize: 20 * 1024 * 1024 } });
 
 const router = express.Router();
 
-// Subir fotos: guarda en disco y persiste registro del BL + fotos por usuario
 router.post('/bls/:id/photos', authRequired, (req, res, next) => {
   logger.info(`[PHOTOS_ROUTE] Starting Multer for BL ${req.params.id}`);
   upload.array('photos', 12)(req, res, (err) => {
@@ -38,7 +37,6 @@ router.post('/bls/:id/photos', authRequired, (req, res, next) => {
   try {
     const { type } = req.query;
 
-    // Robustly determine type: check query and body, handle arrays
     let bodyTypeRaw = req.body.type;
     if (Array.isArray(bodyTypeRaw)) bodyTypeRaw = bodyTypeRaw[0];
     
@@ -103,7 +101,6 @@ router.post('/bls/:id/photos', authRequired, (req, res, next) => {
         const master_id = String(req.body.master_id || '').trim();
         const child_id = String(req.body.child_id || '').trim() || String(id || '').trim();
         
-        // Extracción segura de campos opcionales
         const cliente_nombre = req.body.cliente_nombre || req.body.nombre_cliente || null;
         const cliente_nit = req.body.cliente_nit || req.body.nit || null;
         const numero_ie = req.body.numero_ie || req.body.ie || null;
@@ -153,7 +150,6 @@ router.post('/bls/:id/photos', authRequired, (req, res, next) => {
   }
 });
 
-// Obtener fotos existentes para un BL (si admin: de todos los usuarios, si no: solo propias)
 router.get('/bls/:id/photos', authRequired, async (req, res) => {
   const { id } = req.params;
   const { type } = req.query;
@@ -180,7 +176,6 @@ router.get('/bls/:id/photos', authRequired, async (req, res) => {
         const f = filePath(p.id);
         try {
           const s = fs.statSync(f);
-          // Filtrar archivos vacíos (0 bytes) para evitar errores en frontend
           if (s.isFile() && s.size > 0) {
             seen.add(p.id);
             return true;
@@ -208,7 +203,6 @@ router.get('/bls/:id/photos', authRequired, async (req, res) => {
   }
 });
 
-// Actualizar flags de avería para fotos existentes
 router.patch('/bls/:id/photos/averia', authRequired, async (req, res) => {
   const { id } = req.params;
   const { type } = req.query;
@@ -227,7 +221,6 @@ router.patch('/bls/:id/photos/averia', authRequired, async (req, res) => {
   }
 });
 
-// Actualizar flags de crossdoking para fotos existentes
 router.patch('/bls/:id/photos/crossdoking', authRequired, async (req, res) => {
   const { id } = req.params;
   const { type } = req.query;
@@ -246,7 +239,6 @@ router.patch('/bls/:id/photos/crossdoking', authRequired, async (req, res) => {
   }
 });
 
-// Normalizar consecutivos por prefijo: renombra p.filename a prefix_1, prefix_2, ...
 router.post('/bls/:id/photos/normalize', authRequired, async (req, res) => {
   const { id } = req.params;
   const { type } = req.query;
@@ -280,7 +272,6 @@ router.post('/bls/:id/photos/normalize', authRequired, async (req, res) => {
   }
 });
 
-// Eliminar foto (disco) - no actualiza registro; podría hacerse si se requiere
 router.delete('/photos/:photoId', authRequired, async (req, res) => {
   const { photoId } = req.params;
   const ok = deleteFileSafe(filePath(photoId));
@@ -300,7 +291,6 @@ router.delete('/photos/:photoId', authRequired, async (req, res) => {
   res.json({ photoId, deleted: ok, dbUpdated: removed > 0, updatedRecords: removed });
 });
 
-// Fallback por POST para entornos donde DELETE no está permitido por el proxy
 router.post('/photos/:photoId/delete', authRequired, async (req, res) => {
   const { photoId } = req.params;
   const ok = deleteFileSafe(filePath(photoId));

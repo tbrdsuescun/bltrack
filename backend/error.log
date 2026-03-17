@@ -121,3 +121,51 @@
 [2026-02-10T20:44:21.675Z] INFO: [REQUEST_END] GET /1770672347810-contenedor_abierto_1.png -> 304
 [2026-02-10T20:44:21.676Z] INFO: [REQUEST_START] GET /uploads/1770756099958-no_de_contenedor_asd_1.jpg
 [2026-02-10T20:44:21.677Z] INFO: [REQUEST_END] GET /1770756099958-no_de_contenedor_asd_1.jpg -> 304
+[2026-03-17T17:47:24.525Z] DEBUG: Executing (default): SELECT 1+1 AS result
+[2026-03-17T17:47:24.534Z] DEBUG: Executing (default): SHOW FULL COLUMNS FROM `users`;
+[2026-03-17T17:47:24.556Z] DEBUG: Executing (default): SHOW FULL COLUMNS FROM `users`;
+[2026-03-17T17:47:24.559Z] DEBUG: Executing (default): SHOW FULL COLUMNS FROM `registro_fotografico`;
+[2026-03-17T17:47:24.565Z] DEBUG: Executing (default): SHOW FULL COLUMNS FROM `evidence_submissions`;
+[2026-03-17T17:47:24.568Z] DEBUG: Executing (default): SHOW FULL COLUMNS FROM `master_children`;
+[2026-03-17T17:47:24.572Z] DEBUG: Executing (default): SHOW FULL COLUMNS FROM `master_children`;
+[2026-03-17T17:47:24.575Z] DEBUG: Executing (default): SHOW INDEX FROM `master_children`
+[2026-03-17T19:34:37.500Z] DEBUG: Executing (default): SELECT 1+1 AS result
+[2026-03-17T19:34:37.503Z] DEBUG: Executing (default): SHOW FULL COLUMNS FROM `users`;
+[2026-03-17T19:34:37.511Z] DEBUG: Executing (default): SHOW FULL COLUMNS FROM `users`;
+[2026-03-17T19:34:37.515Z] DEBUG: Executing (default): SHOW FULL COLUMNS FROM `registro_fotografico`;
+[2026-03-17T19:34:37.518Z] DEBUG: Executing (default): SHOW FULL COLUMNS FROM `evidence_submissions`;
+[2026-03-17T19:34:37.522Z] DEBUG: Executing (default): SHOW FULL COLUMNS FROM `master_children`;
+[2026-03-17T19:34:37.525Z] DEBUG: Executing (default): SHOW FULL COLUMNS FROM `master_children`;
+[2026-03-17T19:34:37.528Z] DEBUG: Executing (default): SHOW INDEX FROM `master_children`
+[2026-03-17T19:49:15.850Z] INFO: [REQUEST_START] POST /auth/login
+[2026-03-17T19:49:16.079Z] DEBUG: Executing (default): SELECT `id`, `nombre`, `email`, `password_hash`, `role`, `is_active`, `display_name`, `last_login`, `puerto`, `created_at` AS `createdAt`, `updated_at` AS `updatedAt` FROM `users` AS `User` WHERE `User`.`email` = 'dsuescun@transborder.com.co';
+[2026-03-17T19:49:16.270Z] DEBUG: Executing (default): UPDATE `users` SET `last_login`=?,`updated_at`=? WHERE `id` = ?
+[2026-03-17T19:49:16.310Z] INFO: [REQUEST_END] POST /login -> 200
+[2026-03-17T19:49:16.331Z] INFO: [REQUEST_START] GET /masters
+[2026-03-17T19:49:16.340Z] DEBUG: Executing (default): SELECT master_id, MAX(created_at) AS last_created FROM master_children WHERE user_id = 1 GROUP BY master_id ORDER BY last_created DESC
+[2026-03-17T19:49:16.343Z] INFO: [REQUEST_START] GET /masters/with-photos
+[2026-03-17T19:49:16.347Z] INFO: [REQUEST_START] GET /bls/history
+[2026-03-17T19:49:16.369Z] DEBUG: Executing (default): SELECT master_id, MAX(created_at) AS last_created FROM master_children WHERE user_id = 1 GROUP BY master_id ORDER BY last_created DESC
+[2026-03-17T19:49:16.378Z] DEBUG: Executing (default): SELECT `id`, `bl_id`, `type`, `photos`, `storage_location`, `send_status`, `external_response_code`, `external_response_message`, `external_response_body`, `request_payload`, `error_detail`, `retries`, `sent_at`, `created_at` AS `createdAt`, `updated_at` AS `updatedAt`, `user_id` FROM `registro_fotografico` AS `RegistroFotografico` WHERE `RegistroFotografico`.`user_id` = 1 ORDER BY `updatedAt` DESC;
+[2026-03-17T19:49:16.389Z] DEBUG: Executing (default): SELECT master_id, COUNT(child_id) AS children_count FROM master_children WHERE master_id IN ('29226106') AND type = 'hijo' GROUP BY master_id
+[2026-03-17T19:49:16.398Z] DEBUG: Executing (default): SELECT master_id, COUNT(child_id) AS children_count FROM master_children WHERE master_id IN ('29226106') AND type = 'hijo' GROUP BY master_id
+[2026-03-17T19:49:16.402Z] INFO: [REQUEST_END] GET /history -> 200
+[2026-03-17T19:49:16.404Z] DEBUG: Executing (default): SELECT bl_id AS master_id, COALESCE(SUM(JSON_LENGTH(photos)), 0) AS photos_count_master FROM registro_fotografico WHERE bl_id IN ('29226106') AND type = 'master' GROUP BY bl_id
+[2026-03-17T19:49:16.406Z] DEBUG: Executing (default): SELECT bl_id AS master_id, COALESCE(SUM(JSON_LENGTH(photos)), 0) AS photos_count_master FROM registro_fotografico WHERE bl_id IN ('29226106') AND type = 'master' GROUP BY bl_id
+[2026-03-17T19:49:16.410Z] DEBUG: Executing (default): SELECT master_id, MAX(numero_DO_master) AS numero_DO_master FROM master_children WHERE master_id IN ('29226106') GROUP BY master_id
+[2026-03-17T19:49:16.412Z] DEBUG: Executing (default): SELECT master_id, MAX(numero_DO_master) AS numero_DO_master FROM master_children WHERE master_id IN ('29226106') GROUP BY master_id
+[2026-03-17T19:49:16.415Z] INFO: [REQUEST_END] GET /masters/with-photos -> 200
+[2026-03-17T19:49:16.421Z] DEBUG: Executing (default): SELECT master_id, child_id FROM master_children WHERE master_id IN ('29226106')
+[2026-03-17T19:49:16.425Z] DEBUG: Executing (default): SELECT rf.bl_id, rf.type, u.id AS user_id, u.nombre, u.display_name, u.email, u.puerto FROM registro_fotografico rf JOIN users u ON u.id = rf.user_id WHERE rf.bl_id IN ('29226106', 'GNK688673')
+[2026-03-17T19:49:16.429Z] INFO: [REQUEST_END] GET /masters -> 200
+[2026-03-17T19:49:16.438Z] INFO: [REQUEST_START] GET /masters/with-photos
+[2026-03-17T19:49:16.442Z] DEBUG: Executing (default): SELECT master_id, MAX(created_at) AS last_created FROM master_children WHERE user_id = 1 GROUP BY master_id ORDER BY last_created DESC
+[2026-03-17T19:49:16.445Z] INFO: [REQUEST_START] GET /external/masters?puerto=Cartagena
+[2026-03-17T19:49:16.447Z] DEBUG: Executing (default): SELECT master_id, COUNT(child_id) AS children_count FROM master_children WHERE master_id IN ('29226106') AND type = 'hijo' GROUP BY master_id
+[2026-03-17T19:49:16.523Z] DEBUG: Executing (default): SELECT bl_id AS master_id, COALESCE(SUM(JSON_LENGTH(photos)), 0) AS photos_count_master FROM registro_fotografico WHERE bl_id IN ('29226106') AND type = 'master' GROUP BY bl_id
+[2026-03-17T19:49:16.526Z] DEBUG: Executing (default): SELECT master_id, MAX(numero_DO_master) AS numero_DO_master FROM master_children WHERE master_id IN ('29226106') GROUP BY master_id
+[2026-03-17T19:49:16.531Z] INFO: [REQUEST_END] GET /masters/with-photos -> 200
+[2026-03-17T19:49:16.637Z] INFO: [REQUEST_START] GET /bls/history
+[2026-03-17T19:49:16.642Z] DEBUG: Executing (default): SELECT `id`, `bl_id`, `type`, `photos`, `storage_location`, `send_status`, `external_response_code`, `external_response_message`, `external_response_body`, `request_payload`, `error_detail`, `retries`, `sent_at`, `created_at` AS `createdAt`, `updated_at` AS `updatedAt`, `user_id` FROM `registro_fotografico` AS `RegistroFotografico` WHERE `RegistroFotografico`.`user_id` = 1 ORDER BY `updatedAt` DESC;
+[2026-03-17T19:49:16.647Z] INFO: [REQUEST_END] GET /history -> 200
+[2026-03-17T19:49:18.337Z] INFO: [REQUEST_END] GET /external/masters?puerto=Cartagena -> 200

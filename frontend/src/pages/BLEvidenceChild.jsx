@@ -209,7 +209,6 @@ function BLEvidenceChild() {
       .filter(p => {
         if (!p || !p.id || !p.url) return false
         const r = parsePrefix(p.filename || '')
-        // Allow if prefix matches slug, ends with _slug, starts with slug_ (for blNieto), or contains _slug_
         if (slug && r && !(
           r.prefix === slug || 
           r.prefix.endsWith('_' + slug) || 
@@ -226,14 +225,13 @@ function BLEvidenceChild() {
     const files = Array.from(e.target.files || [])
     if (!files.length || !targetId) return
 
-    // Comprimir imágenes antes de validar tamaño
     setStatus('Procesando y comprimiendo imágenes...')
     let processedFiles = []
     try {
       processedFiles = await Promise.all(files.map(f => compressImage(f)))
     } catch (err) {
       console.error('Error en compresión', err)
-      processedFiles = files // Fallback a originales si falla
+      processedFiles = files
     }
 
     const maxSize = 5 * 1024 * 1024
@@ -246,7 +244,6 @@ function BLEvidenceChild() {
       return
     }
 
-    // Limpiar mensaje de compresión si todo salió bien y vamos a proceder
     if (skipped === 0) setStatus(null)
     
     const slug = String(numeroHblCurrent || details.child_id || '')
@@ -257,7 +254,6 @@ function BLEvidenceChild() {
       if (r && (r.prefix === targetSlug || r.prefix.endsWith('_' + targetSlug))) used.push(r.num) 
     })
     
-    // Count pending files to avoid name collisions in this batch
     const pendingCount = pendingFiles.length
     const start = used.length ? Math.max(...used) + 1 : 1
 
@@ -284,9 +280,6 @@ function BLEvidenceChild() {
       crossdoking: nextCrossdoking
     }))
     
-    // setPhotos(prev => prev.concat(staged))
-    // setPendingFiles(prev => prev.concat(filesToUse)) // No longer queuing for manual save
-    
     const currentDetails = { ...details }
     const currentTargetId = targetId
     const currentHblNum = numeroHblCurrent
@@ -306,7 +299,6 @@ function BLEvidenceChild() {
         const ext = extFor({ filename: name }, f.type)
         const date = dayjs().format('DD/MM/YYYY')
         
-        // Use selected flags for new uploads
         const averiaForFile = nextAveria
         const crossdokingForFile = nextCrossdoking
         let category = ''
@@ -322,7 +314,6 @@ function BLEvidenceChild() {
             console.log('[BLEvidenceChild] Immediate upload task started for:', name)
             let dbSuccess = false
             try {
-                // 1. Upload to DB (First priority)
                 const fd = new FormData()
                 fd.append('master_id', String(currentDetails.master_id || ''))
                 fd.append('child_id', String(currentDetails.child_id || ''))
@@ -347,27 +338,21 @@ function BLEvidenceChild() {
                 const resDb = await API.post('/bls/' + (currentTargetId) + '/photos?type=hijo', fd)
                 const uploaded = resDb.data?.photos?.[0]
                 
-                // If status is success, we consider DB part done, even if no new photo returned (duplicate)
                 if (resDb.status >= 200 && resDb.status < 300) {
                     dbSuccess = true
                 }
 
                 if (uploaded && uploaded.id) {
-                  // Ensure url exists (for immediate UI update)
                   const photoObj = { ...uploaded }
                   if (!photoObj.url && photoObj.id) {
                       photoObj.url = '/uploads/' + photoObj.id
                   } else if (!photoObj.url && photoObj.path) {
-                      // Fallback just in case, but prefer ID-based URL
                       photoObj.url = '/uploads/' + String(photoObj.path).split(/[\/\\]/).pop()
                   }
 
-                  // Only add to UI if saved to DB
                   setPhotos(prev => prev.concat(photoObj))
                   setServerSavedMessage(`Foto "${name}" guardada correctamente.`)
                 } else if (dbSuccess) {
-                   // If success but no photo returned, it's likely a duplicate.
-                   // Fetch latest photos to ensure UI is up to date.
                    console.log('[BLEvidenceChild] Photo uploaded (possible duplicate), refreshing list.')
                    try {
                      const refreshRes = await API.get('/bls/' + (currentTargetId) + '/photos?type=hijo&_t=' + Date.now())
@@ -377,7 +362,6 @@ function BLEvidenceChild() {
                    } catch (e) { console.error('Error refreshing photos', e) }
                 }
 
-                // 2. Sync to External Endpoint
                 const contentBase64 = await blobToBase64(f)
                 const documents = [{ name: baseName, extension: ext, category, date, contentBase64 }]
                 
@@ -552,7 +536,6 @@ function BLEvidenceChild() {
     setSaveModalOpen(true)
 
     try {
-        // 1. Fetch current photos from DB to ensure we have the latest state
         console.log('[BLEvidenceChild] Fetching latest photos from DB...')
         const resPhotos = await API.get('/bls/' + targetId + '/photos?type=hijo&_t=' + Date.now())
         const dbPhotos = Array.isArray(resPhotos.data?.photos) ? resPhotos.data.photos : []
@@ -561,15 +544,11 @@ function BLEvidenceChild() {
         const tasks = []
         const tasksToRetry = []
 
-        // 2. Identify DB photos that belong to this child and create Sync tasks
-        // Filter by prefix/logic if necessary. For Child, usually we check if the photo is relevant.
-        // In the upload logic: slug = numeroHblCurrent || details.child_id
         const slug = String(numeroHblCurrent || details.child_id || '')
         
         dbPhotos.forEach(p => {
              const pName = String(p.filename || '')
              const r = parsePrefix(pName)
-             // Check if this photo belongs to this child record
              if (r && (r.prefix === slug || r.prefix.endsWith('_' + slug))) {
                  let cleanName = pName
                  if (cleanName.startsWith('AVERIA_CROSSDOKING_')) cleanName = cleanName.replace('AVERIA_CROSSDOKING_', '')
@@ -578,8 +557,8 @@ function BLEvidenceChild() {
 
                  const dot = cleanName.lastIndexOf('.')
                  const baseName = dot >= 0 ? cleanName.slice(0, dot) : cleanName
-                 const ext = extFor({ filename: pName }, p.mimetype || 'image/jpeg') // mimetype might be missing, infer from name
-                 const date = dayjs().format('DD/MM/YYYY') // Or use p.created_at if available
+                 const ext = extFor({ filename: pName }, p.mimetype || 'image/jpeg')
+                 const date = dayjs().format('DD/MM/YYYY')
                  
                  const averiaForFile = !!p.averia
                  const crossdokingForFile = !!p.crossdoking
@@ -592,7 +571,6 @@ function BLEvidenceChild() {
                  const currentTargetId = targetId
                  const currentHblNum = numeroHblCurrent
                  
-                 // Use deterministic ID to prevent duplicates
                  const taskId = `sync-${p.id || pName}`
                  const existingTask = queue.find(t => t.id === taskId)
 
@@ -600,7 +578,6 @@ function BLEvidenceChild() {
                     if (existingTask.status === 'failed') {
                         tasksToRetry.push(taskId)
                     }
-                    // If pending, uploading or completed, skip to avoid duplicates
                     return
                  }
 
@@ -610,12 +587,6 @@ function BLEvidenceChild() {
                      label: `Sincronizando ${pName}`,
                      run: async () => {
                          console.log('[BLEvidenceChild] Sync task started for:', pName)
-                         // Fetch image content from server
-                         // URL might be full or relative. API.defaults.baseURL is usually set.
-                         // If p.url is full URL, axios handles it. If relative, it appends.
-                         // We need to handle both cases or construct the URL.
-                         // Usually p.url is something like "/uploads/..."
-                         
                          let blob = null
                          try {
                              const imgUrl = p.url
@@ -649,12 +620,8 @@ function BLEvidenceChild() {
              }
         })
 
-        // Retry existing failed tasks
         tasksToRetry.forEach(tid => retryTask(tid))
 
-        // 3. Process Pending Files (New Uploads)
-              // NOTE: Pending files are now uploaded immediately in onUpload. 
-              // This block is kept empty or removed to avoid double processing if state lingers.
               if (pendingFiles.length) {
                   console.log('[BLEvidenceChild] Clearing legacy pending files queue')
                   setPendingFiles([])
@@ -663,14 +630,13 @@ function BLEvidenceChild() {
         if (tasks.length > 0 || tasksToRetry.length > 0) {
             console.log('[BLEvidenceChild] Dispatching new tasks:', tasks.length, 'Retrying:', tasksToRetry.length)
             if (tasks.length > 0) addTasks(tasks)
-            setPendingFiles([]) // Clear pending files as they are now queued
+            setPendingFiles([])
             setStatus(`Se iniciaron ${tasks.length} tareas nuevas y ${tasksToRetry.length} reintentos.`)
         } else {
             console.log('[BLEvidenceChild] No new tasks created and no retries needed.')
             setStatus('No hay fotos nuevas ni pendientes para procesar.')
         }
 
-        // Handle flag updates for existing photos (separate from sync)
         const flagsExisting = {}
         const crossdokingExisting = {}
         ;(photos || []).forEach(p => { 
@@ -684,7 +650,7 @@ function BLEvidenceChild() {
             console.log('[BLEvidenceChild] Dispatching flag update task')
           addTasks([{
               id: 'update-flags-' + Date.now(),
-              contextId: 'child-' + targetId, // Add contextId for filtering
+              contextId: 'child-' + targetId,
               label: 'Actualizando estados de fotos',
               run: async () => {
                   if (Object.keys(flagsExisting).length) {

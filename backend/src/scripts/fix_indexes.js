@@ -21,7 +21,6 @@ async function fixIndexes() {
       console.log('Removed.');
     }
 
-    // Ensure the new one exists
     const goodIndex = indexes.find(i => i.name === 'mc_master_child_type_unique');
     if (!goodIndex) {
       console.log('Creating new index: mc_master_child_type_unique');

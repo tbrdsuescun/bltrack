@@ -260,7 +260,6 @@ card .user {
     color: var(--secondary)
 }
 
-/* --- Login page layout --- */
 .login-grid {
     display: grid;
     grid-template-columns: 1.2fr 1fr;
@@ -301,7 +300,6 @@ card .user {
     border-radius: 0;
 }
 
-/* Layout full-width (sin contenedor) */
 .layout-full {
     padding: 0;
     margin: 0
@@ -318,7 +316,6 @@ card .user {
     text-align: center;
 }
 
-/* --- App shell with sidebar --- */
 .app-shell { display: flex; min-height: 100vh; }
 .sidebar { width: 220px; background: #0f2b54; color: #fff; display: flex; flex-direction: column; justify-content: flex-start; padding: 16px 12px; }
 .side-header { padding: 8px 10px; }
@@ -333,18 +330,12 @@ card .user {
 .side-logout { width: 100%; background: rgba(255,255,255,0.15); color:#fff; border:none; border-radius:8px; padding: 8px 12px; cursor:pointer; }
 .side-logout:hover { background: rgba(255,255,255,0.25); }
 
-/* Header móvil */
 @media(min-width:769px){ .mobile-header { display:none; } }
 .menu-btn { background:transparent; border:none; color:#fff; font-size:20px; line-height:1; cursor:pointer; }
 
 .content { flex: 1; padding: 24px; background: #f7f9fb; }
 .content-full { padding: 0; }
 
-/* Responsive: móvil/tablet */
-
-
-
-/* --- Headers, search and actions --- */
 .page-header { display:flex; align-items:center; justify-content: space-between; margin-bottom: 12px; }
 .searchbar { position: relative; display: inline-block; }
 .searchbar input { width: 320px; max-width: 100%; padding: 10px 12px 10px 34px; border: 1px solid #e5e7eb; border-radius: 8px; }
@@ -352,12 +343,10 @@ card .user {
 .searchbar .search-icon { position:absolute; left:10px; top:50%; transform:translateY(-50%); color:#6b7280; font-size:14px; }
 .actions-row { display:flex; gap: 10px; }
 
-/* --- Tabs / filtros --- */
 .tabs { display:flex; gap:8px; margin: 8px 0 12px; }
 .tab { background:#eef2f7; color:#27364f; border:none; border-radius:16px; padding:6px 12px; cursor:pointer; font-size:13px; }
 .tab.active { background:#d7e4f6; color:#0d2b54; }
 
-/* --- Tabla --- */
 .table-responsive { overflow-x:auto; }
 .table { width:100%; border-collapse: collapse; background:#fff; border:1px solid #e5e7eb; border-radius:12px; overflow:hidden; box-shadow: 0 2px 10px rgba(16,24,40,0.06); }
 .table thead th { text-align:left; font-size:13px; color:#6b7280; background:#f3f4f6; padding:10px; border-bottom:1px solid #e5e7eb; }
@@ -365,7 +354,6 @@ card .user {
 .table-actions { text-align:center !important; }
  .table tbody tr:hover { background:#fbfdff; }
 
-/* --- Badges --- */
 .badge { display:inline-flex; align-items:center; gap:6px; border-radius:18px; padding:4px 10px; font-size:12px; }
 .badge-green { background:#e7f6ec; color:#1b6e3d; }
 .badge-yellow { background:#fff4e5; color:#8a5c00; }
@@ -378,19 +366,16 @@ card .user {
  
  .btn-danger { background:#e74c3c; color:#fff; }
  
- /* --- Pagination --- */
 .pagination { display:flex; gap:6px; align-items:center; justify-content:flex-end; margin-top:10px; }
 .page-btn { background:#fff; border:1px solid #e5e7eb; border-radius:6px; padding:6px 10px; cursor:pointer; }
 .page-btn.active { background:#0d2b54; color:#fff; border-color:#0d2b54; }
 
 
-/* --- Modal --- */
 .modal-backdrop { position:fixed; inset:0; background:rgba(10,14,23,0.45); display:flex; align-items:center; justify-content:center; z-index:50; }
 .modal { width:50%; max-width:90vw; background:#fff; border-radius:12px; box-shadow:0 20px 40px rgba(0,0,0,0.15); overflow:hidden; }
 .modal-header { padding:14px; border-bottom:1px solid #eef2f7; font-weight:600; }
 .modal-body { padding:20px; }
 .modal-footer { padding:12px 16px; border-top:1px solid #eef2f7; display:flex; justify-content:flex-end; gap:8px; }
-/* --- Floating Actions (mobile) --- */
 .fab { position:fixed; right:16px; bottom:16px; border-radius:50%; width:56px; height:56px; display:none; align-items:center; justify-content:center; box-shadow:0 8px 20px rgba(0,0,0,0.25); z-index:60; }
 .fab .icon { font-size:24px; line-height:1; }
 
@@ -399,7 +384,6 @@ card .user {
 .bottom-spacer { height:56px; display:none; }
 
 
-/* --- Dropzone --- */
 .dropzone { border:2px dashed #d1d5db; border-radius:12px; background:#fbfdff; padding:18px; text-align:center; color:#6b7280; }
 .preview-grid { display:grid; gap:10px; margin-top:12px; }
 .preview-card { border:1px solid #e5e7eb; border-radius:10px; overflow:hidden; background:#fff; }
@@ -411,7 +395,6 @@ card .user {
 .loading-text { font-weight:600; letter-spacing:0.2px; }
 @keyframes spin { to { transform:rotate(360deg); } }
 
-/* Mobile cards */
 .mobile-card-list { display:flex; flex-direction:column; gap:10px; }
 .mobile-card { border:1px solid #e5e7eb; border-radius:10px; background:#fff; padding:12px; }
 .mobile-card-header { display:flex; align-items:center; justify-content:space-between; }

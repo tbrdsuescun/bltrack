@@ -11,8 +11,7 @@ function authRequired(req, res, next) {
   }
   try {
     const payload = jwt.verify(token, JWT_SECRET);
-    req.user = payload; // { id, email, role }
-    // logger.debug(`[AUTH_SUCCESS] User ${payload.id} authenticated`);
+    req.user = payload;
     next();
   } catch (err) {
     logger.warn(`[AUTH_FAIL] Invalid token for ${req.method} ${req.url}: ${err.message}`);

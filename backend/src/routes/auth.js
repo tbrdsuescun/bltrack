@@ -6,7 +6,6 @@ const { User } = require('../db/sequelize');
 
 const router = express.Router();
 
-// Login real: valida contra la tabla users
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body || {};

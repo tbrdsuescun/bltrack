@@ -6,7 +6,6 @@ const { RegistroFotografico } = require('../db/sequelize');
 
 const router = express.Router();
 
-// Enviar BL + fotos: toma registro del usuario para el BL y lo envía al externo
 router.post('/bls/:id/send', authRequired, async (req, res) => {
   const { id } = req.params;
   try {

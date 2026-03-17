@@ -6,7 +6,6 @@ const { User } = require('../db/sequelize');
 
 const router = express.Router();
 
-// Listar usuarios
 router.get('/', authRequired, requireRole('admin'), async (req, res) => {
   try {
     const items = await User.findAll({ order: [['id', 'ASC']] });
@@ -17,7 +16,6 @@ router.get('/', authRequired, requireRole('admin'), async (req, res) => {
   }
 });
 
-// Obtener usuario
 router.get('/:id', authRequired, requireRole('admin'), async (req, res) => {
   try {
     const user = await User.findByPk(req.params.id);
@@ -28,7 +26,6 @@ router.get('/:id', authRequired, requireRole('admin'), async (req, res) => {
   }
 });
 
-// Crear usuario
 router.post('/', authRequired, requireRole('admin'), async (req, res) => {
   try {
     const { nombre, email, password, role = 'operario', is_active = true, puerto } = req.body || {};
@@ -45,7 +42,6 @@ router.post('/', authRequired, requireRole('admin'), async (req, res) => {
   }
 });
 
-// Actualizar usuario
 router.patch('/:id', authRequired, requireRole('admin'), async (req, res) => {
   try {
     const { id } = req.params;
@@ -73,7 +69,6 @@ router.patch('/:id', authRequired, requireRole('admin'), async (req, res) => {
   }
 });
 
-// Eliminar usuario (hard delete)
 router.delete('/:id', authRequired, requireRole('admin'), async (req, res) => {
   try {
     const { id } = req.params;
@@ -86,7 +81,6 @@ router.delete('/:id', authRequired, requireRole('admin'), async (req, res) => {
   }
 });
 
-// Desactivar usuario (soft)
 router.patch('/:id/deactivate', authRequired, requireRole('admin'), async (req, res) => {
   try {
     const { id } = req.params;

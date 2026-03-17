@@ -1,18 +1,6 @@
-/**
- * Comprime una imagen si excede un tamaño objetivo.
- * Usa HTML5 Canvas para redimensionar y comprimir.
- * 
- * @param {File} file - El archivo original
- * @param {number} targetSizeMB - Tamaño objetivo en MB (default 4MB para estar seguros bajo el límite de 5MB)
- * @param {number} maxWidthOrHeight - Ancho o alto máximo (default 1920px)
- * @param {number} quality - Calidad JPEG (0 a 1, default 0.7)
- * @returns {Promise<File>} - El archivo comprimido o el original si no es imagen o error
- */
 export async function compressImage(file, targetSizeMB = 4, maxWidthOrHeight = 1920, quality = 0.7) {
-  // Si no es imagen, devolver original
   if (!file.type.startsWith('image/')) return file;
   
-  // Si ya es pequeño, devolver original
   if (file.size <= targetSizeMB * 1024 * 1024) return file;
 
   console.log(`Comprimiendo imagen ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)...`);
@@ -29,7 +17,6 @@ export async function compressImage(file, targetSizeMB = 4, maxWidthOrHeight = 1
         let width = img.width;
         let height = img.height;
 
-        // Lógica de redimensionamiento (mantener aspect ratio)
         if (width > height) {
             if (width > maxWidthOrHeight) {
                 height *= maxWidthOrHeight / width;
@@ -48,7 +35,6 @@ export async function compressImage(file, targetSizeMB = 4, maxWidthOrHeight = 1
         const ctx = elem.getContext('2d');
         ctx.drawImage(img, 0, 0, width, height);
         
-        // Comprimir a JPEG
         ctx.canvas.toBlob((blob) => {
             if (!blob) {
                 console.warn('Canvas toBlob falló, usando archivo original');

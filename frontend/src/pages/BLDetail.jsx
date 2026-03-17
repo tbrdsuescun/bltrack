@@ -44,7 +44,6 @@ function BLDetail({ user }) {
       try {
         const s = window.MastersSync || {}
         const progress = Math.round(Number(s.progress || 0))
-        // If progress is moving (between 0 and 100) consider it active to show loader
         const isActive = String(s.status || '') === 'syncing' || (progress > 0 && progress < 100)
         setSyncProgress(progress)
         setSyncActive(isActive)
@@ -109,7 +108,6 @@ function BLDetail({ user }) {
     const rawTarget = String(blId)
     const target = rawTarget.trim().toLowerCase()
     
-    // 1. Try to match as Master (Case Insensitive)
     const masterKey = Object.keys(mastersMap).find(k => String(k).trim().toLowerCase() === target)
     if (masterKey) {
       if (selectedMaster !== masterKey) {
@@ -122,7 +120,6 @@ function BLDetail({ user }) {
       return
     }
 
-    // 2. Try to match as Child (HBL)
     let parentMaster = null
     let foundChildId = null
     for (const [mKey, children] of Object.entries(mastersMap)) {
@@ -143,7 +140,6 @@ function BLDetail({ user }) {
         setDoInput(foundChildId)
       }
     } else {
-      // 3. Not found in map yet, just show the input
       if (masterInput !== rawTarget && !selectedMaster) {
         setMasterInput(rawTarget)
       }
