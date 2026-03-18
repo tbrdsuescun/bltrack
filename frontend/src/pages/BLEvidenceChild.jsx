@@ -43,6 +43,28 @@ function parsePrefix(filename) {
   return { prefix, num, ext }
 }
 
+function matchesChildSlug(prefix, slug) {
+  const p = String(prefix || '')
+  const s = String(slug || '')
+  if (!s) return true
+  if (!p) return false
+  return (
+    p === s ||
+    p.endsWith('_' + s) ||
+    p.startsWith(s + '_') ||
+    p.includes('_' + s + '_')
+  )
+}
+
+function countChildImages(list, slug) {
+  const arr = Array.isArray(list) ? list : []
+  return arr.filter(p => {
+    const r = parsePrefix(p?.filename || '')
+    if (!r) return false
+    return matchesChildSlug(r.prefix, slug)
+  }).length
+}
+
 function normalizeList(items) {
   const arr = Array.isArray(items) ? items.slice() : []
   const groups = {}
@@ -364,9 +386,17 @@ function BLEvidenceChild() {
 
                 const contentBase64 = await blobToBase64(f)
                 const documents = [{ name: baseName, extension: ext, category, date, contentBase64 }]
+
+                let totalImages = 0
+                try {
+                  const resCount = await API.get('/bls/' + (currentTargetId) + '/photos?type=hijo&_t=' + Date.now())
+                  const listCount = Array.isArray(resCount.data?.photos) ? resCount.data.photos : []
+                  totalImages = countChildImages(listCount, String(currentHblNum || currentDetails.child_id || ''))
+                } catch {}
                 
                 const payload = { 
-                  referenceNumber: String(currentHblNum || currentTargetId || ''), 
+                  referenceNumber: String(currentHblNum || currentTargetId || ''),
+                  totalImages,
                   doNumber: String(currentDetails.numero_DO_hijo || currentDetails.numero_DO_master || ''), 
                   type: 'hijo', 
                   documents 
@@ -412,7 +442,13 @@ function BLEvidenceChild() {
         const ext = extFor(currentPhoto, blob.type)
         const category = checked ? 'averia' : ''
         const doc = { name: baseName, extension: ext, category, date: dayjs().format('DD/MM/YYYY'), contentBase64 }
-        const payload = { referenceNumber: String(numeroHblCurrent || targetId || ''), doNumber: String(details.numero_DO_hijo || details.numero_DO_master || ''), type: 'hijo', documents: [doc] }
+        const payload = {
+          referenceNumber: String(numeroHblCurrent || targetId || ''),
+          totalImages: countChildImages(photos, String(numeroHblCurrent || details.child_id || '')),
+          doNumber: String(details.numero_DO_hijo || details.numero_DO_master || ''),
+          type: 'hijo',
+          documents: [doc]
+        }
         await API.post(EVIDENCE_ENDPOINT, payload)
       }
       setStatus('Avería actualizada')
@@ -440,7 +476,13 @@ function BLEvidenceChild() {
         const ext = extFor(currentPhoto, blob.type)
         const category = checked ? 'Crossdoking' : ''
         const doc = { name: baseName, extension: ext, category, date: dayjs().format('DD/MM/YYYY'), contentBase64 }
-        const payload = { referenceNumber: String(numeroHblCurrent || targetId || ''), doNumber: String(details.numero_DO_hijo || details.numero_DO_master || ''), type: 'hijo', documents: [doc] }
+        const payload = {
+          referenceNumber: String(numeroHblCurrent || targetId || ''),
+          totalImages: countChildImages(photos, String(numeroHblCurrent || details.child_id || '')),
+          doNumber: String(details.numero_DO_hijo || details.numero_DO_master || ''),
+          type: 'hijo',
+          documents: [doc]
+        }
         await API.post(EVIDENCE_ENDPOINT, payload)
       }
       setStatus('Crossdoking actualizado')
@@ -495,9 +537,10 @@ function BLEvidenceChild() {
         setPhotos(prev => prev.filter(p => p.id !== photoId))
         const tid = String(hblId || targetId || '')
         if (tid) {
+          let list = (photos || []).filter(p => p.id !== photoId)
           try {
             const ref = await API.get('/bls/' + tid + '/photos?type=hijo&_t=' + Date.now())
-            let list = Array.isArray(ref.data?.photos) ? ref.data.photos : []
+            list = Array.isArray(ref.data?.photos) ? ref.data.photos : []
             setPhotos(list)
           } catch {}
           const deletedName = String(confirmPhoto?.filename || '')
@@ -507,6 +550,7 @@ function BLEvidenceChild() {
           const docDel = { name: baseNameDel, extension: deletedExt, category: 'delete', date: dayjs().format('DD/MM/YYYY'), contentBase64: '' }
           const payloadDel = {
             referenceNumber: String(numeroHblCurrent || targetId || ''),
+            totalImages: countChildImages(list, String(numeroHblCurrent || details.child_id || '')),
             doNumber: String(details.numero_DO_hijo || details.numero_DO_master || ''),
             type: 'hijo',
             documents: [docDel]
@@ -602,7 +646,8 @@ function BLEvidenceChild() {
                          
                          const documents = [{ name: baseName, extension: ext, category, date, contentBase64 }]
                          const payload = { 
-                           referenceNumber: String(currentHblNum || currentTargetId || ''), 
+                           referenceNumber: String(currentHblNum || currentTargetId || ''),
+                           totalImages: countChildImages(dbPhotos, slug),
                            doNumber: String(currentDetails.numero_DO_hijo || currentDetails.numero_DO_master || ''), 
                            type: 'hijo', 
                            documents 
