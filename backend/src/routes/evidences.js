@@ -34,7 +34,7 @@ async function sendToExternal(payload) {
 function normalizeTotalImages(v) {
   const n = typeof v === 'number' ? v : Number(String(v || '').trim())
   if (!Number.isFinite(n) || n < 0) return 0
-  return Math.trunc(n)
+  return Math.trunc(n)   
 }
 
 async function writeEvidenceLog(id, entry, suffix) {
