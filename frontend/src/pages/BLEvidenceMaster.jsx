@@ -106,6 +106,8 @@ function BLEvidenceMaster() {
   const [photos, setPhotos] = useState([])
   const [loading, setLoading] = useState(false)
   const [status, setStatus] = useState(null)
+  const [invalidFilesModalOpen, setInvalidFilesModalOpen] = useState(false)
+  const [invalidFilesModalMessage, setInvalidFilesModalMessage] = useState('')
   const [serverSavedMessage, setServerSavedMessage] = useState(null)
   useEffect(() => {
     if (serverSavedMessage) {
@@ -295,6 +297,20 @@ function BLEvidenceMaster() {
   async function onUpload(e) {
     const files = Array.from(e.target.files || [])
     if (!files.length || !targetId) return
+    
+    const allowedFiles = files.filter(f => {
+      const name = String(f.name || '')
+      const dot = name.lastIndexOf('.')
+      const ext = dot >= 0 ? name.slice(dot + 1).toLowerCase() : ''
+      const mime = String(f.type || '').toLowerCase()
+      return ext === 'jpg' || ext === 'jpeg' || mime === 'image/jpeg'
+    })
+    const rejected = files.length - allowedFiles.length
+    if (rejected > 0) {
+      setInvalidFilesModalMessage(`Solo se permiten archivos .jpg y .jpeg.${allowedFiles.length ? ` Se omitieron ${rejected} archivo(s).` : ''}`)
+      setInvalidFilesModalOpen(true)
+    }
+    if (!allowedFiles.length) { setStatus(null); if (e.target) e.target.value = ''; return }
     if (containers.length && !selectedContainer) { setStatus('Selecciona un contenedor'); setContainerError(true); setContainerModalOpen(true); return }
     if (!selectedPrefix) { setStatus('Selecciona un prefijo para nombrar las fotos'); setPrefixError(true); setPrefixModalOpen(true); return }
 
@@ -304,10 +320,10 @@ function BLEvidenceMaster() {
 
     let processed = []
     try {
-      processed = await Promise.all(files.map(f => compressImage(f)))
+      processed = await Promise.all(allowedFiles.map(f => compressImage(f)))
     } catch (err) {
       console.warn('Error comprimiendo', err)
-      processed = files
+      processed = allowedFiles
     }
 
     const maxSize = 5 * 1024 * 1024
@@ -744,8 +760,8 @@ function BLEvidenceMaster() {
               </>
             )}
           </div>
-          {!isAdmin && (<input ref={fileInputRef} type="file" accept="image/*" multiple style={{ display:'none' }} onChange={onUpload} disabled={loading || uploading} />)}
-          {!isAdmin && (<input ref={fileInputCameraRef} type="file" accept="image/*" capture="environment" style={{ display:'none' }} onChange={onUpload} disabled={loading || uploading} />)}
+          {!isAdmin && (<input ref={fileInputRef} type="file" accept=".jpg,.jpeg,image/jpeg" multiple style={{ display:'none' }} onChange={onUpload} disabled={loading || uploading} />)}
+          {!isAdmin && (<input ref={fileInputCameraRef} type="file" accept=".jpg,.jpeg,image/jpeg" capture="environment" style={{ display:'none' }} onChange={onUpload} disabled={loading || uploading} />)}
         
         {status && <p className="muted" style={(prefixError || containerError) ? { color: '#e11' } : undefined}>{status}</p>}
         </div>
@@ -879,6 +895,23 @@ function BLEvidenceMaster() {
             <div className="modal-footer">
               {selectedPhoto?.url ? <button className="btn btn-outline" onClick={() => onDownloadPhoto(selectedPhoto)}>Descargar</button> : null}
               <button className="btn" onClick={() => setSelectedPhoto(null)}>Cerrar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {invalidFilesModalOpen && (
+        <div className="modal-backdrop" onClick={() => setInvalidFilesModalOpen(false)}>
+          <div className="modal" style={{ width: '420px' }} onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span>Archivo no permitido</span>
+              <button type="button" className="btn btn-outline btn-small" style={{ fontSize: '1.5rem' }} onClick={() => setInvalidFilesModalOpen(false)}>×</button>
+            </div>
+            <div className="modal-body">
+              <div>{invalidFilesModalMessage || 'Solo se permiten archivos .jpg y .jpeg.'}</div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-primary" onClick={() => setInvalidFilesModalOpen(false)}>Entendido</button>
             </div>
           </div>
         </div>
