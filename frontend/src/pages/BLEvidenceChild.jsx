@@ -58,24 +58,22 @@ function matchesChildSlug(prefix, slug) {
 
 function countChildImagesPlain(list, slug) {
   const arr = Array.isArray(list) ? list : []
-  const s = String(slug || '')
-  if (!s) return 0
+  const candidates = normalizeChildCandidates(String(slug || ''))
   return arr.reduce((acc, p) => {
     const r = parsePrefix(p?.filename || '')
     if (!r) return acc
-    return acc + (r.prefix === s ? 1 : 0)
+    return acc + (candidates.includes(String(r.prefix || '')) ? 1 : 0)
   }, 0)
 }
 
 function countChildImagesNietoPlain(list, slug) {
   const arr = Array.isArray(list) ? list : []
-  const s = String(slug || '')
-  if (!s) return 0
-  const needle = s + '_'
+  const candidates = normalizeChildCandidates(String(slug || ''))
   return arr.reduce((acc, p) => {
     const r = parsePrefix(p?.filename || '')
     if (!r) return acc
-    return acc + (String(r.prefix || '').startsWith(needle) ? 1 : 0)
+    const pref = String(r.prefix || '')
+    return acc + (candidates.some(s => pref.startsWith(String(s) + '_')) ? 1 : 0)
   }, 0)
 }
 
@@ -105,11 +103,38 @@ function normalizeList(items) {
 
 function urlFor(u) { const s = String(u || ''); if (!s) return ''; if (/^(?:https?:\/\/|blob:|data:)/.test(s)) return s; const base = API.defaults?.baseURL || ''; return base ? (base + (s.startsWith('/') ? s : ('/' + s))) : s }
 
+function normalizeChildCandidates(tid) {
+  const s = String(tid || '').trim()
+  const out = new Set([s])
+  if (s.includes('/')) out.add(s.split('/').pop())
+  if (s.includes('-')) out.add(s.split('-').pop())
+  if (s.includes('/')) out.add(s.split('/').join('-'))
+  if (s.includes('-')) out.add(s.split('-').join('/'))
+  out.add(s.replace(/^\d+[\/-]/, ''))
+  return Array.from(out).filter(Boolean)
+}
+
+function blsUrl(id, tail) { const s = String(id || ''); return '/bls/' + encodeURIComponent(s) + String(tail || '') }
+
+function matchesPrefixAny(prefix, candidates) {
+  const p = String(prefix || '')
+  const arr = Array.isArray(candidates) ? candidates : []
+  return arr.some(s => {
+    const x = String(s || '')
+    return p === x || p.endsWith('_' + x) || p.startsWith(x + '_') || p.includes('_' + x + '_')
+  })
+}
+
 function BLEvidenceChild() {
-  const { masterId, hblId, id } = useParams()
+  const params = useParams()
+  const masterId = params?.masterId
+  const hblId = params?.hblId
+  const id = params?.id
+  const remainder = params?.['*']
   const { addTasks, queue, removeTasks, retryTask } = useUpload()
   const navigate = useNavigate()
-  const targetId = hblId || id || masterId
+  const afterMasterId = String(remainder || '').replace(/^\/+/, '')
+  const targetId = afterMasterId || hblId || id || masterId
   const [photos, setPhotos] = useState([])
   const [loading, setLoading] = useState(false)
   const [status, setStatus] = useState(null)
@@ -180,7 +205,11 @@ function BLEvidenceChild() {
       const arr = Array.isArray(cache.data) ? cache.data : []
       const masterCode = String(masterId || cacheEntry?.numeroMaster || '')
       const masterObj = arr.find(m => String(m.numeroMaster || '') === masterCode && Array.isArray(m.hijos))
-      const childObj = masterObj?.hijos?.find(h => String(h?.numeroHBL || h?.hbl || '') === String(hblId || '')) || masterObj?.hijos?.find(h => String(h?.numeroDo || '') === String(targetId || ''))
+      const candidates = normalizeChildCandidates(String(targetId || ''))
+      const childObj =
+        masterObj?.hijos?.find(h => String(h?.numeroHBL || h?.hbl || '') === String(hblId || '')) ||
+        masterObj?.hijos?.find(h => candidates.includes(String(h?.numeroHBL || h?.hbl || ''))) ||
+        masterObj?.hijos?.find(h => candidates.includes(String(h?.numeroDo || h?.numeroDO || '')))
       const v = String(childObj?.numeroHBL || childObj?.hbl || '').trim()
       return v
     } catch { return '' }
@@ -194,7 +223,15 @@ function BLEvidenceChild() {
       const cache = JSON.parse(localStorage.getItem(key) || '{}')
       const arr = Array.isArray(cache.data) ? cache.data : []
       const masterRow = arr.find(m => String(m.numeroMaster || '') === String(masterId || ''))
-      const childRow = masterRow?.hijos?.find(h => String(h.numeroHBL || h.hbl || '') === String(hblId || '')) || arr.find(x => String(x.numeroHBL || x.hbl || '') === String(hblId || ''))
+      const tid = String(targetId || '')
+      const candidates = normalizeChildCandidates(tid)
+      const childRow =
+        masterRow?.hijos?.find(h => String(h.numeroHBL || h.hbl || '') === String(hblId || '')) ||
+        masterRow?.hijos?.find(h => candidates.includes(String(h?.numeroHBL || h?.hbl || ''))) ||
+        masterRow?.hijos?.find(h => candidates.includes(String(h?.numeroDo || h?.numeroDO || ''))) ||
+        arr.find(x => String(x.numeroHBL || x.hbl || '') === String(hblId || '')) ||
+        arr.find(x => candidates.includes(String(x?.numeroHBL || x?.hbl || ''))) ||
+        arr.find(x => candidates.includes(String(x?.numeroDo || x?.numeroDO || '')))
       const masterDo = String(masterRow?.numeroDo || masterRow?.numeroDO || '')
       return {
         isChild: true,
@@ -210,14 +247,14 @@ function BLEvidenceChild() {
     } catch {
       return { isChild: true, master_id: String(masterId || ''), child_id: String(hblId || ''), numero_DO_master: '', numero_DO_hijo: '' }
     }
-  }, [masterId, hblId])
+  }, [masterId, hblId, targetId])
 
   useEffect(() => {
     let mounted = true
     const tid = String(targetId || '')
     if (!tid) return () => { mounted = false }
     setLoading(true)
-    API.get('/bls/' + tid + '/photos?type=hijo&_t=' + Date.now()).then(async (res) => {
+    API.get(blsUrl(tid, '/photos?type=hijo&_t=' + Date.now())).then(async (res) => {
       if (!mounted) return
       let list = Array.isArray(res.data?.photos) ? res.data.photos : []
       setPhotos(list)
@@ -229,7 +266,15 @@ function BLEvidenceChild() {
       const cache = JSON.parse(localStorage.getItem(key) || '{}')
       const arr = Array.isArray(cache.data) ? cache.data : []
       const masterRow = arr.find(x => String(x.numeroMaster || '') === String(masterId || ''))
-      const childRow = masterRow?.hijos?.find(h => String(h.numeroHBL || h.hbl || '') === String(hblId || '')) || arr.find(x => String(x.numeroHBL || x.hbl || '') === String(hblId || ''))
+      const tid = String(targetId || '')
+      const candidates = normalizeChildCandidates(tid)
+      const childRow =
+        masterRow?.hijos?.find(h => String(h.numeroHBL || h.hbl || '') === String(hblId || '')) ||
+        masterRow?.hijos?.find(h => candidates.includes(String(h?.numeroHBL || h?.hbl || ''))) ||
+        masterRow?.hijos?.find(h => candidates.includes(String(h?.numeroDo || h?.numeroDO || ''))) ||
+        arr.find(x => String(x.numeroHBL || x.hbl || '') === String(hblId || '')) ||
+        arr.find(x => candidates.includes(String(x?.numeroHBL || x?.hbl || ''))) ||
+        arr.find(x => candidates.includes(String(x?.numeroDo || x?.numeroDO || '')))
       const entry = childRow || masterRow || null
       if (entry) setCacheEntry(entry)
     } catch {}
@@ -243,16 +288,13 @@ function BLEvidenceChild() {
       const n = Number((raw.split('-')[0]) || 0)
       return Number.isFinite(n) ? n : 0
     }
+    const candidates = normalizeChildCandidates(slug)
     return (photos || [])
       .filter(p => {
         if (!p || !p.id || !p.url) return false
         const r = parsePrefix(p.filename || '')
-        if (slug && r && !(
-          r.prefix === slug || 
-          r.prefix.endsWith('_' + slug) || 
-          r.prefix.startsWith(slug + '_') || 
-          r.prefix.includes('_' + slug + '_')
-        )) return false
+        if (!r) return false
+        if (slug && !matchesPrefixAny(r.prefix, candidates)) return false
         return true
       })
       .slice()
@@ -298,12 +340,13 @@ function BLEvidenceChild() {
 
     if (skipped === 0) setStatus(null)
     
-    const slug = String(numeroHblCurrent || details.child_id || '')
-    const targetSlug = blNieto ? `${slug}_${blNieto}` : slug
+    const slug = String(numeroHblCurrent || details.child_id || targetId || '')
+    const safeSlugForFilename = slug.includes('/') ? slug.split('/').join('-') : slug
+    const targetSlugForFilename = blNieto ? `${safeSlugForFilename}_${blNieto}` : safeSlugForFilename
     const used = []
     ;(Array.isArray(photos) ? photos : []).forEach(p => { 
       const r = parsePrefix(p?.filename || '')
-      if (r && (r.prefix === targetSlug || r.prefix.endsWith('_' + targetSlug))) used.push(r.num) 
+      if (r && (r.prefix === targetSlugForFilename || r.prefix.endsWith('_' + targetSlugForFilename))) used.push(r.num) 
     })
     
     const pendingCount = pendingFiles.length
@@ -319,7 +362,7 @@ function BLEvidenceChild() {
       else if (nextAveria) prefix = 'AVERIA_'
       else if (nextCrossdoking) prefix = 'CROSSDOKING_'
 
-      const newName = `${prefix}${targetSlug}_${start + pendingCount + i}${ext}`
+      const newName = `${prefix}${targetSlugForFilename}_${start + pendingCount + i}${ext}`
       return new File([f], newName, { type: f.type })
     })
 
@@ -387,7 +430,7 @@ function BLEvidenceChild() {
                 fd.append('photos', f)
                 
                 console.log('[BLEvidenceChild] Sending photo content to DB')
-                const resDb = await API.post('/bls/' + (currentTargetId) + '/photos?type=hijo', fd)
+                const resDb = await API.post(blsUrl(currentTargetId, '/photos?type=hijo'), fd)
                 const uploaded = resDb.data?.photos?.[0]
                 
                 if (resDb.status >= 200 && resDb.status < 300) {
@@ -407,7 +450,7 @@ function BLEvidenceChild() {
                 } else if (dbSuccess) {
                    console.log('[BLEvidenceChild] Photo uploaded (possible duplicate), refreshing list.')
                    try {
-                     const refreshRes = await API.get('/bls/' + (currentTargetId) + '/photos?type=hijo&_t=' + Date.now())
+                     const refreshRes = await API.get(blsUrl(currentTargetId, '/photos?type=hijo&_t=' + Date.now()))
                      if (Array.isArray(refreshRes.data?.photos)) {
                         setPhotos(refreshRes.data.photos)
                      }
@@ -420,7 +463,7 @@ function BLEvidenceChild() {
                 let totalImages = 0
                 let totalImagesNieto = 0
                 try {
-                  const resCount = await API.get('/bls/' + (currentTargetId) + '/photos?type=hijo&_t=' + Date.now())
+                  const resCount = await API.get(blsUrl(currentTargetId, '/photos?type=hijo&_t=' + Date.now()))
                   const listCount = Array.isArray(resCount.data?.photos) ? resCount.data.photos : []
                   const baseSlug = String(currentHblNum || currentDetails.child_id || '')
                   totalImages = countChildImagesPlain(listCount, baseSlug)
@@ -465,7 +508,7 @@ function BLEvidenceChild() {
     try {
       const tid = String(hblId || targetId || '')
       if (!tid) return
-      await API.patch('/bls/' + tid + '/photos/averia?type=hijo', { flags: { [photoId]: !!checked } })
+      await API.patch(blsUrl(tid, '/photos/averia?type=hijo'), { flags: { [photoId]: !!checked } })
       if (currentPhoto && currentPhoto.url) {
         const res = await fetch(urlFor(currentPhoto.url))
         const blob = await res.blob()
@@ -501,7 +544,7 @@ function BLEvidenceChild() {
     try {
       const tid = String(hblId || targetId || '')
       if (!tid) return
-      await API.patch('/bls/' + tid + '/photos/crossdoking?type=hijo', { flags: { [photoId]: !!checked } })
+      await API.patch(blsUrl(tid, '/photos/crossdoking?type=hijo'), { flags: { [photoId]: !!checked } })
       if (currentPhoto && currentPhoto.url) {
         const res = await fetch(urlFor(currentPhoto.url))
         const blob = await res.blob()
@@ -577,7 +620,7 @@ function BLEvidenceChild() {
         if (tid) {
           let list = (photos || []).filter(p => p.id !== photoId)
           try {
-            const ref = await API.get('/bls/' + tid + '/photos?type=hijo&_t=' + Date.now())
+            const ref = await API.get(blsUrl(tid, '/photos?type=hijo&_t=' + Date.now()))
             list = Array.isArray(ref.data?.photos) ? ref.data.photos : []
             setPhotos(list)
           } catch {}
@@ -621,7 +664,7 @@ function BLEvidenceChild() {
 
     try {
         console.log('[BLEvidenceChild] Fetching latest photos from DB...')
-        const resPhotos = await API.get('/bls/' + targetId + '/photos?type=hijo&_t=' + Date.now())
+        const resPhotos = await API.get(blsUrl(targetId, '/photos?type=hijo&_t=' + Date.now()))
         const dbPhotos = Array.isArray(resPhotos.data?.photos) ? resPhotos.data.photos : []
         console.log('[BLEvidenceChild] DB Photos found:', dbPhotos.length)
 
@@ -740,10 +783,10 @@ function BLEvidenceChild() {
               label: 'Actualizando estados de fotos',
               run: async () => {
                   if (Object.keys(flagsExisting).length) {
-                        await API.patch('/bls/' + (hblId || targetId) + '/photos/averia?type=hijo', { flags: flagsExisting })
+                        await API.patch(blsUrl((hblId || targetId), '/photos/averia?type=hijo'), { flags: flagsExisting })
                     }
                     if (Object.keys(crossdokingExisting).length) {
-                        await API.patch('/bls/' + (hblId || targetId) + '/photos/crossdoking?type=hijo', { flags: crossdokingExisting })
+                        await API.patch(blsUrl((hblId || targetId), '/photos/crossdoking?type=hijo'), { flags: crossdokingExisting })
                     }
                 }
             }])
@@ -784,7 +827,7 @@ function BLEvidenceChild() {
       )}
       <div className="page-header">
         <div>
-          <h1 className="h1">Evidencia para {hblId || 'BL'}</h1>
+          <h1 className="h1">Evidencia para {(afterMasterId || hblId || numeroHblCurrent || details.child_id || targetId || 'BL')}</h1>
           <p className="muted">
             Gestiona las fotografías y documentos asociados a este BL. 
             Utiliza "Tomar foto o Subir Fotos" para agregar evidencia visual.
