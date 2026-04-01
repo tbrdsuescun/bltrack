@@ -48,6 +48,7 @@ function Sidebar({ user, onLogout, onNavigate }) {
       <nav className="side-nav">
         {NavItem('Dashboard', '/panel', <IconDashboard />)}
         {isAdmin && NavItem('Users', '/admin/users', <IconUsers />)}
+        {isAdmin && NavItem('Evidencias', '/admin/evidences', <IconPhotos />)}
       </nav>
       <div className="side-footer">
         {user ? <div className="side-user">{user.nombre}</div> : <div className="side-user muted">Invitado</div>}

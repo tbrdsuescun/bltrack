@@ -8,6 +8,7 @@ import BLList from './pages/BLList.jsx'
 import BLDetail from './pages/BLDetail.jsx'
 import BLEvidence from './pages/BLEvidence.jsx'
 import AdminUsers from './pages/AdminUsers.jsx'
+import AdminEvidences from './pages/AdminEvidences.jsx'
 import Layout from './components/Layout.jsx'
 
 const ProtectedRoute = ({ children }) => {
@@ -276,6 +277,16 @@ function App() {
             <ProtectedRoute>
               <Layout user={user} onLogout={handleLogout}>
                 <AdminUsers />
+              </Layout>
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/admin/evidences" 
+          element={
+            <ProtectedRoute>
+              <Layout user={user} onLogout={handleLogout}>
+                <AdminEvidences />
               </Layout>
             </ProtectedRoute>
           } 
