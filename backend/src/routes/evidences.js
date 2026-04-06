@@ -139,36 +139,111 @@ function countPlainNietoFromPhotos(list, slug) {
   return { totalImages, totalImagesNieto }
 }
 
+function extractConsecutive(base) {
+  const s = String(base || '')
+  const idx = s.lastIndexOf('_')
+  if (idx <= 0) return null
+  const n = Number(s.slice(idx + 1))
+  if (!Number.isFinite(n)) return null
+  return { prefix: s.slice(0, idx), n: Math.trunc(n) }
+}
+
 async function buildDocumentsFromRegistro(rec, onlyMeta) {
   const photos = Array.isArray(rec?.photos) ? rec.photos : []
   const meta = Array.isArray(onlyMeta) ? onlyMeta : []
 
-  const index = new Map()
+  const indexExact = new Map()
+  const byConsec = new Map()
+
   for (const p of photos) {
     const filename = String(p?.filename || p?.id || '').trim()
     if (!filename) continue
-    const key = (baseNameFor(filename) || '').toLowerCase() + '|' + (extFor(filename) || '').toLowerCase()
-    if (!index.has(key)) index.set(key, p)
+    const ext = (extFor(filename) || '').toLowerCase()
+    const base = (baseNameFor(filename) || '').toLowerCase()
+    if (!base || !ext) continue
+
+    const k = base + '|' + ext
+    if (!indexExact.has(k)) indexExact.set(k, p)
+
+    const c = extractConsecutive(base)
+    if (c) {
+      const kc = String(c.n) + '|' + ext
+      const arr = byConsec.get(kc) || []
+      arr.push(p)
+      byConsec.set(kc, arr)
+    }
+  }
+
+  function bestCandidate(candidates, nameLower, prefixLower, n) {
+    let best = null
+    let bestScore = -1
+    for (const p of candidates) {
+      const fn = String(p?.filename || p?.id || '').trim()
+      const base = (baseNameFor(fn) || '').toLowerCase()
+      let score = 0
+      if (base === nameLower) score += 1000
+      if (base.endsWith(nameLower)) score += 800
+      if (base.includes(nameLower)) score += 600
+      if (prefixLower && base.includes(prefixLower)) score += 120
+      if (n != null && base.endsWith('_' + String(n))) score += 200
+      if (score > bestScore) { bestScore = score; best = p }
+    }
+    return bestScore > 0 ? best : (candidates[0] || null)
+  }
+
+  function findPhotoForMeta(m) {
+    const name = String(m?.name || '').trim()
+    const ext = normalizeExt(m?.extension).toLowerCase()
+    if (!name || !ext) return null
+
+    const nameLower = name.toLowerCase()
+    const exact = indexExact.get(nameLower + '|' + ext)
+    if (exact) return exact
+
+    const c = extractConsecutive(nameLower)
+    if (c) {
+      const candidates = byConsec.get(String(c.n) + '|' + ext) || []
+      if (candidates.length === 1) return candidates[0]
+      if (candidates.length > 1) return bestCandidate(candidates, nameLower, c.prefix, c.n)
+    }
+
+    const fallback = []
+    for (const p of photos) {
+      const fn = String(p?.filename || p?.id || '').trim()
+      if (!fn) continue
+      const pExt = (extFor(fn) || '').toLowerCase()
+      if (pExt !== ext) continue
+      const base = (baseNameFor(fn) || '').toLowerCase()
+      if (!base) continue
+      if (base === nameLower || base.endsWith(nameLower) || base.includes(nameLower)) fallback.push(p)
+    }
+    if (fallback.length) return bestCandidate(fallback, nameLower, c?.prefix || '', c?.n)
+
+    return null
   }
 
   const targets = meta.length ? meta.map(m => {
     const name = String(m?.name || '').trim()
     const ext = normalizeExt(m?.extension)
-    if (!name) return null
-    const key = name.toLowerCase() + '|' + ext.toLowerCase()
-    return { key }
+    if (!name || !ext) return null
+    const p = findPhotoForMeta(m)
+    if (!p) return null
+    return { p, forced: { name, extension: ext, category: String(m?.category || '').trim() } }
   }).filter(Boolean) : null
 
-  const toRead = targets ? targets.map(t => index.get(t.key)).filter(Boolean) : photos
+  const toRead = targets ? targets : photos
+  const concurrency = targets ? 1 : 4
 
-  const docsRaw = await mapLimit(toRead, 1, async (p) => {
+  const docsRaw = await mapLimit(toRead, concurrency, async (entry) => {
+    const p = targets ? entry.p : entry
+    const forced = targets ? entry.forced : null
     try {
       const ts = Number(String(p.id || '').split('-')[0]) || Date.now()
       const date = formatDate(ts)
       const filename = p.filename || p.id || 'Documento'
-      const ext = extFor(filename)
-      const name = baseNameFor(filename) || 'Documento'
-      const category = p?.averia ? 'averia' : (p?.crossdoking ? 'crossdoking' : '')
+      const ext = forced?.extension || extFor(filename)
+      const name = forced?.name || (baseNameFor(filename) || 'Documento')
+      const category = forced ? (forced.category || '') : ''
       const abs = p.path || filePath(p.id)
       const buf = await fs.readFile(abs)
       const contentBase64 = buf.toString('base64')
@@ -177,6 +252,7 @@ async function buildDocumentsFromRegistro(rec, onlyMeta) {
       return null
     }
   })
+
   const docs = docsRaw.filter(Boolean)
   const totalBytes = docs.reduce((acc, d) => acc + Buffer.byteLength(d.contentBase64, 'base64'), 0)
   const docsMeta = docs.map(d => ({ name: d.name, extension: d.extension, category: d.category || '', date: d.date, bytes: Buffer.byteLength(d.contentBase64, 'base64') }))
