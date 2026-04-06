@@ -132,14 +132,17 @@ function AdminEvidences() {
     const ids = Array.from(selected).map(x => Number(x)).filter(n => Number.isFinite(n) && n > 0)
     if (!ids.length) return
     setLoading(true)
-    setMsg(null)
+    setMsg(`Reenviando ${ids.length} registros (foto por foto)…`)
     try {
       const res = await API.post('/evidences/admin/resend', { ids })
       const results = Array.isArray(res.data?.results) ? res.data.results : []
       const ok = results.filter(r => r && r.ok && r.status === 'sent').length
       const skipped = results.filter(r => r && r.ok && r.skipped).length
       const fail = results.filter(r => r && !r.ok).length
-      setMsg(`Reenvío terminado. Enviadas: ${ok}. Omitidas: ${skipped}. Fallidas: ${fail}.`)
+      const sentDocs = results.reduce((acc, r) => acc + (Number(r?.sent_docs || 0) || 0), 0)
+      const totalDocs = results.reduce((acc, r) => acc + (Number(r?.total_docs || 0) || 0), 0)
+      const docsMsg = totalDocs ? ` Fotos enviadas: ${sentDocs}/${totalDocs}.` : ''
+      setMsg(`Reenvío terminado. Enviadas: ${ok}. Omitidas: ${skipped}. Fallidas: ${fail}.` + docsMsg)
       await load()
     } catch (err) {
       setMsg('Error reenviando: ' + (err.response?.data?.error || err.message))
@@ -166,7 +169,7 @@ function AdminEvidences() {
         </div>
         <div className="actions-row" style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <button className="btn btn-outline" onClick={load} disabled={loading}>Refrescar</button>
-          <button className="btn btn-primary" onClick={resendSelected} disabled={loading || selected.size === 0}>Reenviar seleccionadas ({selected.size})</button>
+          <button className="btn btn-primary" onClick={resendSelected} disabled={loading || selected.size === 0}>{loading ? 'Procesando…' : `Reenviar seleccionadas (${selected.size})`}</button>
         </div>
       </div>
 
@@ -274,4 +277,3 @@ function AdminEvidences() {
 }
 
 export default AdminEvidences
-
