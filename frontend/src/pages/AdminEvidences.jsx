@@ -33,6 +33,7 @@ function AdminEvidences() {
   const [query, setQuery] = useState('')
   const [selected, setSelected] = useState(() => new Set())
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768)
+  const [modal, setModal] = useState({ open: false, status: 'idle', title: '', detail: '', progress: 0, totalDocs: 0 })
 
   useEffect(() => {
     const onResize = () => setIsMobile(window.innerWidth <= 768)
@@ -131,8 +132,23 @@ function AdminEvidences() {
   async function resendSelected() {
     const ids = Array.from(selected).map(x => Number(x)).filter(n => Number.isFinite(n) && n > 0)
     if (!ids.length) return
+    const expectedDocs = ids.reduce((acc, id) => {
+      const it = items.find(x => Number(x?.id) === Number(id))
+      return acc + (Number(it?.documents_count || 0) || 0)
+    }, 0)
+
     setLoading(true)
     setMsg(`Reenviando ${ids.length} registros (foto por foto)…`)
+    setModal({ open: true, status: 'running', title: 'Reenviando evidencias…', detail: 'Procesando foto por foto. No cierres esta ventana.', progress: 0, totalDocs: expectedDocs })
+    let t = null
+    const start = Date.now()
+    try {
+      t = setInterval(() => {
+        const elapsed = Date.now() - start
+        const approx = Math.min(95, Math.floor((elapsed / 2500) * 100))
+        setModal(prev => (prev.open && prev.status === 'running') ? { ...prev, progress: Math.max(prev.progress, approx) } : prev)
+      }, 200)
+    } catch {}
     try {
       const res = await API.post('/evidences/admin/resend', { ids })
       const results = Array.isArray(res.data?.results) ? res.data.results : []
@@ -143,10 +159,15 @@ function AdminEvidences() {
       const totalDocs = results.reduce((acc, r) => acc + (Number(r?.total_docs || 0) || 0), 0)
       const docsMsg = totalDocs ? ` Fotos enviadas: ${sentDocs}/${totalDocs}.` : ''
       setMsg(`Reenvío terminado. Enviadas: ${ok}. Omitidas: ${skipped}. Fallidas: ${fail}.` + docsMsg)
+      setModal({ open: true, status: fail ? 'error' : 'success', title: fail ? 'Reenvío finalizado con fallas' : 'Reenvío exitoso', detail: `Enviadas: ${ok}. Omitidas: ${skipped}. Fallidas: ${fail}.` + docsMsg, progress: 100, totalDocs: totalDocs || expectedDocs })
       await load()
     } catch (err) {
-      setMsg('Error reenviando: ' + (err.response?.data?.error || err.message))
+      const m = 'Error reenviando: ' + (err.response?.data?.error || err.message)
+      setMsg(m)
+      setModal({ open: true, status: 'error', title: 'Error en el reenvío', detail: m, progress: 100, totalDocs: expectedDocs })
     } finally {
+      try { if (t) clearInterval(t) } catch {}
+      setModal(prev => (prev.open && prev.status === 'running') ? { ...prev, progress: 100 } : prev)
       setLoading(false)
     }
   }
@@ -162,6 +183,36 @@ function AdminEvidences() {
 
   return (
     <>
+      {modal.open ? (
+        <div className="loading-backdrop" aria-live="polite" aria-busy={modal.status === 'running'} style={{ padding: 20 }}>
+          <div style={{ width: 'min(520px, 92vw)', background: 'rgba(15,23,42,0.92)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 12, padding: 16, boxShadow: '0 12px 28px rgba(0,0,0,0.35)' }}>
+            <div style={{ fontWeight: 700, fontSize: 16 }}>{modal.title}</div>
+            <div style={{ marginTop: 6, fontSize: 13, opacity: 0.9 }}>{modal.detail}</div>
+            {modal.totalDocs ? (
+              <div style={{ marginTop: 10, fontSize: 12, opacity: 0.8 }}>Total fotos estimadas: {modal.totalDocs}</div>
+            ) : null}
+            <div style={{ marginTop: 12, height: 10, background: 'rgba(255,255,255,0.18)', borderRadius: 999, overflow: 'hidden' }}>
+              <div style={{ width: `${Math.max(0, Math.min(100, Number(modal.progress || 0)))}%`, height: '100%', background: modal.status === 'error' ? '#ef4444' : (modal.status === 'success' ? '#22c55e' : '#60a5fa'), transition: 'width 180ms ease' }} />
+            </div>
+            <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+              <div style={{ fontSize: 12, opacity: 0.85 }}>{Math.max(0, Math.min(100, Number(modal.progress || 0)))}%</div>
+              {modal.status === 'running' ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div className="loading-spinner" style={{ width: 18, height: 18, borderWidth: 3, margin: 0 }} />
+                  <div style={{ fontSize: 12, opacity: 0.9 }}>Procesando…</div>
+                </div>
+              ) : (
+                <button
+                  className="btn btn-outline"
+                  onClick={() => setModal({ open: false, status: 'idle', title: '', detail: '', progress: 0, totalDocs: 0 })}
+                >
+                  Cerrar
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      ) : null}
       <div className="page-header">
         <div>
           <h1 className="h1">Reenvío de Evidencias</h1>
