@@ -367,8 +367,9 @@ router.get('/admin/evidences/pending', authRequired, requireRole('admin'), async
     const limit = Number.isFinite(limitRaw) ? Math.max(1, Math.min(1000, Math.trunc(limitRaw))) : 200
     const rows = await EvidenceSubmission.findAll({
       where: { status: { [Op.ne]: 'sent' } },
-      order: [['created_at', 'DESC']],
-      limit
+      order: [['id', 'DESC']],
+      limit,
+      attributes: { exclude: ['payload'] }
     })
 
     function docMetaToName(d) {
