@@ -53,7 +53,7 @@ function AdminEvidences() {
     setLoading(true)
     setMsg(null)
     try {
-      const res = await API.get('/admin/evidences/pending')
+      const res = await API.get('/evidences/admin/pending')
       const list = Array.isArray(res.data?.items) ? res.data.items : []
       setItems(list)
       setSelected(prev => {
@@ -134,7 +134,7 @@ function AdminEvidences() {
     setLoading(true)
     setMsg(null)
     try {
-      const res = await API.post('/admin/evidences/resend', { ids })
+      const res = await API.post('/evidences/admin/resend', { ids })
       const results = Array.isArray(res.data?.results) ? res.data.results : []
       const ok = results.filter(r => r && r.ok && r.status === 'sent').length
       const skipped = results.filter(r => r && r.ok && r.skipped).length

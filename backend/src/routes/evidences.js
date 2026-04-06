@@ -361,7 +361,7 @@ router.post('/evidences/submit', authRequired, async (req, res) => {
   }
 })
 
-router.get('/admin/evidences/pending', authRequired, requireRole('admin'), async (req, res) => {
+router.get('/evidences/admin/pending', authRequired, requireRole('admin'), async (req, res) => {
   try {
     const limitRaw = Number(req.query?.limit || 200)
     const limit = Number.isFinite(limitRaw) ? Math.max(1, Math.min(1000, Math.trunc(limitRaw))) : 200
@@ -422,7 +422,7 @@ router.get('/admin/evidences/pending', authRequired, requireRole('admin'), async
   }
 })
 
-router.post('/admin/evidences/resend', authRequired, requireRole('admin'), async (req, res) => {
+router.post('/evidences/admin/resend', authRequired, requireRole('admin'), async (req, res) => {
   try {
     const ids = Array.isArray(req.body?.ids) ? req.body.ids : []
     const cleaned = Array.from(new Set(ids.map(x => Number(x)).filter(n => Number.isFinite(n) && n > 0))).slice(0, 300)
