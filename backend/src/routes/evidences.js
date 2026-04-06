@@ -370,19 +370,51 @@ router.get('/admin/evidences/pending', authRequired, requireRole('admin'), async
       order: [['created_at', 'DESC']],
       limit
     })
-    const items = rows.map(r => ({
-      id: r.id,
-      user_id: r.user_id,
-      reference_number: r.reference_number,
-      do_number: r.do_number,
-      type: r.type,
-      status: r.status,
-      documents_count: r.documents_count,
-      total_bytes: r.total_bytes,
-      error_message: r.error_message,
-      created_at: r.created_at,
-      updated_at: r.updated_at,
-    }))
+
+    function docMetaToName(d) {
+      const name = String(d?.name || '').trim()
+      const ext = String(d?.extension || '').trim()
+      if (!name) return null
+      return ext && ext.startsWith('.') ? (name + ext) : (ext ? (name + '.' + ext) : name)
+    }
+
+    const itemsRaw = await mapLimit(rows, 4, async (r) => {
+      let imageNames = []
+      const meta = Array.isArray(r.documents_meta) ? r.documents_meta : []
+      if (meta.length) {
+        imageNames = meta.map(docMetaToName).filter(Boolean)
+      }
+      if (!imageNames.length) {
+        const typeVal = String(r.type || '') === 'master' ? 'master' : 'hijo'
+        let reg = null
+        if (r.user_id) {
+          reg = await RegistroFotografico.findOne({ where: { bl_id: String(r.reference_number || ''), type: typeVal, user_id: r.user_id } })
+        }
+        if (!reg) {
+          reg = await RegistroFotografico.findOne({ where: { bl_id: String(r.reference_number || ''), type: typeVal } })
+        }
+        const photos = Array.isArray(reg?.photos) ? reg.photos : []
+        imageNames = photos.map(p => String(p?.filename || p?.id || '').trim()).filter(Boolean)
+      }
+      const preview = imageNames.slice(0, 5)
+      return {
+        id: r.id,
+        user_id: r.user_id,
+        reference_number: r.reference_number,
+        do_number: r.do_number,
+        type: r.type,
+        status: r.status,
+        documents_count: r.documents_count,
+        total_bytes: r.total_bytes,
+        error_message: r.error_message,
+        created_at: r.created_at,
+        updated_at: r.updated_at,
+        image_names_preview: preview,
+        images_total: imageNames.length,
+      }
+    })
+
+    const items = itemsRaw.filter(Boolean)
     res.json({ ok: true, items, count: items.length })
   } catch (err) {
     res.status(500).json({ ok: false, error: 'Fallo al listar evidencias pendientes', detail: err.message })

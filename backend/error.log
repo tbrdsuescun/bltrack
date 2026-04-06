@@ -4658,3 +4658,80 @@
 [2026-04-01T22:14:34.382Z] INFO: [REQUEST_START] GET /admin/evidences/pending
 [2026-04-01T22:14:34.385Z] DEBUG: Executing (default): SELECT `id`, `user_id`, `reference_number`, `do_number`, `type`, `documents_count`, `total_bytes`, `documents_meta`, `payload`, `status`, `error_message`, `created_at` AS `createdAt`, `updated_at` AS `updatedAt` FROM `evidence_submissions` AS `EvidenceSubmission` WHERE `EvidenceSubmission`.`status` != 'sent' ORDER BY `createdAt` DESC LIMIT 200;
 [2026-04-01T22:14:34.389Z] INFO: [REQUEST_END] GET /admin/evidences/pending -> 200
+[2026-04-01T22:15:38.048Z] INFO: [REQUEST_START] GET /admin/evidences/pending
+[2026-04-01T22:15:38.065Z] DEBUG: Executing (default): SELECT `id`, `user_id`, `reference_number`, `do_number`, `type`, `documents_count`, `total_bytes`, `documents_meta`, `payload`, `status`, `error_message`, `created_at` AS `createdAt`, `updated_at` AS `updatedAt` FROM `evidence_submissions` AS `EvidenceSubmission` WHERE `EvidenceSubmission`.`status` != 'sent' ORDER BY `createdAt` DESC LIMIT 200;
+[2026-04-01T22:15:38.078Z] INFO: [REQUEST_END] GET /admin/evidences/pending -> 200
+[2026-04-01T22:15:38.082Z] INFO: [REQUEST_START] GET /admin/evidences/pending
+[2026-04-01T22:15:38.086Z] DEBUG: Executing (default): SELECT `id`, `user_id`, `reference_number`, `do_number`, `type`, `documents_count`, `total_bytes`, `documents_meta`, `payload`, `status`, `error_message`, `created_at` AS `createdAt`, `updated_at` AS `updatedAt` FROM `evidence_submissions` AS `EvidenceSubmission` WHERE `EvidenceSubmission`.`status` != 'sent' ORDER BY `createdAt` DESC LIMIT 200;
+[2026-04-01T22:15:38.098Z] INFO: [REQUEST_END] GET /admin/evidences/pending -> 200
+[2026-04-01T22:20:56.027Z] INFO: [REQUEST_START] GET /admin/evidences/pending
+[2026-04-01T22:20:56.044Z] DEBUG: Executing (default): SELECT `id`, `user_id`, `reference_number`, `do_number`, `type`, `documents_count`, `total_bytes`, `documents_meta`, `payload`, `status`, `error_message`, `created_at` AS `createdAt`, `updated_at` AS `updatedAt` FROM `evidence_submissions` AS `EvidenceSubmission` WHERE `EvidenceSubmission`.`status` != 'sent' ORDER BY `createdAt` DESC LIMIT 200;
+[2026-04-01T22:20:56.048Z] INFO: [REQUEST_END] GET /admin/evidences/pending -> 200
+[2026-04-01T22:20:58.548Z] INFO: [REQUEST_START] GET /admin/evidences/pending
+[2026-04-01T22:20:58.553Z] DEBUG: Executing (default): SELECT `id`, `user_id`, `reference_number`, `do_number`, `type`, `documents_count`, `total_bytes`, `documents_meta`, `payload`, `status`, `error_message`, `created_at` AS `createdAt`, `updated_at` AS `updatedAt` FROM `evidence_submissions` AS `EvidenceSubmission` WHERE `EvidenceSubmission`.`status` != 'sent' ORDER BY `createdAt` DESC LIMIT 200;
+[2026-04-01T22:20:58.557Z] INFO: [REQUEST_END] GET /admin/evidences/pending -> 200
+[2026-04-01T22:20:58.563Z] INFO: [REQUEST_START] GET /admin/evidences/pending
+[2026-04-01T22:20:58.573Z] DEBUG: Executing (default): SELECT `id`, `user_id`, `reference_number`, `do_number`, `type`, `documents_count`, `total_bytes`, `documents_meta`, `payload`, `status`, `error_message`, `created_at` AS `createdAt`, `updated_at` AS `updatedAt` FROM `evidence_submissions` AS `EvidenceSubmission` WHERE `EvidenceSubmission`.`status` != 'sent' ORDER BY `createdAt` DESC LIMIT 200;
+[2026-04-01T22:20:58.578Z] INFO: [REQUEST_END] GET /admin/evidences/pending -> 200
+[2026-04-01T22:21:04.522Z] INFO: [REQUEST_START] GET /admin/evidences/pending
+[2026-04-01T22:21:04.536Z] DEBUG: Executing (default): SELECT `id`, `user_id`, `reference_number`, `do_number`, `type`, `documents_count`, `total_bytes`, `documents_meta`, `payload`, `status`, `error_message`, `created_at` AS `createdAt`, `updated_at` AS `updatedAt` FROM `evidence_submissions` AS `EvidenceSubmission` WHERE `EvidenceSubmission`.`status` != 'sent' ORDER BY `createdAt` DESC LIMIT 200;
+[2026-04-01T22:21:04.546Z] INFO: [REQUEST_END] GET /admin/evidences/pending -> 200
+[2026-04-01T22:23:23.211Z] INFO: [REQUEST_START] GET /admin/evidences/pending
+[2026-04-01T22:23:23.226Z] DEBUG: Executing (default): SELECT `id`, `user_id`, `reference_number`, `do_number`, `type`, `documents_count`, `total_bytes`, `documents_meta`, `payload`, `status`, `error_message`, `created_at` AS `createdAt`, `updated_at` AS `updatedAt` FROM `evidence_submissions` AS `EvidenceSubmission` WHERE `EvidenceSubmission`.`status` != 'sent' ORDER BY `createdAt` DESC LIMIT 200;
+[2026-04-01T22:23:23.235Z] INFO: [REQUEST_END] GET /admin/evidences/pending -> 200
+[2026-04-01T22:23:26.680Z] INFO: [REQUEST_START] GET /admin/evidences/pending
+[2026-04-01T22:23:26.687Z] DEBUG: Executing (default): SELECT `id`, `user_id`, `reference_number`, `do_number`, `type`, `documents_count`, `total_bytes`, `documents_meta`, `payload`, `status`, `error_message`, `created_at` AS `createdAt`, `updated_at` AS `updatedAt` FROM `evidence_submissions` AS `EvidenceSubmission` WHERE `EvidenceSubmission`.`status` != 'sent' ORDER BY `createdAt` DESC LIMIT 200;
+[2026-04-01T22:23:26.696Z] INFO: [REQUEST_END] GET /admin/evidences/pending -> 200
+[2026-04-01T22:23:26.711Z] INFO: [REQUEST_START] GET /admin/evidences/pending
+[2026-04-01T22:23:26.715Z] DEBUG: Executing (default): SELECT `id`, `user_id`, `reference_number`, `do_number`, `type`, `documents_count`, `total_bytes`, `documents_meta`, `payload`, `status`, `error_message`, `created_at` AS `createdAt`, `updated_at` AS `updatedAt` FROM `evidence_submissions` AS `EvidenceSubmission` WHERE `EvidenceSubmission`.`status` != 'sent' ORDER BY `createdAt` DESC LIMIT 200;
+[2026-04-01T22:23:26.719Z] INFO: [REQUEST_END] GET /admin/evidences/pending -> 200
+[2026-04-06T15:11:59.227Z] DEBUG: Executing (default): SELECT 1+1 AS result
+[2026-04-06T15:11:59.235Z] DEBUG: Executing (default): SHOW FULL COLUMNS FROM `users`;
+[2026-04-06T15:11:59.268Z] DEBUG: Executing (default): SHOW FULL COLUMNS FROM `users`;
+[2026-04-06T15:11:59.270Z] DEBUG: Executing (default): SHOW FULL COLUMNS FROM `registro_fotografico`;
+[2026-04-06T15:11:59.273Z] DEBUG: Executing (default): SHOW FULL COLUMNS FROM `evidence_submissions`;
+[2026-04-06T15:11:59.275Z] DEBUG: Executing (default): SHOW FULL COLUMNS FROM `master_children`;
+[2026-04-06T15:11:59.279Z] DEBUG: Executing (default): SHOW FULL COLUMNS FROM `master_children`;
+[2026-04-06T15:11:59.281Z] DEBUG: Executing (default): SHOW INDEX FROM `master_children`
+[2026-04-06T15:14:13.537Z] INFO: [REQUEST_START] POST /auth/login
+[2026-04-06T15:14:13.709Z] DEBUG: Executing (default): SELECT `id`, `nombre`, `email`, `password_hash`, `role`, `is_active`, `display_name`, `last_login`, `puerto`, `created_at` AS `createdAt`, `updated_at` AS `updatedAt` FROM `users` AS `User` WHERE `User`.`email` = 'admin@transborder.com.co';
+[2026-04-06T15:14:13.794Z] DEBUG: Executing (default): UPDATE `users` SET `last_login`=?,`updated_at`=? WHERE `id` = ?
+[2026-04-06T15:14:13.819Z] INFO: [REQUEST_END] POST /login -> 200
+[2026-04-06T15:14:13.836Z] INFO: [REQUEST_START] GET /masters
+[2026-04-06T15:14:13.844Z] DEBUG: Executing (default): SELECT master_id, MAX(created_at) AS last_created FROM master_children  GROUP BY master_id ORDER BY last_created DESC
+[2026-04-06T15:14:13.846Z] INFO: [REQUEST_START] GET /bls/history
+[2026-04-06T15:14:13.857Z] DEBUG: Executing (default): SELECT `id`, `bl_id`, `type`, `photos`, `storage_location`, `send_status`, `external_response_code`, `external_response_message`, `external_response_body`, `request_payload`, `error_detail`, `retries`, `sent_at`, `created_at` AS `createdAt`, `updated_at` AS `updatedAt`, `user_id` FROM `registro_fotografico` AS `RegistroFotografico` WHERE `RegistroFotografico`.`user_id` = 3 ORDER BY `updatedAt` DESC;
+[2026-04-06T15:14:13.862Z] DEBUG: Executing (default): SELECT master_id, COUNT(child_id) AS children_count FROM master_children WHERE master_id IN ('HLCUSS5260163632', '83501275', 'SSZ1751989') AND type = 'hijo' GROUP BY master_id
+[2026-04-06T15:14:13.865Z] INFO: [REQUEST_END] GET /history -> 200
+[2026-04-06T15:14:13.867Z] DEBUG: Executing (default): SELECT bl_id AS master_id, COALESCE(SUM(JSON_LENGTH(photos)), 0) AS photos_count_master FROM registro_fotografico WHERE bl_id IN ('HLCUSS5260163632', '83501275', 'SSZ1751989') AND type = 'master' GROUP BY bl_id
+[2026-04-06T15:14:13.873Z] DEBUG: Executing (default): SELECT master_id, MAX(numero_DO_master) AS numero_DO_master FROM master_children WHERE master_id IN ('HLCUSS5260163632', '83501275', 'SSZ1751989') GROUP BY master_id
+[2026-04-06T15:14:13.876Z] DEBUG: Executing (default): SELECT master_id, child_id FROM master_children WHERE master_id IN ('HLCUSS5260163632', '83501275', 'SSZ1751989')
+[2026-04-06T15:14:13.878Z] DEBUG: Executing (default): SELECT rf.bl_id, rf.type, u.id AS user_id, u.nombre, u.display_name, u.email, u.puerto FROM registro_fotografico rf JOIN users u ON u.id = rf.user_id WHERE rf.bl_id IN ('HLCUSS5260163632', '83501275', 'SSZ1751989', '83501275A', '25-2777PCSSZCGN', '25/2791PCSSZCTG')
+[2026-04-06T15:14:13.880Z] INFO: [REQUEST_END] GET /masters -> 200
+[2026-04-06T15:14:13.944Z] INFO: [REQUEST_START] GET /masters
+[2026-04-06T15:14:13.949Z] DEBUG: Executing (default): SELECT master_id, MAX(created_at) AS last_created FROM master_children  GROUP BY master_id ORDER BY last_created DESC
+[2026-04-06T15:14:13.951Z] INFO: [REQUEST_START] GET /external/masters
+[2026-04-06T15:14:13.952Z] DEBUG: Executing (default): SELECT master_id, COUNT(child_id) AS children_count FROM master_children WHERE master_id IN ('HLCUSS5260163632', '83501275', 'SSZ1751989') AND type = 'hijo' GROUP BY master_id
+[2026-04-06T15:14:14.038Z] DEBUG: Executing (default): SELECT bl_id AS master_id, COALESCE(SUM(JSON_LENGTH(photos)), 0) AS photos_count_master FROM registro_fotografico WHERE bl_id IN ('HLCUSS5260163632', '83501275', 'SSZ1751989') AND type = 'master' GROUP BY bl_id
+[2026-04-06T15:14:14.040Z] DEBUG: Executing (default): SELECT master_id, MAX(numero_DO_master) AS numero_DO_master FROM master_children WHERE master_id IN ('HLCUSS5260163632', '83501275', 'SSZ1751989') GROUP BY master_id
+[2026-04-06T15:14:14.042Z] DEBUG: Executing (default): SELECT master_id, child_id FROM master_children WHERE master_id IN ('HLCUSS5260163632', '83501275', 'SSZ1751989')
+[2026-04-06T15:14:14.043Z] DEBUG: Executing (default): SELECT rf.bl_id, rf.type, u.id AS user_id, u.nombre, u.display_name, u.email, u.puerto FROM registro_fotografico rf JOIN users u ON u.id = rf.user_id WHERE rf.bl_id IN ('HLCUSS5260163632', '83501275', 'SSZ1751989', '83501275A', '25-2777PCSSZCGN', '25/2791PCSSZCTG')
+[2026-04-06T15:14:14.045Z] INFO: [REQUEST_END] GET /masters -> 200
+[2026-04-06T15:14:14.051Z] INFO: [REQUEST_START] GET /masters
+[2026-04-06T15:14:14.054Z] DEBUG: Executing (default): SELECT master_id, MAX(created_at) AS last_created FROM master_children  GROUP BY master_id ORDER BY last_created DESC
+[2026-04-06T15:14:14.063Z] DEBUG: Executing (default): SELECT master_id, COUNT(child_id) AS children_count FROM master_children WHERE master_id IN ('HLCUSS5260163632', '83501275', 'SSZ1751989') AND type = 'hijo' GROUP BY master_id
+[2026-04-06T15:14:14.067Z] DEBUG: Executing (default): SELECT bl_id AS master_id, COALESCE(SUM(JSON_LENGTH(photos)), 0) AS photos_count_master FROM registro_fotografico WHERE bl_id IN ('HLCUSS5260163632', '83501275', 'SSZ1751989') AND type = 'master' GROUP BY bl_id
+[2026-04-06T15:14:14.070Z] DEBUG: Executing (default): SELECT master_id, MAX(numero_DO_master) AS numero_DO_master FROM master_children WHERE master_id IN ('HLCUSS5260163632', '83501275', 'SSZ1751989') GROUP BY master_id
+[2026-04-06T15:14:14.176Z] INFO: [REQUEST_START] GET /bls/history
+[2026-04-06T15:14:14.178Z] DEBUG: Executing (default): SELECT master_id, child_id FROM master_children WHERE master_id IN ('HLCUSS5260163632', '83501275', 'SSZ1751989')
+[2026-04-06T15:14:14.181Z] DEBUG: Executing (default): SELECT `id`, `bl_id`, `type`, `photos`, `storage_location`, `send_status`, `external_response_code`, `external_response_message`, `external_response_body`, `request_payload`, `error_detail`, `retries`, `sent_at`, `created_at` AS `createdAt`, `updated_at` AS `updatedAt`, `user_id` FROM `registro_fotografico` AS `RegistroFotografico` WHERE `RegistroFotografico`.`user_id` = 3 ORDER BY `updatedAt` DESC;
+[2026-04-06T15:14:14.185Z] DEBUG: Executing (default): SELECT rf.bl_id, rf.type, u.id AS user_id, u.nombre, u.display_name, u.email, u.puerto FROM registro_fotografico rf JOIN users u ON u.id = rf.user_id WHERE rf.bl_id IN ('HLCUSS5260163632', '83501275', 'SSZ1751989', '83501275A', '25-2777PCSSZCGN', '25/2791PCSSZCTG')
+[2026-04-06T15:14:14.187Z] INFO: [REQUEST_END] GET /history -> 200
+[2026-04-06T15:14:14.202Z] INFO: [REQUEST_END] GET /masters -> 200
+[2026-04-06T15:14:14.444Z] INFO: [REQUEST_END] GET /external/masters -> 200
+[2026-04-06T15:14:51.697Z] INFO: [REQUEST_START] GET /admin/evidences/pending
+[2026-04-06T15:14:51.705Z] DEBUG: Executing (default): SELECT `id`, `user_id`, `reference_number`, `do_number`, `type`, `documents_count`, `total_bytes`, `documents_meta`, `payload`, `status`, `error_message`, `created_at` AS `createdAt`, `updated_at` AS `updatedAt` FROM `evidence_submissions` AS `EvidenceSubmission` WHERE `EvidenceSubmission`.`status` != 'sent' ORDER BY `createdAt` DESC LIMIT 200;
+[2026-04-06T15:14:51.713Z] INFO: [REQUEST_END] GET /admin/evidences/pending -> 200
+[2026-04-06T15:14:51.718Z] INFO: [REQUEST_START] GET /admin/evidences/pending
+[2026-04-06T15:14:51.721Z] DEBUG: Executing (default): SELECT `id`, `user_id`, `reference_number`, `do_number`, `type`, `documents_count`, `total_bytes`, `documents_meta`, `payload`, `status`, `error_message`, `created_at` AS `createdAt`, `updated_at` AS `updatedAt` FROM `evidence_submissions` AS `EvidenceSubmission` WHERE `EvidenceSubmission`.`status` != 'sent' ORDER BY `createdAt` DESC LIMIT 200;
+[2026-04-06T15:14:51.724Z] INFO: [REQUEST_END] GET /admin/evidences/pending -> 200

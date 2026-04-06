@@ -18,6 +18,14 @@ function formatDateTime(v) {
   }
 }
 
+function imagesLabel(it) {
+  const arr = Array.isArray(it?.image_names_preview) ? it.image_names_preview : []
+  const txt = arr.filter(Boolean).map(s => String(s)).join(', ')
+  const total = Number(it?.images_total || 0)
+  if (!txt) return total > 0 ? (`${total} imágenes`) : '-'
+  return total > arr.length ? `${txt} (+${total - arr.length})` : txt
+}
+
 function AdminEvidences() {
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(false)
@@ -77,7 +85,8 @@ function AdminEvidences() {
       const dn = String(it.do_number || '').toLowerCase()
       const st = String(it.status || '').toLowerCase()
       const ty = String(it.type || '').toLowerCase()
-      return ref.includes(q) || dn.includes(q) || st.includes(q) || ty.includes(q)
+      const imgs = imagesLabel(it).toLowerCase()
+      return ref.includes(q) || dn.includes(q) || st.includes(q) || ty.includes(q) || imgs.includes(q)
     })
   }, [items, query])
 
@@ -164,7 +173,7 @@ function AdminEvidences() {
       <div className="card">
         {msg && <p className="muted">{msg}</p>}
         <div className="searchbar">
-          <SearchBar placeholder="Buscar por referencia, DO, estado o tipo" value={query} onChange={e => setQuery(e.target.value)} />
+          <SearchBar placeholder="Buscar por referencia, DO, imagen, estado o tipo" value={query} onChange={e => setQuery(e.target.value)} />
         </div>
 
         {filtered.length === 0 ? (
@@ -184,6 +193,7 @@ function AdminEvidences() {
                       <div>
                         <div style={{ fontWeight: 600 }}>{it.reference_number || '-'}</div>
                         <div className="muted" style={{ fontSize: 12 }}>DO: {it.do_number || '-'} · {String(it.type || '').toUpperCase()}</div>
+                        <div className="muted" style={{ fontSize: 12 }}>Imágenes: {imagesLabel(it)}</div>
                       </div>
                     </div>
                     <div><StatusBadge status={it.status} /></div>
@@ -217,6 +227,7 @@ function AdminEvidences() {
                     <th>Referencia</th>
                     <th>DO</th>
                     <th>Tipo</th>
+                    <th>Imágenes</th>
                     <th>Fecha</th>
                     <th>Docs</th>
                     <th>Estado</th>
@@ -232,6 +243,7 @@ function AdminEvidences() {
                       <td>{it.reference_number || '-'}</td>
                       <td>{it.do_number || '-'}</td>
                       <td>{String(it.type || '').toUpperCase()}</td>
+                      <td className="muted" style={{ maxWidth: 360, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{imagesLabel(it)}</td>
                       <td>{formatDateTime(it.created_at)}</td>
                       <td>{Number(it.documents_count || 0)}</td>
                       <td><StatusBadge status={it.status} /></td>
