@@ -510,8 +510,8 @@ router.get('/evidences/admin/pending', authRequired, requireRole('admin'), async
         documents_count: r.documents_count,
         total_bytes: r.total_bytes,
         error_message: r.error_message,
-        created_at: r.created_at,
-        updated_at: r.updated_at,
+        created_at: r.createdAt || r.created_at || null,
+        updated_at: r.updatedAt || r.updated_at || null,
         image_names_preview: preview,
         images_total: imageNames.length,
       }
