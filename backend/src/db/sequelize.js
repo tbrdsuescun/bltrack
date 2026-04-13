@@ -79,6 +79,9 @@ const EvidenceSubmission = sequelize.define('EvidenceSubmission', {
   documents_meta: { type: DataTypes.JSON, allowNull: true },
   payload: { type: DataTypes.JSON, allowNull: true },
   status: { type: DataTypes.STRING(20), allowNull: false, defaultValue: 'received' },
+  sent_docs_count: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
+  processing_started_at: { type: DataTypes.DATE, allowNull: true },
+  next_attempt_at: { type: DataTypes.DATE, allowNull: true },
   error_message: { type: DataTypes.STRING(512), allowNull: true },
 }, {
   tableName: 'evidence_submissions',

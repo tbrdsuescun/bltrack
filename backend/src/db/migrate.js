@@ -44,8 +44,9 @@ async function runMigrations() {
   await ensureUsersPuerto();
   await ensureRegistroFotograficoType();
   const qi = sequelize.getQueryInterface();
+  let evidenceDesc = null;
   try {
-    await qi.describeTable('evidence_submissions');
+    evidenceDesc = await qi.describeTable('evidence_submissions');
   } catch (e) {
     try {
       await qi.createTable('evidence_submissions', {
@@ -57,14 +58,33 @@ async function runMigrations() {
         documents_count: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
         total_bytes: { type: DataTypes.BIGINT, allowNull: false, defaultValue: 0 },
         documents_meta: { type: DataTypes.JSON, allowNull: true },
+        payload: { type: DataTypes.JSON, allowNull: true },
         status: { type: DataTypes.STRING(20), allowNull: false, defaultValue: 'received' },
+        sent_docs_count: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
+        processing_started_at: { type: DataTypes.DATE, allowNull: true },
+        next_attempt_at: { type: DataTypes.DATE, allowNull: true },
         error_message: { type: DataTypes.STRING(512), allowNull: true },
         created_at: { type: DataTypes.DATE, allowNull: true },
         updated_at: { type: DataTypes.DATE, allowNull: true },
       });
       await qi.addIndex('evidence_submissions', ['user_id', 'reference_number'], { name: 'es_user_ref_idx' });
+      evidenceDesc = await qi.describeTable('evidence_submissions');
     } catch (err) {
       throw err;
+    }
+  }
+  if (evidenceDesc) {
+    if (!evidenceDesc.payload) {
+      await qi.addColumn('evidence_submissions', 'payload', { type: DataTypes.JSON, allowNull: true });
+    }
+    if (!evidenceDesc.sent_docs_count) {
+      await qi.addColumn('evidence_submissions', 'sent_docs_count', { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 });
+    }
+    if (!evidenceDesc.processing_started_at) {
+      await qi.addColumn('evidence_submissions', 'processing_started_at', { type: DataTypes.DATE, allowNull: true });
+    }
+    if (!evidenceDesc.next_attempt_at) {
+      await qi.addColumn('evidence_submissions', 'next_attempt_at', { type: DataTypes.DATE, allowNull: true });
     }
   }
   try {

@@ -8,6 +8,7 @@ const { Op } = require('sequelize')
 const fs = require('fs').promises
 const { filePath } = require('../services/storage')
 const { EVIDENCE_URL, EVIDENCE_USER, EVIDENCE_PASS, EXTERNAL_RETRY_COUNT, EXTERNAL_TIMEOUT_MS, STORAGE_PATH } = require('../config')
+const { processEvidenceSubmission } = require('../services/evidenceQueue')
 
 const router = express.Router()
 
@@ -58,7 +59,7 @@ function relLogPath(w) {
   return n ? ('evidence-logs/' + n) : null
 }
 
-function buildStoredPayload({ referenceNumber, totalImages, totalImagesNieto, doNumber, type, documentsCount, totalBytes, documentsMeta, logPath }) {
+function buildStoredPayload({ referenceNumber, totalImages, totalImagesNieto, doNumber, type, documentsCount, totalBytes, documentsMeta, documents, logPath, sourceMode }) {
   const out = {
     referenceNumber: String(referenceNumber || ''),
     totalImages: normalizeTotalImages(totalImages),
@@ -69,7 +70,9 @@ function buildStoredPayload({ referenceNumber, totalImages, totalImagesNieto, do
     totalBytes: Number(totalBytes || 0),
     documentsMeta: Array.isArray(documentsMeta) ? documentsMeta : []
   }
+  if (Array.isArray(documents)) out.documents = documents
   if (logPath) out.logPath = String(logPath)
+  if (sourceMode) out.sourceMode = String(sourceMode)
   return out
 }
 
@@ -93,6 +96,86 @@ function formatDate(ts) {
   const mm = String(d.getMonth() + 1).padStart(2, '0')
   const yyyy = d.getFullYear()
   return `${dd}/${mm}/${yyyy}`
+}
+
+function formatDateTime(ts) {
+  const d = new Date(ts)
+  if (!Number.isFinite(d.getTime())) return '-'
+  const dd = String(d.getDate()).padStart(2, '0')
+  const mm = String(d.getMonth() + 1).padStart(2, '0')
+  const yyyy = d.getFullYear()
+  const hh = String(d.getHours()).padStart(2, '0')
+  const mi = String(d.getMinutes()).padStart(2, '0')
+  return `${dd}/${mm}/${yyyy} ${hh}:${mi}`
+}
+
+function parseFlexibleDate(value) {
+  if (!value) return null
+  if (value instanceof Date) {
+    return Number.isFinite(value.getTime()) ? value : null
+  }
+  const s = String(value || '').trim()
+  if (!s) return null
+
+  const simple = s.match(/^(\d{2})\/(\d{2})\/(\d{4})$/)
+  if (simple) {
+    const dd = Number(simple[1])
+    const mm = Number(simple[2])
+    const yyyy = Number(simple[3])
+    const out = new Date(yyyy, mm - 1, dd, 0, 0, 0, 0)
+    return Number.isFinite(out.getTime()) ? out : null
+  }
+
+  const isoDay = s.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+  if (isoDay) {
+    const yyyy = Number(isoDay[1])
+    const mm = Number(isoDay[2])
+    const dd = Number(isoDay[3])
+    const out = new Date(yyyy, mm - 1, dd, 0, 0, 0, 0)
+    return Number.isFinite(out.getTime()) ? out : null
+  }
+
+  const out = new Date(s)
+  return Number.isFinite(out.getTime()) ? out : null
+}
+
+function parseFilterDate(value, endOfDay) {
+  if (!value) return null
+  const parsed = parseFlexibleDate(value)
+  if (!parsed) return null
+  if (endOfDay) parsed.setHours(23, 59, 59, 999)
+  else parsed.setHours(0, 0, 0, 0)
+  return parsed
+}
+
+function buildEffectiveDateInfo(rec) {
+  const meta = Array.isArray(rec?.documents_meta) ? rec.documents_meta : []
+  let fromImage = null
+
+  for (const doc of meta) {
+    const parsed = parseFlexibleDate(doc?.date)
+    if (!parsed) continue
+    if (!fromImage || parsed.getTime() < fromImage.getTime()) fromImage = parsed
+  }
+
+  if (fromImage) {
+    return {
+      at: fromImage,
+      label: formatDate(fromImage),
+      source: 'image'
+    }
+  }
+
+  const created = parseFlexibleDate(rec?.createdAt || rec?.created_at)
+  if (created) {
+    return {
+      at: created,
+      label: formatDateTime(created),
+      source: 'submission'
+    }
+  }
+
+  return { at: null, label: '-', source: null }
 }
 
 function extFor(name) {
@@ -278,85 +361,33 @@ router.post('/evidences/submit', authRequired, async (req, res) => {
         return res.status(404).json({ ok: false, error: 'No hay fotos para el BL' })
       }
       const counts = countPlainNietoFromPhotos(rec.photos, referenceNumber)
-      const initial = await EvidenceSubmission.create({ user_id: req.user.id, reference_number: referenceNumber, do_number: doNumber, type, documents_count: rec.photos.length, total_bytes: 0, documents_meta: [], payload: null, status: 'queued', error_message: null })
-      res.json({ ok: true, queued: true, id: initial.id, endpoint: EVIDENCE_URL, received: { referenceNumber, totalImages: counts.totalImages, totalImagesNieto: counts.totalImagesNieto, doNumber, type, documentsCount: rec.photos.length } })
-      setImmediate(async () => {
-        try {
-          const { docs, totalBytes, docsMeta } = await buildDocumentsFromRegistro(rec)
-          const documentsCount = docs.length
-
-          const counts = countPlainNietoFromPhotos(rec.photos, referenceNumber)
-          const payloadFull = { referenceNumber, totalImages: counts.totalImages, totalImagesNieto: counts.totalImagesNieto, doNumber, type, documents: docs }
-          const payloadStored = buildStoredPayload({ referenceNumber, totalImages: counts.totalImages, totalImagesNieto: counts.totalImagesNieto, doNumber, type, documentsCount, totalBytes, documentsMeta: docsMeta })
-
-          await initial.update({ documents_count: documentsCount, total_bytes: totalBytes, documents_meta: docsMeta, payload: payloadStored, status: 'received', error_message: null })
-
-          try {
-            const wPrep = await writeEvidenceLog(initial.id, { ts: new Date().toISOString(), endpoint: EVIDENCE_URL, user_id: req.user.id, type, referenceNumber, doNumber, documents_count: documentsCount, documents_meta: docsMeta, action: 'prepare', payload: payloadStored }, 'prepare')
-            if (wPrep) {
-              try { await initial.update({ payload: buildStoredPayload({ referenceNumber, totalImages: counts.totalImages, totalImagesNieto: counts.totalImagesNieto, doNumber, type, documentsCount, totalBytes, documentsMeta: docsMeta, logPath: relLogPath(wPrep) }) }) } catch {}
-            }
-
-            const out = await sendToExternal(payloadFull)
-            const logicalErrMsg = (out && out.data && typeof out.data === 'object') ? String(out.data.errorMessage || '').trim() : ''
-            if (logicalErrMsg) {
-              const errEntry = {
-                ts: new Date().toISOString(),
-                endpoint: EVIDENCE_URL,
-                user_id: req.user.id,
-                type,
-                referenceNumber,
-                doNumber,
-                documents_count: documentsCount,
-                documents_meta: docsMeta,
-                error: { message: logicalErrMsg, status: out?.status || null, body: out?.data },
-                payload: payloadStored,
-                payloadFull
-              }
-              const wErr = await writeEvidenceLog(initial.id, errEntry, 'error')
-              if (wErr) {
-                try { await initial.update({ payload: buildStoredPayload({ referenceNumber, totalImages: counts.totalImages, totalImagesNieto: counts.totalImagesNieto, doNumber, type, documentsCount, totalBytes, documentsMeta: docsMeta, logPath: relLogPath(wErr) }) }) } catch {}
-              }
-              await initial.update({ status: 'failed', error_message: logicalErrMsg })
-              return
-            }
-
-            await writeEvidenceLog(initial.id, {
-              ts: new Date().toISOString(),
-              endpoint: EVIDENCE_URL,
-              user_id: req.user.id,
-              type,
-              referenceNumber,
-              doNumber,
-              documents_count: documentsCount,
-              documents_meta: docsMeta,
-              response: { status: out?.status || null, body: out?.data }
-            }, 'response')
-            await initial.update({ status: 'sent', error_message: null })
-          } catch (err) {
-            const errEntry = {
-              ts: new Date().toISOString(),
-              endpoint: EVIDENCE_URL,
-              user_id: req.user.id,
-              type,
-              referenceNumber,
-              doNumber,
-              documents_count: documentsCount,
-              documents_meta: docsMeta,
-              error: { message: err.message, status: err?.response?.status || null, body: err?.response?.data },
-              payload: payloadStored,
-              payloadFull
-            }
-            const wErr = await writeEvidenceLog(initial.id, errEntry, 'error')
-            if (wErr) {
-              try { await initial.update({ payload: buildStoredPayload({ referenceNumber, totalImages: counts.totalImages, totalImagesNieto: counts.totalImagesNieto, doNumber, type, documentsCount, totalBytes, documentsMeta: docsMeta, logPath: relLogPath(wErr) }) }) } catch {}
-            }
-            try { await initial.update({ status: 'failed', error_message: err.message }) } catch {}
-          }
-        } catch (e) {
-          try { await initial.update({ status: 'error', error_message: e.message }) } catch {}
-        }
+      const payloadStored = buildStoredPayload({
+        referenceNumber,
+        totalImages: counts.totalImages,
+        totalImagesNieto: counts.totalImagesNieto,
+        doNumber,
+        type,
+        documentsCount: rec.photos.length,
+        totalBytes: 0,
+        documentsMeta: [],
+        sourceMode: 'registro'
       })
+      const initial = await EvidenceSubmission.create({
+        user_id: req.user.id,
+        reference_number: referenceNumber,
+        do_number: doNumber,
+        type,
+        documents_count: rec.photos.length,
+        total_bytes: 0,
+        documents_meta: [],
+        payload: payloadStored,
+        status: 'queued',
+        sent_docs_count: 0,
+        processing_started_at: null,
+        next_attempt_at: null,
+        error_message: null
+      })
+      res.json({ ok: true, queued: true, scheduled: true, id: initial.id, endpoint: EVIDENCE_URL, received: { referenceNumber, totalImages: counts.totalImages, totalImagesNieto: counts.totalImagesNieto, doNumber, type, documentsCount: rec.photos.length } })
       return
     }
     const { referenceNumber, doNumber, type, documents } = body
@@ -370,80 +401,39 @@ router.post('/evidences/submit', authRequired, async (req, res) => {
     const totalBytes = list.reduce((acc, d) => acc + (typeof d.contentBase64 === 'string' ? Buffer.byteLength(d.contentBase64, 'base64') : 0), 0)
     const docsMeta = list.map(d => ({ name: d.name, extension: d.extension, category: d.category || '', date: d.date, bytes: (typeof d.contentBase64 === 'string' ? Buffer.byteLength(d.contentBase64, 'base64') : 0) }))
 
-    const payloadFull = { referenceNumber: String(referenceNumber), totalImages, totalImagesNieto, doNumber: doNumber ? String(doNumber) : null, type: typeVal, documents: list }
-    const payloadStored = buildStoredPayload({ referenceNumber, totalImages, totalImagesNieto, doNumber, type: typeVal, documentsCount, totalBytes, documentsMeta: docsMeta })
+    const payloadStored = buildStoredPayload({
+      referenceNumber,
+      totalImages,
+      totalImagesNieto,
+      doNumber,
+      type: typeVal,
+      documentsCount,
+      totalBytes,
+      documentsMeta: docsMeta,
+      documents: list,
+      sourceMode: 'payload'
+    })
 
     let rec = null
-    try { rec = await EvidenceSubmission.create({ user_id: req.user.id, reference_number: String(referenceNumber), do_number: doNumber ? String(doNumber) : null, type: typeVal, documents_count: documentsCount, total_bytes: totalBytes, documents_meta: docsMeta, payload: payloadStored, status: 'received', error_message: null }) } catch {}
+    try {
+      rec = await EvidenceSubmission.create({
+        user_id: req.user.id,
+        reference_number: String(referenceNumber),
+        do_number: doNumber ? String(doNumber) : null,
+        type: typeVal,
+        documents_count: documentsCount,
+        total_bytes: totalBytes,
+        documents_meta: docsMeta,
+        payload: payloadStored,
+        status: 'queued',
+        sent_docs_count: 0,
+        processing_started_at: null,
+        next_attempt_at: null,
+        error_message: null
+      })
+    } catch {}
 
-    res.json({ ok: true, queued: true, endpoint: EVIDENCE_URL, received: { referenceNumber, totalImages, totalImagesNieto, doNumber, type: typeVal, documentsCount }, meta: { totalBytes } })
-
-    setImmediate(async () => {
-      if (!rec) return
-      try {
-        const wPrep = await writeEvidenceLog(rec.id, { ts: new Date().toISOString(), endpoint: EVIDENCE_URL, user_id: req.user.id, type: typeVal, referenceNumber, doNumber, documents_count: documentsCount, documents_meta: docsMeta, action: 'prepare', payload: payloadStored }, 'prepare')
-        if (wPrep) {
-          try { await rec.update({ payload: buildStoredPayload({ referenceNumber, totalImages, totalImagesNieto, doNumber, type: typeVal, documentsCount, totalBytes, documentsMeta: docsMeta, logPath: relLogPath(wPrep) }) }) } catch {}
-        }
-
-        const out = await sendToExternal(payloadFull)
-        const logicalErrMsg = (out && out.data && typeof out.data === 'object') ? String(out.data.errorMessage || '').trim() : ''
-        if (logicalErrMsg) {
-          const errEntry = {
-            ts: new Date().toISOString(),
-            endpoint: EVIDENCE_URL,
-            user_id: req.user.id,
-            type: typeVal,
-            referenceNumber,
-            doNumber,
-            documents_count: documentsCount,
-            documents_meta: docsMeta,
-            error: { message: logicalErrMsg, status: out?.status || null, body: out?.data },
-            payload: payloadStored,
-            payloadFull
-          }
-          const wErr = await writeEvidenceLog(rec.id, errEntry, 'error')
-          if (wErr) {
-            try { await rec.update({ payload: buildStoredPayload({ referenceNumber, totalImages, totalImagesNieto, doNumber, type: typeVal, documentsCount, totalBytes, documentsMeta: docsMeta, logPath: relLogPath(wErr) }) }) } catch {}
-          }
-          await rec.update({ status: 'failed', error_message: logicalErrMsg })
-          return
-        }
-
-        await writeEvidenceLog(rec.id, {
-          ts: new Date().toISOString(),
-          endpoint: EVIDENCE_URL,
-          user_id: req.user.id,
-          type: typeVal,
-          referenceNumber,
-          doNumber,
-          documents_count: documentsCount,
-          documents_meta: docsMeta,
-          response: { status: out?.status || null, body: out?.data }
-        }, 'response')
-
-        await rec.update({ status: 'sent', error_message: null })
-      } catch (err) {
-        const errEntry = {
-          ts: new Date().toISOString(),
-          endpoint: EVIDENCE_URL,
-          user_id: req.user.id,
-          type: typeVal,
-          referenceNumber,
-          doNumber,
-          documents_count: documentsCount,
-          documents_meta: docsMeta,
-          error: { message: err.message, status: err?.response?.status || null, body: err?.response?.data },
-          payload: payloadStored,
-          payloadFull
-        }
-        const wErr = await writeEvidenceLog(rec.id, errEntry, 'error')
-        if (wErr) {
-          try { await rec.update({ payload: buildStoredPayload({ referenceNumber, totalImages, totalImagesNieto, doNumber, type: typeVal, documentsCount, totalBytes, documentsMeta: docsMeta, logPath: relLogPath(wErr) }) }) } catch {}
-        }
-        try { await rec.update({ status: 'failed', error_message: err.message }) } catch {}
-      }
-    })
+    res.json({ ok: true, queued: true, scheduled: true, id: rec?.id || null, endpoint: EVIDENCE_URL, received: { referenceNumber, totalImages, totalImagesNieto, doNumber, type: typeVal, documentsCount }, meta: { totalBytes } })
   } catch (err) {
     try {
       const b = req.body || {}
@@ -456,8 +446,8 @@ router.post('/evidences/submit', authRequired, async (req, res) => {
       const documentsCount = list.length
       const totalBytes = list.reduce((acc, d) => acc + (typeof d.contentBase64 === 'string' ? Buffer.byteLength(d.contentBase64, 'base64') : 0), 0)
       const docsMeta = list.map(d => ({ name: d.name, extension: d.extension, category: d.category || '', date: d.date, bytes: (typeof d.contentBase64 === 'string' ? Buffer.byteLength(d.contentBase64, 'base64') : 0) }))
-      const payloadStored = buildStoredPayload({ referenceNumber, totalImages, totalImagesNieto, doNumber, type: typeVal, documentsCount, totalBytes, documentsMeta: docsMeta })
-      await EvidenceSubmission.create({ user_id: req.user?.id || null, reference_number: referenceNumber, do_number: doNumber, type: typeVal, documents_count: documentsCount, total_bytes: totalBytes, documents_meta: docsMeta, payload: payloadStored, status: 'error', error_message: err.message })
+      const payloadStored = buildStoredPayload({ referenceNumber, totalImages, totalImagesNieto, doNumber, type: typeVal, documentsCount, totalBytes, documentsMeta: docsMeta, documents: list, sourceMode: 'payload' })
+      await EvidenceSubmission.create({ user_id: req.user?.id || null, reference_number: referenceNumber, do_number: doNumber, type: typeVal, documents_count: documentsCount, total_bytes: totalBytes, documents_meta: docsMeta, payload: payloadStored, status: 'error', sent_docs_count: 0, processing_started_at: null, next_attempt_at: null, error_message: err.message })
     } catch {}
     res.status(500).json({ ok: false, error: 'Error al recibir evidencias', detail: err.message })
   }
@@ -524,6 +514,78 @@ router.get('/evidences/admin/pending', authRequired, requireRole('admin'), async
   }
 })
 
+router.get('/evidences/admin/sent', authRequired, requireRole('admin'), async (req, res) => {
+  try {
+    const fromRaw = String(req.query?.from || '').trim()
+    const toRaw = String(req.query?.to || '').trim()
+    if (!fromRaw && !toRaw) {
+      return res.json({
+        ok: true,
+        items: [],
+        count: 0,
+        filters: { from: null, to: null },
+        requires_filters: true
+      })
+    }
+    if (!fromRaw || !toRaw) {
+      return res.status(400).json({ ok: false, error: 'Debes indicar fecha desde y fecha hasta' })
+    }
+    const from = fromRaw ? parseFilterDate(fromRaw, false) : null
+    const to = toRaw ? parseFilterDate(toRaw, true) : null
+    if (fromRaw && !from) return res.status(400).json({ ok: false, error: 'Fecha desde inválida' })
+    if (toRaw && !to) return res.status(400).json({ ok: false, error: 'Fecha hasta inválida' })
+    if (from && to && from.getTime() > to.getTime()) {
+      return res.status(400).json({ ok: false, error: 'La fecha desde no puede ser mayor que la fecha hasta' })
+    }
+
+    const limitRaw = Number(req.query?.limit || 2000)
+    const limit = Number.isFinite(limitRaw) ? Math.max(1, Math.min(10000, Math.trunc(limitRaw))) : 2000
+    const rows = await EvidenceSubmission.findAll({
+      where: { status: 'sent' },
+      order: [['createdAt', 'DESC']],
+      limit,
+      attributes: { exclude: ['payload'] }
+    })
+
+    const items = rows.map(r => {
+      const meta = Array.isArray(r.documents_meta) ? r.documents_meta : []
+      const dateInfo = buildEffectiveDateInfo(r)
+      const imagesTotal = Math.max(Number(r.documents_count || 0), meta.length)
+      return {
+        id: r.id,
+        user_id: r.user_id,
+        reference_number: r.reference_number,
+        do_number: r.do_number,
+        type: r.type,
+        status: r.status,
+        documents_count: r.documents_count,
+        images_total: imagesTotal,
+        effective_date: dateInfo.label,
+        effective_date_at: dateInfo.at ? dateInfo.at.toISOString() : null,
+        effective_date_source: dateInfo.source,
+        created_at: r.createdAt || r.created_at || null,
+        updated_at: r.updatedAt || r.updated_at || null
+      }
+    }).filter(item => {
+      if (!from && !to) return true
+      const dt = parseFlexibleDate(item.effective_date_at || item.created_at)
+      if (!dt) return false
+      if (from && dt.getTime() < from.getTime()) return false
+      if (to && dt.getTime() > to.getTime()) return false
+      return true
+    })
+
+    res.json({
+      ok: true,
+      items,
+      count: items.length,
+      filters: { from: fromRaw || null, to: toRaw || null }
+    })
+  } catch (err) {
+    res.status(500).json({ ok: false, error: 'Fallo al listar evidencias enviadas', detail: err.message })
+  }
+})
+
 router.post('/evidences/admin/resend', authRequired, requireRole('admin'), async (req, res) => {
   try {
     const ids = Array.isArray(req.body?.ids) ? req.body.ids : []
@@ -537,132 +599,7 @@ router.post('/evidences/admin/resend', authRequired, requireRole('admin'), async
     const results = await mapLimit(cleaned, 1, async (id) => {
       const rec = byId[String(id)]
       if (!rec) return { id, ok: false, status: null, error: 'No encontrado' }
-      if (String(rec.status) === 'sent') return { id, ok: true, status: 'sent', skipped: true }
-
-      const referenceNumber = String(rec.reference_number || '').trim()
-      const doNumber = rec.do_number ? String(rec.do_number) : null
-      const typeVal = String(rec.type || '') === 'master' ? 'master' : 'hijo'
-      if (!referenceNumber) return { id, ok: false, status: String(rec.status || ''), error: 'reference_number vacío' }
-
-      let reg = null
-      if (rec.user_id) {
-        reg = await RegistroFotografico.findOne({ where: { bl_id: referenceNumber, type: typeVal, user_id: rec.user_id } })
-      }
-      if (!reg) {
-        reg = await RegistroFotografico.findOne({ where: { bl_id: referenceNumber, type: typeVal } })
-      }
-      if (!reg || !Array.isArray(reg.photos) || reg.photos.length === 0) {
-        try {
-          await writeEvidenceLog(id, { ts: new Date().toISOString(), endpoint: EVIDENCE_URL, action: 'resend', referenceNumber, doNumber, type: typeVal, error: { message: 'No hay fotos en servidor para este BL' } }, 'resend-no-photos')
-        } catch {}
-        try { await rec.update({ status: 'failed', error_message: 'No hay fotos en servidor para este BL' }) } catch {}
-        return { id, ok: false, status: 'failed', error: 'No hay fotos en servidor para este BL' }
-      }
-
-      try { await rec.update({ status: 'queued', error_message: null }) } catch {}
-      try {
-        const onlyMeta = Array.isArray(rec.documents_meta) ? rec.documents_meta : []
-        const { docs, totalBytes, docsMeta } = await buildDocumentsFromRegistro(reg, onlyMeta)
-        const documentsCount = docs.length
-        if (!documentsCount) throw new Error('No se pudieron construir documentos desde storage')
-
-        const stored = (rec.payload && typeof rec.payload === 'object') ? rec.payload : {}
-        const totalImages = normalizeTotalImages(stored.totalImages)
-        const totalImagesNieto = normalizeTotalImages(stored.totalImagesNieto)
-        const counts = countPlainNietoFromPhotos(reg.photos, referenceNumber)
-        const totals = { totalImages: totalImages || counts.totalImages, totalImagesNieto: totalImagesNieto || counts.totalImagesNieto }
-
-        const payloadStored = buildStoredPayload({
-          referenceNumber,
-          totalImages: totals.totalImages,
-          totalImagesNieto: totals.totalImagesNieto,
-          doNumber,
-          type: typeVal,
-          documentsCount,
-          totalBytes,
-          documentsMeta: docsMeta
-        })
-
-        const wPrep = await writeEvidenceLog(rec.id, { ts: new Date().toISOString(), endpoint: EVIDENCE_URL, type: typeVal, referenceNumber, doNumber, documents_count: documentsCount, documents_meta: docsMeta, action: 'resend-prepare', payload: payloadStored }, 'resend-prepare')
-        if (wPrep) {
-          try { await rec.update({ payload: buildStoredPayload({ referenceNumber, totalImages: totals.totalImages, totalImagesNieto: totals.totalImagesNieto, doNumber, type: typeVal, documentsCount, totalBytes, documentsMeta: docsMeta, logPath: relLogPath(wPrep) }) }) } catch {}
-        } else {
-          try { await rec.update({ payload: payloadStored }) } catch {}
-        }
-        try { await rec.update({ documents_count: documentsCount, total_bytes: totalBytes, documents_meta: docsMeta, error_message: null }) } catch {}
-
-        let sentDocs = 0
-        for (let i = 0; i < docs.length; i++) {
-          const doc = docs[i]
-          const payloadOne = { referenceNumber, totalImages: totals.totalImages, totalImagesNieto: totals.totalImagesNieto, doNumber, type: typeVal, documents: [doc] }
-          try {
-            const out = await sendToExternal(payloadOne)
-            const logicalErrMsg = (out && out.data && typeof out.data === 'object') ? String(out.data.errorMessage || '').trim() : ''
-            if (logicalErrMsg) {
-              try {
-                await writeEvidenceLog(rec.id, {
-                  ts: new Date().toISOString(),
-                  endpoint: EVIDENCE_URL,
-                  action: 'resend-doc-error',
-                  referenceNumber,
-                  doNumber,
-                  type: typeVal,
-                  doc_index: i,
-                  doc_name: (doc?.name || '') + (doc?.extension || ''),
-                  error: { message: logicalErrMsg, status: out?.status || null, body: out?.data },
-                  payload: payloadStored,
-                  payloadFull: payloadOne
-                }, 'resend-doc-error')
-              } catch {}
-              try { await rec.update({ status: 'failed', error_message: logicalErrMsg }) } catch {}
-              return { id, ok: false, status: 'failed', error: logicalErrMsg, sent_docs: sentDocs, total_docs: documentsCount }
-            }
-            sentDocs += 1
-          } catch (err) {
-            const msg = String(err?.message || 'Error reenviando')
-            try {
-              await writeEvidenceLog(rec.id, {
-                ts: new Date().toISOString(),
-                endpoint: EVIDENCE_URL,
-                action: 'resend-doc-error',
-                referenceNumber,
-                doNumber,
-                type: typeVal,
-                doc_index: i,
-                doc_name: (doc?.name || '') + (doc?.extension || ''),
-                error: { message: msg, status: err?.response?.status || null, body: err?.response?.data },
-                payload: payloadStored,
-                payloadFull: payloadOne
-              }, 'resend-doc-error')
-            } catch {}
-            try { await rec.update({ status: 'failed', error_message: msg }) } catch {}
-            return { id, ok: false, status: 'failed', error: msg, sent_docs: sentDocs, total_docs: documentsCount }
-          }
-        }
-
-        try {
-          await writeEvidenceLog(rec.id, {
-            ts: new Date().toISOString(),
-            endpoint: EVIDENCE_URL,
-            type: typeVal,
-            referenceNumber,
-            doNumber,
-            documents_count: documentsCount,
-            documents_meta: docsMeta,
-            action: 'resend-complete',
-            result: { sent_docs: sentDocs, total_docs: documentsCount }
-          }, 'resend-complete')
-        } catch {}
-        try { await rec.update({ status: 'sent', error_message: null }) } catch {}
-        return { id, ok: true, status: 'sent', sent_docs: sentDocs, total_docs: documentsCount }
-      } catch (err) {
-        const msg = String(err?.message || 'Error reenviando')
-        try {
-          await writeEvidenceLog(rec.id, { ts: new Date().toISOString(), endpoint: EVIDENCE_URL, action: 'resend-error', referenceNumber, doNumber, type: typeVal, error: { message: msg, status: err?.response?.status || null, body: err?.response?.data } }, 'resend-error')
-        } catch {}
-        try { await rec.update({ status: 'failed', error_message: msg }) } catch {}
-        return { id, ok: false, status: 'failed', error: msg }
-      }
+      return processEvidenceSubmission(rec, { force: true })
     })
 
     res.json({ ok: true, results })

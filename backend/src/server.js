@@ -8,6 +8,7 @@ const app = require('./app');
 const { logger } = require('./utils/logger');
 const { initDb, sequelize } = require('./db/sequelize');
 const { runMigrations } = require('./db/migrate');
+const { startEvidenceScheduler } = require('./services/evidenceQueue');
 
 process.on('uncaughtException', (err) => {
   logger.error({ msg: 'CRITICAL: Uncaught Exception', error: err.message, stack: err.stack });
@@ -26,6 +27,7 @@ server.listen(PORT, () => {
     .then(async () => {
       try {
         await runMigrations();
+        startEvidenceScheduler();
       } catch (e) {
       }
     })
