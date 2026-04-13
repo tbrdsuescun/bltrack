@@ -63,16 +63,18 @@ function AdminSentEvidences() {
     setMsg(null)
   }, [isAdmin])
 
-  const filtered = useMemo(() => {
+  const filteredItems = useMemo(() => {
     const q = String(query || '').trim().toLowerCase()
     if (!q) return items
     return items.filter(it => {
-      const ref = String(it.reference_number || '').toLowerCase()
-      const dn = String(it.do_number || '').toLowerCase()
-      const ty = String(it.type || '').toLowerCase()
-      const dt = String(it.effective_date || '').toLowerCase()
-      const total = String(it.images_total || it.documents_count || 0).toLowerCase()
-      return ref.includes(q) || dn.includes(q) || ty.includes(q) || dt.includes(q) || total.includes(q)
+      return [
+        it.reference_number,
+        it.master,
+        it.do_number,
+        it.type,
+        it.effective_date,
+        it.images_total
+      ].some(v => String(v || '').toLowerCase().includes(q))
     })
   }, [items, query])
 
@@ -81,11 +83,11 @@ function AdminSentEvidences() {
   }, [query, items])
 
   const pageSize = 20
-  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize))
+  const totalPages = Math.max(1, Math.ceil(filteredItems.length / pageSize))
   const pageItems = useMemo(() => {
     const start = (page - 1) * pageSize
-    return filtered.slice(start, start + pageSize)
-  }, [filtered, page])
+    return filteredItems.slice(start, start + pageSize)
+  }, [filteredItems, page])
 
   function onSubmitFilters(e) {
     e.preventDefault()
@@ -116,21 +118,21 @@ function AdminSentEvidences() {
   }
 
   function exportExcel() {
-    if (!filtered.length) return
-    const rows = filtered.map(it => ({
+    if (!filteredItems.length) return
+    const rows = filteredItems.map(it => ({
       Referencia: it.reference_number || '-',
+      Master: it.master || '-',
       DO: it.do_number || '-',
-      Tipo: formatType(it.type),
-      Fecha: it.effective_date || '-',
-      'Cantidad imagenes': Number(it.images_total || it.documents_count || 0)
+      Tipo: it.type || '-',
+      Fecha: it.effective_date || '-'
     }))
     const ws = XLSX.utils.json_to_sheet(rows)
     ws['!cols'] = [
       { wch: 24 },
+      { wch: 24 },
       { wch: 18 },
-      { wch: 12 },
       { wch: 20 },
-      { wch: 18 }
+      { wch: 12 }
     ]
     const wb = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(wb, ws, 'Enviadas')
@@ -151,11 +153,11 @@ function AdminSentEvidences() {
       <div className="page-header">
         <div>
           <h1 className="h1">Evidencias Enviadas</h1>
-          <p className="muted">Consulta evidencias con estado `sent` solo cuando indiques fecha desde y fecha hasta.</p>
+          <p className="muted">Consulta evidencias con estado `sent` en una tabla plana usando fecha desde y fecha hasta.</p>
         </div>
         <div className="actions-row" style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <button className="btn btn-outline" onClick={() => load({ from, to })} disabled={loading || !hasSearched}>Refrescar</button>
-          <button className="btn btn-primary" onClick={exportExcel} disabled={loading || !hasSearched || filtered.length === 0}>Exportar Excel</button>
+          <button className="btn btn-primary" onClick={exportExcel} disabled={loading || !hasSearched || filteredItems.length === 0}>Exportar Excel</button>
         </div>
       </div>
 
@@ -178,15 +180,15 @@ function AdminSentEvidences() {
         </form>
 
         <div className="searchbar" style={{ marginTop: 12 }}>
-          <SearchBar placeholder="Buscar por referencia, DO, tipo, fecha o cantidad" value={query} onChange={e => setQuery(e.target.value)} />
+          <SearchBar placeholder="Buscar por referencia, master, DO, tipo o fecha" value={query} onChange={e => setQuery(e.target.value)} />
         </div>
 
         <div style={{ marginTop: 12, display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
-          <div className="muted">Total resultados: {hasSearched ? filtered.length : 0}</div>
-          <div className="muted">{hasSearched ? 'Mostrando registros enviados exitosamente.' : 'Selecciona el rango de fechas para consultar.'}</div>
+          <div className="muted">Registros: {hasSearched ? filteredItems.length : 0}</div>
+          <div className="muted">{hasSearched ? 'Mostrando registros enviados filtrados.' : 'Selecciona el rango de fechas para consultar.'}</div>
         </div>
 
-        {filtered.length === 0 ? (
+        {filteredItems.length === 0 ? (
           <p className="muted" style={{ marginTop: 16 }}>
             {loading
               ? 'Cargando resultados...'
@@ -200,20 +202,20 @@ function AdminSentEvidences() {
               <thead>
                 <tr>
                   <th>Referencia</th>
+                  <th>Master</th>
                   <th>DO</th>
                   <th>Tipo</th>
                   <th>Fecha</th>
-                  <th>Cantidad imagenes</th>
                 </tr>
               </thead>
               <tbody>
-                {pageItems.map(it => (
-                  <tr key={it.id}>
-                    <td>{it.reference_number || '-'}</td>
-                    <td>{it.do_number || '-'}</td>
-                    <td>{formatType(it.type)}</td>
-                    <td>{it.effective_date || '-'}</td>
-                    <td>{Number(it.images_total || it.documents_count || 0)}</td>
+                {pageItems.map(item => (
+                  <tr key={`${item.type}-${item.master}-${item.reference_number}`}>
+                    <td>{item.reference_number || '-'}</td>
+                    <td>{item.master || '-'}</td>
+                    <td>{item.do_number || '-'}</td>
+                    <td>{item.type || '-'}</td>
+                    <td>{item.effective_date || '-'}</td>
                   </tr>
                 ))}
               </tbody>
@@ -221,9 +223,9 @@ function AdminSentEvidences() {
           </div>
         )}
 
-        {filtered.length > 0 ? (
+        {filteredItems.length > 0 ? (
           <div className="pagination">
-            <span className="muted">Mostrando {filtered.length ? ((page - 1) * pageSize + 1) : 0}-{Math.min(page * pageSize, filtered.length)} de {filtered.length} resultados</span>
+            <span className="muted">Mostrando {filteredItems.length ? ((page - 1) * pageSize + 1) : 0}-{Math.min(page * pageSize, filteredItems.length)} de {filteredItems.length} resultados</span>
             <button className="page-btn" disabled={page === 1} onClick={() => setPage(p => Math.max(1, p - 1))}>{'<'}</button>
             {Array.from({ length: totalPages }, (_, i) => (
               <button key={i} className={'page-btn' + (page === i + 1 ? ' active' : '')} onClick={() => setPage(i + 1)}>{i + 1}</button>

@@ -4,6 +4,35 @@ import StatusBadge from '../components/StatusBadge.jsx'
 import API from '../lib/api.js'
 import SearchBar from '../components/SearchBar.jsx'
 
+function normalizeChildCandidates(tid) {
+  const s = String(tid || '').trim()
+  const out = new Set([s])
+  if (s.includes('/')) out.add(s.split('/').join('-'))
+  if (s.includes('-')) out.add(s.split('-').join('/'))
+  if (s.includes('/')) out.add(s.split('/').pop())
+  if (s.includes('-')) out.add(s.split('-').pop())
+  out.add(s.replace(/^\d+[\/-]/, ''))
+  return Array.from(out).filter(Boolean)
+}
+
+async function fetchChildPhotoCount(id) {
+  const candidates = normalizeChildCandidates(id)
+  const responses = await Promise.all(
+    candidates.map(candidate =>
+      API.get(`/bls/${encodeURIComponent(candidate)}/photos?type=hijo`)
+        .then(res => Array.isArray(res.data?.photos) ? res.data.photos : [])
+        .catch(() => [])
+    )
+  )
+
+  const seen = new Set()
+  responses.flat().forEach(photo => {
+    const key = String(photo?.id || '')
+    if (key) seen.add(key)
+  })
+  return seen.size
+}
+
 function BLList({ user }) {
 
   const [childrenList, setChildrenList] = useState([])
@@ -95,7 +124,10 @@ function BLList({ user }) {
     const toFetch = ids.filter(id => typeof photoCounts[id] === 'undefined')
     if (!toFetch.length) return
     let cancelled = false
-    Promise.all(toFetch.map(id => API.get('/bls/' + id + '/photos').then(res => ({ id, count: (res.data?.count ?? (Array.isArray(res.data?.photos) ? res.data.photos.length : 0)) })).catch(() => ({ id, count: 0 }))))
+    Promise.all(toFetch.map(async id => {
+      const count = await fetchChildPhotoCount(id)
+      return { id, count }
+    }))
       .then(list => {
         if (cancelled) return
         setPhotoCounts(prev => {

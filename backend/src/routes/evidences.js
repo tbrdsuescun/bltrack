@@ -3,8 +3,8 @@ const axios = require('axios')
 const path = require('path')
 const { authRequired } = require('../middlewares/auth')
 const { requireRole } = require('../middlewares/role')
-const { EvidenceSubmission, RegistroFotografico } = require('../db/sequelize')
-const { Op } = require('sequelize')
+const { sequelize, EvidenceSubmission, RegistroFotografico } = require('../db/sequelize')
+const { Op, QueryTypes } = require('sequelize')
 const fs = require('fs').promises
 const { filePath } = require('../services/storage')
 const { EVIDENCE_URL, EVIDENCE_USER, EVIDENCE_PASS, EXTERNAL_RETRY_COUNT, EXTERNAL_TIMEOUT_MS, STORAGE_PATH } = require('../config')
@@ -547,7 +547,7 @@ router.get('/evidences/admin/sent', authRequired, requireRole('admin'), async (r
       attributes: { exclude: ['payload'] }
     })
 
-    const items = rows.map(r => {
+    const itemsBase = rows.map(r => {
       const meta = Array.isArray(r.documents_meta) ? r.documents_meta : []
       const dateInfo = buildEffectiveDateInfo(r)
       const imagesTotal = Math.max(Number(r.documents_count || 0), meta.length)
@@ -575,10 +575,105 @@ router.get('/evidences/admin/sent', authRequired, requireRole('admin'), async (r
       return true
     })
 
+    const childRefs = Array.from(new Set(
+      itemsBase
+        .filter(item => String(item.type || '') === 'hijo')
+        .map(item => String(item.reference_number || '').trim())
+        .filter(Boolean)
+    ))
+
+    const childRows = childRefs.length ? await sequelize.query(
+      `SELECT master_id, child_id, type, user_id, cliente_nombre, numero_ie, numero_DO_master, numero_DO_hijo, pais_de_origen, puerto_de_origen
+       FROM master_children
+       WHERE type = 'hijo' AND child_id IN (:childRefs)`,
+      {
+        replacements: { childRefs },
+        type: QueryTypes.SELECT
+      }
+    ) : []
+
+    const childMap = {}
+    childRows.forEach(row => {
+      const key = String(row.child_id || '').trim()
+      if (!key) return
+      if (!childMap[key]) childMap[key] = []
+      childMap[key].push(row)
+    })
+
+    function pickChildDetail(item) {
+      const key = String(item?.reference_number || '').trim()
+      const list = childMap[key] || []
+      if (!list.length) return null
+      const exact = list.find(row => Number(row.user_id || 0) > 0 && Number(row.user_id || 0) === Number(item.user_id || 0))
+      return exact || list[0] || null
+    }
+
+    const items = itemsBase.map(item => {
+      const detail = String(item.type || '') === 'hijo' ? pickChildDetail(item) : null
+      const masterId = String(
+        String(item.type || '') === 'master'
+          ? item.reference_number
+          : (detail?.master_id || item.reference_number || '')
+      ).trim()
+
+      const enriched = {
+        ...item,
+        master_id: masterId || null,
+        cliente_nombre: detail?.cliente_nombre || null,
+        puerto_de_origen: detail?.puerto_de_origen || null,
+        numero_ie: detail?.numero_ie || null,
+        pais_de_origen: detail?.pais_de_origen || null,
+        numero_hbl: String(item.type || '') === 'hijo' ? String(item.reference_number || '') : null,
+        numero_do_hijo: detail?.numero_DO_hijo || item.do_number || null,
+        numero_do_master: detail?.numero_DO_master || (String(item.type || '') === 'master' ? item.do_number : null) || null
+      }
+      return enriched
+    })
+
+    const flatMap = {}
+    items.forEach(item => {
+      const key = [
+        String(item.type || ''),
+        String(item.master_id || ''),
+        String(item.reference_number || '')
+      ].join('|')
+      const rowDo = String(item.type || '') === 'master'
+        ? (item.numero_do_master || item.do_number || null)
+        : (item.numero_do_master || item.do_number || item.numero_do_hijo || null)
+
+      if (!flatMap[key]) {
+        flatMap[key] = {
+          reference_number: item.reference_number || null,
+          master: item.master_id || item.reference_number || null,
+          do_number: rowDo,
+          type: String(item.type || '') === 'master' ? 'Master' : 'Hijo',
+          effective_date: item.effective_date || '-',
+          effective_date_at: item.effective_date_at || item.created_at || null,
+          images_total: 0
+        }
+      }
+
+      flatMap[key].images_total += Number(item.images_total || item.documents_count || 0)
+      if (!flatMap[key].do_number && rowDo) flatMap[key].do_number = rowDo
+      const prevTs = parseFlexibleDate(flatMap[key].effective_date_at)
+      const itemTs = parseFlexibleDate(item.effective_date_at || item.created_at)
+      if (itemTs && (!prevTs || itemTs.getTime() > prevTs.getTime())) {
+        flatMap[key].effective_date = item.effective_date || '-'
+        flatMap[key].effective_date_at = item.effective_date_at || item.created_at || null
+      }
+    })
+
+    const flat_items = Object.values(flatMap).sort((a, b) => {
+      const aTs = parseFlexibleDate(a.effective_date_at)?.getTime() || 0
+      const bTs = parseFlexibleDate(b.effective_date_at)?.getTime() || 0
+      if (bTs !== aTs) return bTs - aTs
+      return String(a.reference_number || '').localeCompare(String(b.reference_number || ''))
+    })
+
     res.json({
       ok: true,
-      items,
-      count: items.length,
+      items: flat_items,
+      count: flat_items.length,
       filters: { from: fromRaw || null, to: toRaw || null }
     })
   } catch (err) {
