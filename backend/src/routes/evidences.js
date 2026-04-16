@@ -342,6 +342,300 @@ async function buildDocumentsFromRegistro(rec, onlyMeta) {
   return { docs, totalBytes, docsMeta }
 }
 
+async function processImmediateServerBuildSubmission(initial, rec, params) {
+  const { userId, referenceNumber, doNumber, type } = params
+  try {
+    try {
+      await initial.update({
+        status: 'processing',
+        processing_started_at: new Date(),
+        error_message: null
+      })
+    } catch {}
+    const { docs, totalBytes, docsMeta } = await buildDocumentsFromRegistro(rec)
+    const documentsCount = docs.length
+
+    const counts = countPlainNietoFromPhotos(rec.photos, referenceNumber)
+    const payloadFull = { referenceNumber, totalImages: counts.totalImages, totalImagesNieto: counts.totalImagesNieto, doNumber, type, documents: docs }
+    const payloadStored = buildStoredPayload({
+      referenceNumber,
+      totalImages: counts.totalImages,
+      totalImagesNieto: counts.totalImagesNieto,
+      doNumber,
+      type,
+      documentsCount,
+      totalBytes,
+      documentsMeta: docsMeta,
+      sourceMode: 'registro'
+    })
+
+    await initial.update({
+      documents_count: documentsCount,
+      total_bytes: totalBytes,
+      documents_meta: docsMeta,
+      payload: payloadStored,
+      status: 'processing',
+      processing_started_at: initial.processing_started_at || new Date(),
+      error_message: null
+    })
+
+    try {
+      const wPrep = await writeEvidenceLog(initial.id, {
+        ts: new Date().toISOString(),
+        endpoint: EVIDENCE_URL,
+        user_id: userId,
+        type,
+        referenceNumber,
+        doNumber,
+        documents_count: documentsCount,
+        documents_meta: docsMeta,
+        action: 'prepare',
+        payload: payloadStored
+      }, 'prepare')
+      if (wPrep) {
+        try {
+          await initial.update({
+            payload: buildStoredPayload({
+              referenceNumber,
+              totalImages: counts.totalImages,
+              totalImagesNieto: counts.totalImagesNieto,
+              doNumber,
+              type,
+              documentsCount,
+              totalBytes,
+              documentsMeta: docsMeta,
+              logPath: relLogPath(wPrep),
+              sourceMode: 'registro'
+            })
+          })
+        } catch {}
+      }
+
+      const out = await sendToExternal(payloadFull)
+      const logicalErrMsg = (out && out.data && typeof out.data === 'object') ? String(out.data.errorMessage || '').trim() : ''
+      if (logicalErrMsg) {
+        const errEntry = {
+          ts: new Date().toISOString(),
+          endpoint: EVIDENCE_URL,
+          user_id: userId,
+          type,
+          referenceNumber,
+          doNumber,
+          documents_count: documentsCount,
+          documents_meta: docsMeta,
+          error: { message: logicalErrMsg, status: out?.status || null, body: out?.data },
+          payload: payloadStored,
+          payloadFull
+        }
+        const wErr = await writeEvidenceLog(initial.id, errEntry, 'error')
+        if (wErr) {
+          try {
+            await initial.update({
+              payload: buildStoredPayload({
+                referenceNumber,
+                totalImages: counts.totalImages,
+                totalImagesNieto: counts.totalImagesNieto,
+                doNumber,
+                type,
+                documentsCount,
+                totalBytes,
+                documentsMeta: docsMeta,
+                logPath: relLogPath(wErr),
+                sourceMode: 'registro'
+              })
+            })
+          } catch {}
+        }
+        await initial.update({ status: 'failed', error_message: logicalErrMsg, processing_started_at: null, next_attempt_at: null })
+        return
+      }
+
+      await writeEvidenceLog(initial.id, {
+        ts: new Date().toISOString(),
+        endpoint: EVIDENCE_URL,
+        user_id: userId,
+        type,
+        referenceNumber,
+        doNumber,
+        documents_count: documentsCount,
+        documents_meta: docsMeta,
+        response: { status: out?.status || null, body: out?.data }
+      }, 'response')
+      await initial.update({ status: 'sent', error_message: null, processing_started_at: null, next_attempt_at: null })
+    } catch (err) {
+      const errEntry = {
+        ts: new Date().toISOString(),
+        endpoint: EVIDENCE_URL,
+        user_id: userId,
+        type,
+        referenceNumber,
+        doNumber,
+        documents_count: documentsCount,
+        documents_meta: docsMeta,
+        error: { message: err.message, status: err?.response?.status || null, body: err?.response?.data },
+        payload: payloadStored,
+        payloadFull
+      }
+      const wErr = await writeEvidenceLog(initial.id, errEntry, 'error')
+      if (wErr) {
+        try {
+          await initial.update({
+            payload: buildStoredPayload({
+              referenceNumber,
+              totalImages: counts.totalImages,
+              totalImagesNieto: counts.totalImagesNieto,
+              doNumber,
+              type,
+              documentsCount,
+              totalBytes,
+              documentsMeta: docsMeta,
+              logPath: relLogPath(wErr),
+              sourceMode: 'registro'
+            })
+          })
+        } catch {}
+      }
+      try { await initial.update({ status: 'failed', error_message: err.message, processing_started_at: null }) } catch {}
+    }
+  } catch (e) {
+    try { await initial.update({ status: 'error', error_message: e.message, processing_started_at: null }) } catch {}
+  }
+}
+
+async function processImmediatePayloadSubmission(rec, params) {
+  const { userId, referenceNumber, totalImages, totalImagesNieto, doNumber, typeVal, documentsCount, totalBytes, docsMeta, payloadStored, payloadFull } = params
+  if (!rec) return
+  try {
+    try {
+      await rec.update({
+        status: 'processing',
+        processing_started_at: new Date(),
+        error_message: null
+      })
+    } catch {}
+    const wPrep = await writeEvidenceLog(rec.id, {
+      ts: new Date().toISOString(),
+      endpoint: EVIDENCE_URL,
+      user_id: userId,
+      type: typeVal,
+      referenceNumber,
+      doNumber,
+      documents_count: documentsCount,
+      documents_meta: docsMeta,
+      action: 'prepare',
+      payload: payloadStored
+    }, 'prepare')
+    if (wPrep) {
+      try {
+        await rec.update({
+          payload: buildStoredPayload({
+            referenceNumber,
+            totalImages,
+            totalImagesNieto,
+            doNumber,
+            type: typeVal,
+            documentsCount,
+            totalBytes,
+            documentsMeta: docsMeta,
+            documents: payloadFull.documents,
+            logPath: relLogPath(wPrep),
+            sourceMode: 'payload'
+          })
+        })
+      } catch {}
+    }
+
+    const out = await sendToExternal(payloadFull)
+    const logicalErrMsg = (out && out.data && typeof out.data === 'object') ? String(out.data.errorMessage || '').trim() : ''
+    if (logicalErrMsg) {
+      const errEntry = {
+        ts: new Date().toISOString(),
+        endpoint: EVIDENCE_URL,
+        user_id: userId,
+        type: typeVal,
+        referenceNumber,
+        doNumber,
+        documents_count: documentsCount,
+        documents_meta: docsMeta,
+        error: { message: logicalErrMsg, status: out?.status || null, body: out?.data },
+        payload: payloadStored,
+        payloadFull
+      }
+      const wErr = await writeEvidenceLog(rec.id, errEntry, 'error')
+      if (wErr) {
+        try {
+          await rec.update({
+            payload: buildStoredPayload({
+              referenceNumber,
+              totalImages,
+              totalImagesNieto,
+              doNumber,
+              type: typeVal,
+              documentsCount,
+              totalBytes,
+              documentsMeta: docsMeta,
+              documents: payloadFull.documents,
+              logPath: relLogPath(wErr),
+              sourceMode: 'payload'
+            })
+          })
+        } catch {}
+      }
+      await rec.update({ status: 'failed', error_message: logicalErrMsg, processing_started_at: null, next_attempt_at: null })
+      return
+    }
+
+    await writeEvidenceLog(rec.id, {
+      ts: new Date().toISOString(),
+      endpoint: EVIDENCE_URL,
+      user_id: userId,
+      type: typeVal,
+      referenceNumber,
+      doNumber,
+      documents_count: documentsCount,
+      documents_meta: docsMeta,
+      response: { status: out?.status || null, body: out?.data }
+    }, 'response')
+
+    await rec.update({ status: 'sent', error_message: null, processing_started_at: null, next_attempt_at: null })
+  } catch (err) {
+    const errEntry = {
+      ts: new Date().toISOString(),
+      endpoint: EVIDENCE_URL,
+      user_id: userId,
+      type: typeVal,
+      referenceNumber,
+      doNumber,
+      documents_count: documentsCount,
+      documents_meta: docsMeta,
+      error: { message: err.message, status: err?.response?.status || null, body: err?.response?.data },
+      payload: payloadStored,
+      payloadFull
+    }
+    const wErr = await writeEvidenceLog(rec.id, errEntry, 'error')
+    if (wErr) {
+      try {
+        await rec.update({
+          payload: buildStoredPayload({
+            referenceNumber,
+            totalImages,
+            totalImagesNieto,
+            doNumber,
+            type: typeVal,
+            documentsCount,
+            totalBytes,
+            documentsMeta: docsMeta,
+            documents: payloadFull.documents,
+            logPath: relLogPath(wErr),
+            sourceMode: 'payload'
+          })
+        })
+      } catch {}
+    }
+    try { await rec.update({ status: 'failed', error_message: err.message, processing_started_at: null }) } catch {}
+  }
+}
+
 router.post('/evidences/submit', authRequired, async (req, res) => {
   try {
     const body = req.body || {}
@@ -388,6 +682,14 @@ router.post('/evidences/submit', authRequired, async (req, res) => {
         error_message: null
       })
       res.json({ ok: true, queued: true, scheduled: true, id: initial.id, endpoint: EVIDENCE_URL, received: { referenceNumber, totalImages: counts.totalImages, totalImagesNieto: counts.totalImagesNieto, doNumber, type, documentsCount: rec.photos.length } })
+      setImmediate(() => {
+        processImmediateServerBuildSubmission(initial, rec, {
+          userId: req.user.id,
+          referenceNumber,
+          doNumber,
+          type
+        }).catch(() => {})
+      })
       return
     }
     const { referenceNumber, doNumber, type, documents } = body
@@ -413,6 +715,7 @@ router.post('/evidences/submit', authRequired, async (req, res) => {
       documents: list,
       sourceMode: 'payload'
     })
+    const payloadFull = { referenceNumber: String(referenceNumber), totalImages, totalImagesNieto, doNumber: doNumber ? String(doNumber) : null, type: typeVal, documents: list }
 
     let rec = null
     try {
@@ -434,6 +737,21 @@ router.post('/evidences/submit', authRequired, async (req, res) => {
     } catch {}
 
     res.json({ ok: true, queued: true, scheduled: true, id: rec?.id || null, endpoint: EVIDENCE_URL, received: { referenceNumber, totalImages, totalImagesNieto, doNumber, type: typeVal, documentsCount }, meta: { totalBytes } })
+    setImmediate(() => {
+      processImmediatePayloadSubmission(rec, {
+        userId: req.user.id,
+        referenceNumber,
+        totalImages,
+        totalImagesNieto,
+        doNumber,
+        typeVal,
+        documentsCount,
+        totalBytes,
+        docsMeta,
+        payloadStored,
+        payloadFull
+      }).catch(() => {})
+    })
   } catch (err) {
     try {
       const b = req.body || {}

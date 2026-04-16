@@ -358,6 +358,15 @@ async function processEvidenceSubmission(rec, options) {
     return { id: submission.id, ok: true, status: 'sent', skipped: true }
   }
 
+  logger.info({
+    msg: 'Evidence submission processing start',
+    mode: force ? 'manual' : 'cron',
+    submission_id: submission.id,
+    reference_number: submission.reference_number,
+    current_status: submission.status,
+    sent_docs_count: submission.sent_docs_count
+  })
+
   const claimedAt = new Date()
   await submission.update({
     status: 'processing',
@@ -512,6 +521,16 @@ async function processEvidenceSubmission(rec, options) {
           })
         })
 
+        logger.warn({
+          msg: 'Evidence submission processing failed on document',
+          mode: force ? 'manual' : 'cron',
+          submission_id: submission.id,
+          reference_number: resolved.referenceNumber,
+          sent_docs: sentDocs,
+          total_docs: resolved.documentsCount,
+          error: msg
+        })
+
         return { id: submission.id, ok: false, status: 'failed', error: msg, sent_docs: sentDocs, total_docs: resolved.documentsCount }
       }
 
@@ -554,6 +573,15 @@ async function processEvidenceSubmission(rec, options) {
       })
     })
 
+    logger.info({
+      msg: 'Evidence submission processing complete',
+      mode: force ? 'manual' : 'cron',
+      submission_id: submission.id,
+      reference_number: resolved.referenceNumber,
+      sent_docs: sentDocs,
+      total_docs: resolved.documentsCount
+    })
+
     return { id: submission.id, ok: true, status: 'sent', sent_docs: sentDocs, total_docs: resolved.documentsCount }
   } catch (err) {
     const msg = String(err?.message || 'Error procesando evidencia')
@@ -573,6 +601,13 @@ async function processEvidenceSubmission(rec, options) {
       error_message: msg,
       processing_started_at: null,
       next_attempt_at: new Date(Date.now() + FOUR_HOURS_MS)
+    })
+    logger.error({
+      msg: 'Evidence submission processing fatal error',
+      mode: force ? 'manual' : 'cron',
+      submission_id: submission.id,
+      reference_number: submission.reference_number,
+      error: msg
     })
     return { id: submission.id, ok: false, status: 'failed', error: msg }
   }
@@ -623,9 +658,14 @@ async function runEvidenceCycle() {
   cycleRunning = true
   try {
     let processed = 0
+    logger.info({ msg: 'Evidence cycle start', limit: CYCLE_LIMIT })
     while (processed < CYCLE_LIMIT) {
       const ids = await claimNextSubmissionIds(CYCLE_LIMIT - processed)
-      if (!ids.length) break
+      if (!ids.length) {
+        logger.info({ msg: 'Evidence cycle no pending submissions', processed })
+        break
+      }
+      logger.info({ msg: 'Evidence cycle claimed submissions', ids, claimed: ids.length })
       for (const id of ids) {
         const rec = await EvidenceSubmission.findByPk(id)
         if (!rec) continue
@@ -633,6 +673,7 @@ async function runEvidenceCycle() {
         processed++
       }
     }
+    logger.info({ msg: 'Evidence cycle end', processed })
     return { skipped: false, processed }
   } catch (err) {
     logger.error({ msg: 'Evidence cycle failed', error: err.message, stack: err.stack })
@@ -644,6 +685,7 @@ async function runEvidenceCycle() {
 
 function startEvidenceScheduler() {
   if (schedulerTimer) return
+  logger.info({ msg: 'Evidence scheduler bootstrap', first_run_in_ms: 15000, interval_ms: FOUR_HOURS_MS })
   setTimeout(() => {
     runEvidenceCycle().catch(err => logger.error({ msg: 'Initial evidence cycle failed', error: err.message }))
   }, 15000)

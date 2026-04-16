@@ -29,6 +29,7 @@ server.listen(PORT, () => {
         await runMigrations();
         startEvidenceScheduler();
       } catch (e) {
+        logger.error({ msg: 'Backend startup failed before evidence scheduler init', error: e.message, stack: e.stack });
       }
     })
     .catch((e) => logger.error({ error: e.message }));
